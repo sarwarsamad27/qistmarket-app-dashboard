@@ -704,8 +704,30 @@ function MiniCard({ label, value }: any) {
 }
 
 function DocSectionNew({ title, person, docs }: any) {
+    // Define the 6 standard document slots for every person
+    const isPurchaser = person === 'purchaser';
+    const grantorNum = !isPurchaser ? person.replace('grantor', '') : '';
+
+    const standardSlots: { key: string; label: string }[] = isPurchaser
+        ? [
+            { key: 'cnic_front', label: 'CNIC Front' },
+            { key: 'cnic_back', label: 'CNIC Back' },
+            { key: 'utility_bill', label: 'Utility Bill' },
+            { key: 'service_card', label: 'Salary Slip / Service Card' },
+            { key: 'signature', label: 'Signature' },
+            { key: 'photo', label: 'Live Photo' },
+        ]
+        : [
+            { key: 'cnic_front', label: `Grantor ${grantorNum} CNIC Front` },
+            { key: 'cnic_back', label: `Grantor ${grantorNum} CNIC Back` },
+            { key: 'utility_bill', label: `Grantor ${grantorNum} Utility Bill` },
+            { key: 'service_card', label: `Grantor ${grantorNum} Salary Slip / Service Card` },
+            { key: 'signature', label: `Grantor ${grantorNum} Signature` },
+            { key: 'photo', label: `Grantor ${grantorNum} Live Photo` },
+        ];
+
     const personDocs = docs.filter((d: any) => d.person_type === person);
-    if (personDocs.length === 0) return null;
+    const matchedKeys = new Set<string>();
 
     return (
         <div className="space-y-8">
@@ -713,7 +735,36 @@ function DocSectionNew({ title, person, docs }: any) {
                 {title}
             </h3>
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
-                {personDocs.map((doc: any, i: number) => (
+                {standardSlots.map((slot) => {
+                    const doc = personDocs.find((d: any) => d.document_type === slot.key);
+                    if (doc) matchedKeys.add(doc.document_type);
+                    return doc ? (
+                        <div key={slot.key} className="group relative rounded-3xl border border-stroke dark:border-strokedark bg-white dark:bg-meta-4 shadow-sm hover:shadow-xl transition-all overflow-hidden border-b-4 border-b-transparent hover:border-b-primary">
+                            <div className="aspect-[4/3] overflow-hidden bg-gray-50 dark:bg-boxdark p-1">
+                                <img src={doc.file_url} alt={doc.label} className="w-full h-full object-cover rounded-2xl transition-transform group-hover:scale-105" />
+                            </div>
+                            <div className="p-4 flex items-center justify-between">
+                                <div className="min-w-0 flex-1">
+                                    <p className="text-[10px] font-black uppercase text-gray-800 dark:text-white truncate">{doc.label?.split('-')[0] || slot.label}</p>
+                                    <p className="text-[8px] font-bold text-gray-400 uppercase tracking-widest mt-0.5">Verified Asset</p>
+                                </div>
+                                <a href={doc.file_url} target="_blank" className="p-2 bg-gray-50 dark:bg-meta-4 hover:text-primary transition-colors rounded-lg">
+                                    <Download size={14} />
+                                </a>
+                            </div>
+                        </div>
+                    ) : (
+                        <div key={slot.key} className="flex flex-col items-center justify-center p-4 rounded-3xl border-2 border-dashed border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-meta-4/10 text-center min-h-[140px]">
+                            <div className="p-2 rounded-full bg-gray-100 dark:bg-meta-4 text-gray-300 mb-2">
+                                <ImageIcon size={18} />
+                            </div>
+                            <p className="text-[10px] font-black uppercase text-gray-500 dark:text-gray-400 truncate w-full px-1">{slot.label}</p>
+                            <p className="text-[9px] text-gray-300 dark:text-gray-600 mt-0.5">Not uploaded</p>
+                        </div>
+                    );
+                })}
+                {/* Extra non-standard docs */}
+                {personDocs.filter((d: any) => !matchedKeys.has(d.document_type)).map((doc: any, i: number) => (
                     <div key={i} className="group relative rounded-3xl border border-stroke dark:border-strokedark bg-white dark:bg-meta-4 shadow-sm hover:shadow-xl transition-all overflow-hidden border-b-4 border-b-transparent hover:border-b-primary">
                         <div className="aspect-[4/3] overflow-hidden bg-gray-50 dark:bg-boxdark p-1">
                             <img src={doc.file_url} alt={doc.label} className="w-full h-full object-cover rounded-2xl transition-transform group-hover:scale-105" />

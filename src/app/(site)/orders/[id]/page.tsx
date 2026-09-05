@@ -1604,31 +1604,74 @@ export default function OrderDetailsPage() {
                                         );
                                     })}
                                 </div>
-                                {/* Purchaser Documents */}
-                                {verification.documents.filter((doc: any) => doc.person_type === 'purchaser').length > 0 && (
-                                    <div className="mt-8">
-                                        <h3 className="mb-4 text-xl font-semibold text-blue-700 dark:text-blue-400">Purchaser Uploaded Documents</h3>
-                                        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                                            {verification.documents.filter((doc: any) => doc.person_type === 'purchaser').map((doc: any) => (
-                                                <MediaCard 
-                                                    key={doc.id} 
-                                                    id={doc.id}
-                                                    title={doc.label || doc.document_type}
-                                                    subtitle={doc.document_type?.replace(/_/g, ' ')}
-                                                    fileUrl={doc.file_url}
-                                                    uploadedAt={doc.uploaded_at}
-                                                    isEditable={user?.role === 'Super Admin' && order.status === 'delivered'}
-                                                    onEdit={(file) => handleMediaReplace(file, doc.id, doc.document_type, doc.person_type, doc.person_id)}
-                                                    editHistory={verification.edit_history || []}
-                                                    historyFilter={(h) => 
-                                                        h.field_name === doc.document_type && 
-                                                        (h.entity_type === doc.person_type || (h.entity_id !== null && h.entity_id === doc.person_id))
-                                                    }
-                                                />
-                                            ))}
+                                {/* Purchaser Documents — 6 standard slots */}
+                                {(() => {
+                                    const purchaserDocs = verification.documents.filter((doc: any) => doc.person_type === 'purchaser');
+                                    const purchaserStandardSlots = [
+                                        { key: 'cnic_front', title: 'CNIC Front' },
+                                        { key: 'cnic_back', title: 'CNIC Back' },
+                                        { key: 'utility_bill', title: 'Utility Bill' },
+                                        { key: 'service_card', title: 'Salary Slip / Service Card' },
+                                        { key: 'signature', title: 'Signature' },
+                                        { key: 'photo', title: 'Purchaser Live Photo' },
+                                    ];
+                                    const purchaserMatchedKeys = new Set<string>();
+                                    return (
+                                        <div className="mt-8">
+                                            <h3 className="mb-4 text-xl font-semibold text-blue-700 dark:text-blue-400">Purchaser Documents</h3>
+                                            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                                                {purchaserStandardSlots.map((slot) => {
+                                                    const doc = purchaserDocs.find((d: any) => d.document_type === slot.key);
+                                                    if (doc) purchaserMatchedKeys.add(doc.document_type);
+                                                    return doc ? (
+                                                        <MediaCard
+                                                            key={slot.key}
+                                                            id={doc.id}
+                                                            title={doc.label || slot.title}
+                                                            subtitle={doc.document_type?.replace(/_/g, ' ')}
+                                                            fileUrl={doc.file_url}
+                                                            uploadedAt={doc.uploaded_at}
+                                                            isEditable={user?.role === 'Super Admin' && order.status === 'delivered'}
+                                                            onEdit={(file) => handleMediaReplace(file, doc.id, doc.document_type, doc.person_type, doc.person_id)}
+                                                            editHistory={verification.edit_history || []}
+                                                            historyFilter={(h) =>
+                                                                h.field_name === doc.document_type &&
+                                                                (h.entity_type === doc.person_type || (h.entity_id !== null && h.entity_id === doc.person_id))
+                                                            }
+                                                        />
+                                                    ) : (
+                                                        <div key={slot.key} className="flex flex-col items-center justify-center p-5 rounded-2xl border-2 border-dashed border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/30 text-center min-h-[170px]">
+                                                            <div className="p-3 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-400 mb-3">
+                                                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                                                </svg>
+                                                            </div>
+                                                            <p className="text-sm font-bold text-gray-600 dark:text-gray-400 mb-1">{slot.title}</p>
+                                                            <p className="text-xs text-gray-400">Not uploaded</p>
+                                                        </div>
+                                                    );
+                                                })}
+                                                {purchaserDocs.filter((d: any) => !purchaserMatchedKeys.has(d.document_type)).map((doc: any) => (
+                                                    <MediaCard
+                                                        key={doc.id}
+                                                        id={doc.id}
+                                                        title={doc.label || doc.document_type}
+                                                        subtitle={doc.document_type?.replace(/_/g, ' ')}
+                                                        fileUrl={doc.file_url}
+                                                        uploadedAt={doc.uploaded_at}
+                                                        isEditable={user?.role === 'Super Admin' && order.status === 'delivered'}
+                                                        onEdit={(file) => handleMediaReplace(file, doc.id, doc.document_type, doc.person_type, doc.person_id)}
+                                                        editHistory={verification.edit_history || []}
+                                                        historyFilter={(h) =>
+                                                            h.field_name === doc.document_type &&
+                                                            (h.entity_type === doc.person_type || (h.entity_id !== null && h.entity_id === doc.person_id))
+                                                        }
+                                                    />
+                                                ))}
+                                            </div>
                                         </div>
-                                    </div>
-                                )}
+                                    );
+                                })()}
                             </div>
                         )}
 
@@ -1681,31 +1724,77 @@ export default function OrderDetailsPage() {
                                             );
                                         })}
                                     </div>
-                                    {/* Grantor Documents */}
-                                    {verification.documents.filter((doc: any) => doc.person_type === `grantor${grantor.grantor_number}`).length > 0 && (
-                                        <div className="mt-8">
-                                            <h3 className="mb-4 text-xl font-semibold text-indigo-700 dark:text-indigo-400">Grantor {grantor.grantor_number} Uploaded Documents</h3>
-                                            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                                                {verification.documents.filter((doc: any) => doc.person_type === `grantor${grantor.grantor_number}`).map((doc: any) => (
-                                                    <MediaCard 
-                                                        key={doc.id} 
-                                                        id={doc.id}
-                                                        title={doc.label || doc.document_type}
-                                                        subtitle={doc.document_type?.replace(/_/g, ' ')}
-                                                        fileUrl={doc.file_url}
-                                                        uploadedAt={doc.uploaded_at}
-                                                        isEditable={isEditable}
-                                                        onEdit={(file) => handleMediaReplace(file, doc.id, doc.document_type, doc.person_type, doc.person_id)}
-                                                        editHistory={verification.edit_history || []}
-                                                        historyFilter={(h) => 
-                                                            h.field_name === doc.document_type && 
-                                                            (h.entity_type === doc.person_type || (h.entity_id !== null && h.entity_id === doc.person_id))
-                                                        }
-                                                    />
-                                                ))}
+                                    {/* Grantor Documents — same 6 standard slots as Purchaser */}
+                                    {(() => {
+                                        const grantorPersonType = `grantor${grantor.grantor_number}`;
+                                        const grantorDocs = verification.documents.filter((doc: any) => doc.person_type === grantorPersonType);
+                                        const gNum = grantor.grantor_number;
+                                        const standardSlots = [
+                                            { key: 'cnic_front', title: `Grantor ${gNum} CNIC Front` },
+                                            { key: 'cnic_back', title: `Grantor ${gNum} CNIC Back` },
+                                            { key: 'utility_bill', title: `Grantor ${gNum} Utility Bill / Proof` },
+                                            { key: 'service_card', title: `Grantor ${gNum} Salary Slip / Service Card` },
+                                            { key: 'signature', title: `Grantor ${gNum} Signature` },
+                                            { key: 'photo', title: `Grantor ${gNum} Live Photo` },
+                                        ];
+                                        const matchedKeys = new Set<string>();
+                                        return (
+                                            <div className="mt-8">
+                                                <h3 className="mb-4 text-xl font-semibold text-indigo-700 dark:text-indigo-400">Grantor {gNum} Documents</h3>
+                                                <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                                                    {standardSlots.map((slot) => {
+                                                        const doc = grantorDocs.find((d: any) => d.document_type === slot.key);
+                                                        if (doc) matchedKeys.add(doc.document_type);
+                                                        return doc ? (
+                                                            <MediaCard
+                                                                key={slot.key}
+                                                                id={doc.id}
+                                                                title={doc.label || slot.title}
+                                                                subtitle={doc.document_type?.replace(/_/g, ' ')}
+                                                                fileUrl={doc.file_url}
+                                                                uploadedAt={doc.uploaded_at}
+                                                                isEditable={isEditable}
+                                                                onEdit={(file) => handleMediaReplace(file, doc.id, doc.document_type, doc.person_type, doc.person_id)}
+                                                                editHistory={verification.edit_history || []}
+                                                                historyFilter={(h) =>
+                                                                    h.field_name === doc.document_type &&
+                                                                    (h.entity_type === doc.person_type || (h.entity_id !== null && h.entity_id === doc.person_id))
+                                                                }
+                                                            />
+                                                        ) : (
+                                                            <div key={slot.key} className="flex flex-col items-center justify-center p-5 rounded-2xl border-2 border-dashed border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/30 text-center min-h-[170px]">
+                                                                <div className="p-3 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-400 mb-3">
+                                                                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                                                    </svg>
+                                                                </div>
+                                                                <p className="text-sm font-bold text-gray-600 dark:text-gray-400 mb-1">{slot.title}</p>
+                                                                <p className="text-xs text-gray-400">Not uploaded</p>
+                                                            </div>
+                                                        );
+                                                    })}
+                                                    {/* Any extra non-standard docs */}
+                                                    {grantorDocs.filter((d: any) => !matchedKeys.has(d.document_type)).map((doc: any) => (
+                                                        <MediaCard
+                                                            key={doc.id}
+                                                            id={doc.id}
+                                                            title={doc.label || doc.document_type}
+                                                            subtitle={doc.document_type?.replace(/_/g, ' ')}
+                                                            fileUrl={doc.file_url}
+                                                            uploadedAt={doc.uploaded_at}
+                                                            isEditable={isEditable}
+                                                            onEdit={(file) => handleMediaReplace(file, doc.id, doc.document_type, doc.person_type, doc.person_id)}
+                                                            editHistory={verification.edit_history || []}
+                                                            historyFilter={(h) =>
+                                                                h.field_name === doc.document_type &&
+                                                                (h.entity_type === doc.person_type || (h.entity_id !== null && h.entity_id === doc.person_id))
+                                                            }
+                                                        />
+                                                    ))}
+                                                </div>
                                             </div>
-                                        </div>
-                                    )}
+                                        );
+                                    })()}
                                 </div>
                             );
                         })}

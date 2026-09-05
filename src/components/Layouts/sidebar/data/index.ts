@@ -79,7 +79,7 @@ export const NAV_DATA = [
         items: [],
       },
       {
-        title: "Blacklisted Accounts",
+        title: "Blacklisted Customers",
         icon: Icons.BanIcon,
         url: "/admin/customers/blacklist",
         items: [],
@@ -430,7 +430,7 @@ export const NAV_DATA = [
         items: [],
       },
       {
-        title: "Blacklisted Accounts",
+        title: "Blacklisted Customers",
         icon: Icons.BanIcon,
         url: "/admin/customers/blacklist",
         items: [],
@@ -632,7 +632,7 @@ export const NAV_DATA = [
         ],
       },
       {
-        title: "Blacklisted Accounts",
+        title: "Blacklisted Customers",
         icon: Icons.BanIcon,
         url: "/admin/customers/blacklist",
         items: [],

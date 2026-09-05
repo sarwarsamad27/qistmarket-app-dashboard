@@ -448,6 +448,16 @@ const VerificationDetails = ({ params }: { params: Promise<{ id: string }> }) =>
   // so the verification officer can see all their connections in one glance.
   const [cnicOrders, setCnicOrders] = useState<Record<string, any[]>>({})
 
+  // Manual location entry — for profiles (legacy imports especially) that
+  // never went through the live "assign an officer, they capture GPS from
+  // the field" flow. Posts straight to the same /location-verified endpoint
+  // that flow uses, so the result is indistinguishable from a normal one
+  // (home_location_verified flips true, etc.) other than location_type
+  // being 'manual' instead of 'captured'.
+  const [addLocationFor, setAddLocationFor] = useState<'purchaser' | 'grantor1' | 'grantor2' | null>(null);
+  const [locationForm, setLocationForm] = useState({ latitude: '', longitude: '', address: '', photo: null as File | null });
+  const [savingLocation, setSavingLocation] = useState(false);
+
   const { user } = useAuth();
   // Set officer details from loaded data when officerIdInput changes
   useEffect(() => {
@@ -867,6 +877,106 @@ const VerificationDetails = ({ params }: { params: Promise<{ id: string }> }) =>
     } catch (err: any) {
       console.error(err);
       toast.error(err.message || 'Error uploading document');
+    }
+  };
+
+  const personIdFor = (personType: 'purchaser' | 'grantor1' | 'grantor2'): number | null => {
+    if (!data) return null;
+    if (personType === 'purchaser') return data.purchaser?.id ?? null;
+    const num = personType === 'grantor1' ? 1 : 2;
+    return data.grantors.find((g) => g.grantor_number === num)?.id ?? null;
+  };
+
+  const personLabelFor = (personType: 'purchaser' | 'grantor1' | 'grantor2') =>
+    personType === 'purchaser' ? 'Purchaser' : personType === 'grantor1' ? 'Grantor 1' : 'Grantor 2';
+
+  const openAddLocation = (personType: 'purchaser' | 'grantor1' | 'grantor2') => {
+    setAddLocationFor(personType);
+    setLocationForm({ latitude: '', longitude: '', address: '', photo: null });
+  };
+
+  const handleSaveLocation = async () => {
+    if (!data || !addLocationFor) return;
+    const personId = personIdFor(addLocationFor);
+    if (!personId) {
+      toast.error(`${personLabelFor(addLocationFor)} record not found`);
+      return;
+    }
+    const lat = parseFloat(locationForm.latitude);
+    const lng = parseFloat(locationForm.longitude);
+    if (isNaN(lat) || isNaN(lng)) {
+      toast.error('Enter valid latitude and longitude');
+      return;
+    }
+    const token = Cookies.get('auth_token');
+    if (!token) {
+      toast.error('Authentication required');
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append('location_type', 'manual');
+    formData.append('latitude', String(lat));
+    formData.append('longitude', String(lng));
+    formData.append('address', locationForm.address);
+    formData.append('label', personLabelFor(addLocationFor));
+    formData.append('person_type', addLocationFor);
+    formData.append('person_id', String(personId));
+    if (locationForm.photo) formData.append('photos', locationForm.photo);
+
+    setSavingLocation(true);
+    try {
+      const res = await fetch(`${BACKEND_URL}/api/verification/${data.id}/location-verified`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData,
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error?.message || json.message || 'Failed to save location');
+
+      const refreshRes = await fetch(`${BACKEND_URL}/api/verification/order/${id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const refreshJson = await refreshRes.json();
+      if (refreshJson.success && refreshJson.data?.verification) {
+        setData(refreshJson.data.verification);
+      }
+      toast.success(`${personLabelFor(addLocationFor)} location saved`);
+      setAddLocationFor(null);
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err.message || 'Failed to save location');
+    } finally {
+      setSavingLocation(false);
+    }
+  };
+
+  const handleDeleteVerificationLocation = async (locationId: number) => {
+    if (!data) return;
+    const token = Cookies.get('auth_token');
+    if (!token) {
+      toast.error('Authentication required');
+      return;
+    }
+    try {
+      const res = await fetch(`${BACKEND_URL}/api/verification/location/${locationId}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error?.message || json.message || 'Failed to delete location');
+
+      const refreshRes = await fetch(`${BACKEND_URL}/api/verification/order/${id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const refreshJson = await refreshRes.json();
+      if (refreshJson.success && refreshJson.data?.verification) {
+        setData(refreshJson.data.verification);
+      }
+      toast.success('Location removed');
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err.message || 'Failed to delete location');
     }
   };
 
@@ -2050,6 +2160,142 @@ const VerificationDetails = ({ params }: { params: Promise<{ id: string }> }) =>
           </div>
         </div>
       )}
+
+      {/* Purchaser & Guarantor Locations — always visible (unlike the read-only
+          block below) so a location can be added directly by an admin, not
+          just via "assign an officer, they capture GPS live in the field".
+          Same result either way: posts to /location-verified, which is what
+          flips home_location_verified — a manually-added location makes the
+          profile indistinguishable from one verified the normal way. */}
+      <div className="mb-12">
+        <h2 className="mb-4 text-2xl font-semibold text-dark dark:text-white">Purchaser & Guarantor Locations</h2>
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {(['purchaser', 'grantor1', 'grantor2'] as const)
+            .filter((pt) => personIdFor(pt) !== null)
+            .map((pt) => {
+              const personId = personIdFor(pt);
+              const existing = data.verification_locations.filter((loc) => loc.person_type === pt && loc.person_id === personId);
+              return (
+                <div key={pt} className="rounded-lg border border-stroke p-4 dark:border-dark-3">
+                  <div className="mb-3 flex items-center justify-between">
+                    <span className="font-semibold text-dark dark:text-white">{personLabelFor(pt)}</span>
+                    <button
+                      onClick={() => openAddLocation(pt)}
+                      className="text-xs font-bold text-primary hover:underline"
+                    >
+                      + Add Location
+                    </button>
+                  </div>
+
+                  {existing.length === 0 ? (
+                    <p className="text-sm text-gray-400">No location on record yet.</p>
+                  ) : (
+                    <div className="space-y-3">
+                      {existing.map((loc) => (
+                        <div key={loc.id} className="rounded-md bg-gray-50 p-3 text-sm dark:bg-dark-2">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="dark:text-gray-300">{loc.latitude}, {loc.longitude}</span>
+                            <span className="rounded bg-gray-200 px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-gray-600 dark:bg-gray-700 dark:text-gray-300">
+                              {loc.location_type}
+                            </span>
+                          </div>
+                          {loc.address && <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{loc.address}</p>}
+                          <div className="mt-2 flex items-center gap-3">
+                            <a
+                              href={`https://www.google.com/maps/search/?api=1&query=${loc.latitude},${loc.longitude}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-xs font-bold text-primary hover:underline"
+                            >
+                              View on Map
+                            </a>
+                            {loc.photos?.length > 0 && (
+                              <span className="text-xs text-gray-400">{loc.photos.length} photo(s)</span>
+                            )}
+                            {user?.role === 'Super Admin' && (
+                              <button
+                                onClick={() => handleDeleteVerificationLocation(loc.id)}
+                                className="ml-auto text-xs font-bold text-red-600 hover:underline"
+                              >
+                                Delete
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+        </div>
+      </div>
+
+      {/* Add Location Modal */}
+      <Modal open={addLocationFor !== null} onClose={() => setAddLocationFor(null)}>
+        <div className="rounded-2xl bg-white p-8 shadow-xl dark:bg-gray-800">
+          <h2 className="mb-4 text-lg font-bold dark:text-white">
+            Add Location — {addLocationFor ? personLabelFor(addLocationFor) : ''}
+          </h2>
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-500 dark:text-gray-400">Latitude</label>
+              <input
+                type="text"
+                inputMode="decimal"
+                value={locationForm.latitude}
+                onChange={(e) => setLocationForm((f) => ({ ...f, latitude: e.target.value }))}
+                placeholder="e.g. 24.8607"
+                className="mt-1 w-full rounded-lg border border-stroke bg-gray-50 px-4 py-2.5 text-sm dark:border-dark-3 dark:bg-dark-3 dark:text-white"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-500 dark:text-gray-400">Longitude</label>
+              <input
+                type="text"
+                inputMode="decimal"
+                value={locationForm.longitude}
+                onChange={(e) => setLocationForm((f) => ({ ...f, longitude: e.target.value }))}
+                placeholder="e.g. 67.0011"
+                className="mt-1 w-full rounded-lg border border-stroke bg-gray-50 px-4 py-2.5 text-sm dark:border-dark-3 dark:bg-dark-3 dark:text-white"
+              />
+            </div>
+            <p className="text-xs text-gray-400">
+              Tip: open the address in Google Maps, right-click the pin, and copy the two numbers it shows — paste the first into Latitude and the second into Longitude.
+            </p>
+            <div>
+              <label className="block text-sm font-medium text-gray-500 dark:text-gray-400">Address (optional)</label>
+              <input
+                type="text"
+                value={locationForm.address}
+                onChange={(e) => setLocationForm((f) => ({ ...f, address: e.target.value }))}
+                className="mt-1 w-full rounded-lg border border-stroke bg-gray-50 px-4 py-2.5 text-sm dark:border-dark-3 dark:bg-dark-3 dark:text-white"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-500 dark:text-gray-400">Photo (optional)</label>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={(e) => setLocationForm((f) => ({ ...f, photo: e.target.files?.[0] || null }))}
+                className="mt-1 w-full text-sm dark:text-gray-300"
+              />
+            </div>
+          </div>
+          <div className="mt-6 flex gap-4">
+            <button
+              className="rounded bg-primary px-4 py-2 text-white disabled:opacity-50"
+              onClick={handleSaveLocation}
+              disabled={savingLocation}
+            >
+              {savingLocation ? 'Saving…' : 'Save Location'}
+            </button>
+            <button className="rounded bg-gray-300 px-4 py-2" onClick={() => setAddLocationFor(null)} disabled={savingLocation}>
+              Cancel
+            </button>
+          </div>
+        </div>
+      </Modal>
 
       {/* Locations */}
       {(data.locations.length > 0 || data.verification_locations.length > 0) && (

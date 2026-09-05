@@ -48,6 +48,9 @@ const COLUMNS = [
   'grantor2_office_address', 'grantor2_company_name', 'grantor2_years_in_company', 'grantor2_monthly_income',
   'grantor2_business_name', 'grantor2_established_since', 'grantor2_business_address', 'grantor2_net_income',
   'grantor2_full_residential_address', 'grantor2_nearest_location',
+  // Next of Kin — optional, matches the order detail page's Next of Kin
+  // Details section (a distinct, single record, not per-guarantor).
+  'next_of_kin_name', 'next_of_kin_cnic', 'next_of_kin_relation', 'next_of_kin_phone',
   // Payment history — each PAY column paired with the date it was actually
   // collected, so the installment ledger shows real payment dates and exact
   // (possibly uneven) amounts instead of an assumed on-schedule full payment.
@@ -74,6 +77,7 @@ const FIELD_LABELS: Record<string, string> = {
   purchaser_nearest_location: 'Nearest Location',
   item_price: 'Item Price', item_model: 'Item Model', serial: 'Serial', tenure_months: 'Tenure',
   advance: 'Advance', installment: 'Installment',
+  next_of_kin_name: 'Name', next_of_kin_cnic: 'CNIC', next_of_kin_relation: 'Relation', next_of_kin_phone: 'Phone Number',
   pay1: 'Pay 1', pay1_date: 'Pay 1 Date', pay2: 'Pay 2', pay2_date: 'Pay 2 Date',
   pay3: 'Pay 3', pay3_date: 'Pay 3 Date', pay4: 'Pay 4', pay4_date: 'Pay 4 Date', remain: 'Remain',
 };
@@ -127,6 +131,7 @@ const FIELD_SECTIONS: { title: string; fields: string[] }[] = [
       'grantor2_full_residential_address', 'grantor2_nearest_location',
     ],
   },
+  { title: 'Next of Kin', fields: ['next_of_kin_name', 'next_of_kin_cnic', 'next_of_kin_relation', 'next_of_kin_phone'] },
   { title: 'Payment History', fields: ['pay1', 'pay1_date', 'pay2', 'pay2_date', 'pay3', 'pay3_date', 'pay4', 'pay4_date', 'remain'] },
 ];
 
@@ -225,6 +230,7 @@ export default function LegacyImportPage() {
         'Guarantor 2 Office Address', 'Guarantor 2 Company Name', 'Guarantor 2 Years in Company', 'Guarantor 2 Monthly Income',
         'Guarantor 2 Business Name', 'Guarantor 2 Established Since', 'Guarantor 2 Business Address', 'Guarantor 2 Net Income',
         'Guarantor 2 Full Residential Address', 'Guarantor 2 Nearest Location',
+        'Next of Kin Name', 'Next of Kin CNIC', 'Next of Kin Relation', 'Next of Kin Phone',
         'PAY 1', 'PAY 1 DATE', 'PAY 2', 'PAY 2 DATE', 'PAY 3', 'PAY 3 DATE', 'PAY 4', 'PAY 4 DATE', 'remain',
       ];
 
@@ -250,6 +256,7 @@ export default function LegacyImportPage() {
           '', '', '', '',
           '', '', '', '',
           '', '',
+          'MUHAMMAD AHSAN SR', '42101-1111111-1', 'Father', '03001112222',
           4600, '10/07/2026', 4600, '12/08/2026', '', '', '', '', 46000,
         ],
         // Row 2: Fully paid off (completed) — sparser row, showing that most
@@ -273,6 +280,7 @@ export default function LegacyImportPage() {
           '', '', '', '',
           '', '', '', '',
           '', '',
+          '', '', '', '',
           6750, '10/02/2026', 6750, '09/03/2026', 6750, '11/04/2026', 6750, '10/05/2026', 0,
         ],
       ];

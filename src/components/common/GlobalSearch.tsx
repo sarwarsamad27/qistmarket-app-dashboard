@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Search, User, FileText, ClipboardList, Loader2, X, Hash, MapPin, Phone, ArrowRight, UserCheck, ExternalLink, PartyPopper, Ban, ShieldCheck } from "lucide-react";
+import { Search, User, FileText, ClipboardList, Loader2, X, Hash, MapPin, Phone, ArrowRight, UserCheck, ExternalLink, Ban, ShieldCheck } from "lucide-react";
 import Cookies from "js-cookie";
 import toast from "react-hot-toast";
 import { useProfileModal } from "../../../contexts/ProfileModalContext";
@@ -269,14 +269,6 @@ function ResultItem({ item, openProfile, setIsOpen }: any) {
                             color="emerald"
                             href={`/orders/${item.id}`}
                         />
-                        {item.status === 'delivered' && !isBlacklisted && item.is_ledger_cleared && (
-                            <ActionIconButton 
-                                icon={<PartyPopper size={16} />} 
-                                label="Convert"
-                                color="indigo"
-                                href={`/convert-sale/${item.id}`}
-                            />
-                        )}
                         {!isBlacklisted && (
                             <ActionIconButton 
                                 icon={<Ban size={16} />} 

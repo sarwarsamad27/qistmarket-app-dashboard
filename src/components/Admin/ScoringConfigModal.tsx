@@ -277,11 +277,12 @@ export default function ScoringConfigModal({ isOpen, onClose, onSaved }: Scoring
 
   const updateVal = (section: keyof ScoringConfig, key: string, value: number) => {
     if (!config) return;
+    const clean = isNaN(value) ? 0 : Math.max(0, Math.floor(value));
     setConfig({
       ...config,
       [section]: {
         ...config[section],
-        [key]: value,
+        [key]: clean,
       },
     });
   };
@@ -424,8 +425,9 @@ export default function ScoringConfigModal({ isOpen, onClose, onSaved }: Scoring
                   <input
                     type="number"
                     value={config.outlet.points_per_delivered_order}
-                    onChange={(e) => updateVal("outlet", "points_per_delivered_order", Number(e.target.value))}
+                    onChange={(e) => updateVal("outlet", "points_per_delivered_order", e.target.valueAsNumber)}
                     className="w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-boxdark px-3 py-2 text-sm font-semibold focus:outline-none focus:border-primary"
+                    onFocus={(e) => { const t = e.target; setTimeout(() => t.select(), 0); }}
                   />
                   <p className="text-[11px] text-gray-500 mt-1">Added score when an order is delivered by outlet</p>
                 </div>
@@ -437,8 +439,9 @@ export default function ScoringConfigModal({ isOpen, onClose, onSaved }: Scoring
                   <input
                     type="number"
                     value={config.outlet.points_deducted_per_returned_order}
-                    onChange={(e) => updateVal("outlet", "points_deducted_per_returned_order", Number(e.target.value))}
+                    onChange={(e) => updateVal("outlet", "points_deducted_per_returned_order", e.target.valueAsNumber)}
                     className="w-full rounded-lg border border-rose-200 dark:border-rose-800 bg-white dark:bg-boxdark px-3 py-2 text-sm font-semibold focus:outline-none focus:border-rose-500"
+                    onFocus={(e) => { const t = e.target; setTimeout(() => t.select(), 0); }}
                   />
                   <p className="text-[11px] text-rose-500/80 mt-1">Deducted from score when an order is returned</p>
                 </div>
@@ -450,8 +453,9 @@ export default function ScoringConfigModal({ isOpen, onClose, onSaved }: Scoring
                   <input
                     type="number"
                     value={config.outlet.points_deducted_per_cancelled_order ?? 0}
-                    onChange={(e) => updateVal("outlet", "points_deducted_per_cancelled_order", Number(e.target.value))}
+                    onChange={(e) => updateVal("outlet", "points_deducted_per_cancelled_order", e.target.valueAsNumber)}
                     className="w-full rounded-lg border border-rose-200 dark:border-rose-800 bg-white dark:bg-boxdark px-3 py-2 text-sm font-semibold focus:outline-none focus:border-rose-500"
+                    onFocus={(e) => { const t = e.target; setTimeout(() => t.select(), 0); }}
                   />
                   <p className="text-[11px] text-rose-500/80 mt-1">Deducted when an order is cancelled</p>
                 </div>
@@ -463,8 +467,9 @@ export default function ScoringConfigModal({ isOpen, onClose, onSaved }: Scoring
                   <input
                     type="number"
                     value={config.outlet.sales_divisor ?? 1000}
-                    onChange={(e) => updateVal("outlet", "sales_divisor", Number(e.target.value))}
+                    onChange={(e) => updateVal("outlet", "sales_divisor", e.target.valueAsNumber)}
                     className="w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-boxdark px-3 py-2 text-sm font-semibold focus:outline-none focus:border-primary"
+                    onFocus={(e) => { const t = e.target; setTimeout(() => t.select(), 0); }}
                   />
                   <p className="text-[11px] text-gray-500 mt-1">Total Sales ÷ Divisor for sales points scaling</p>
                 </div>
@@ -476,8 +481,9 @@ export default function ScoringConfigModal({ isOpen, onClose, onSaved }: Scoring
                   <input
                     type="number"
                     value={config.outlet.sales_multiplier ?? 1}
-                    onChange={(e) => updateVal("outlet", "sales_multiplier", Number(e.target.value))}
+                    onChange={(e) => updateVal("outlet", "sales_multiplier", e.target.valueAsNumber)}
                     className="w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-boxdark px-3 py-2 text-sm font-semibold focus:outline-none focus:border-primary"
+                    onFocus={(e) => { const t = e.target; setTimeout(() => t.select(), 0); }}
                   />
                   <p className="text-[11px] text-gray-500 mt-1">Multiplier for sales points after divisor</p>
                 </div>
@@ -489,8 +495,9 @@ export default function ScoringConfigModal({ isOpen, onClose, onSaved }: Scoring
                   <input
                     type="number"
                     value={config.outlet.recovery_pct_multiplier ?? 5}
-                    onChange={(e) => updateVal("outlet", "recovery_pct_multiplier", Number(e.target.value))}
+                    onChange={(e) => updateVal("outlet", "recovery_pct_multiplier", e.target.valueAsNumber)}
                     className="w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-boxdark px-3 py-2 text-sm font-semibold focus:outline-none focus:border-primary"
+                    onFocus={(e) => { const t = e.target; setTimeout(() => t.select(), 0); }}
                   />
                   <p className="text-[11px] text-gray-500 mt-1">Multiplier applied to Recovery Percentage</p>
                 </div>
@@ -506,8 +513,9 @@ export default function ScoringConfigModal({ isOpen, onClose, onSaved }: Scoring
                   <input
                     type="number"
                     value={config.csr.points_per_delivered_order}
-                    onChange={(e) => updateVal("csr", "points_per_delivered_order", Number(e.target.value))}
+                    onChange={(e) => updateVal("csr", "points_per_delivered_order", e.target.valueAsNumber)}
                     className="w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-boxdark px-3 py-2 text-sm font-semibold focus:outline-none focus:border-primary"
+                    onFocus={(e) => { const t = e.target; setTimeout(() => t.select(), 0); }}
                   />
                 </div>
 
@@ -518,8 +526,9 @@ export default function ScoringConfigModal({ isOpen, onClose, onSaved }: Scoring
                   <input
                     type="number"
                     value={config.csr.points_per_completed_order}
-                    onChange={(e) => updateVal("csr", "points_per_completed_order", Number(e.target.value))}
+                    onChange={(e) => updateVal("csr", "points_per_completed_order", e.target.valueAsNumber)}
                     className="w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-boxdark px-3 py-2 text-sm font-semibold focus:outline-none focus:border-primary"
+                    onFocus={(e) => { const t = e.target; setTimeout(() => t.select(), 0); }}
                   />
                 </div>
 
@@ -530,8 +539,9 @@ export default function ScoringConfigModal({ isOpen, onClose, onSaved }: Scoring
                   <input
                     type="number"
                     value={config.csr.points_per_repeat_customer}
-                    onChange={(e) => updateVal("csr", "points_per_repeat_customer", Number(e.target.value))}
+                    onChange={(e) => updateVal("csr", "points_per_repeat_customer", e.target.valueAsNumber)}
                     className="w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-boxdark px-3 py-2 text-sm font-semibold focus:outline-none focus:border-primary"
+                    onFocus={(e) => { const t = e.target; setTimeout(() => t.select(), 0); }}
                   />
                 </div>
 
@@ -542,8 +552,9 @@ export default function ScoringConfigModal({ isOpen, onClose, onSaved }: Scoring
                   <input
                     type="number"
                     value={config.csr.points_per_solved_complaint ?? 1}
-                    onChange={(e) => updateVal("csr", "points_per_solved_complaint", Number(e.target.value))}
+                    onChange={(e) => updateVal("csr", "points_per_solved_complaint", e.target.valueAsNumber)}
                     className="w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-boxdark px-3 py-2 text-sm font-semibold focus:outline-none focus:border-primary"
+                    onFocus={(e) => { const t = e.target; setTimeout(() => t.select(), 0); }}
                   />
                 </div>
 
@@ -554,8 +565,9 @@ export default function ScoringConfigModal({ isOpen, onClose, onSaved }: Scoring
                   <input
                     type="number"
                     value={config.csr.points_deducted_per_returned_order}
-                    onChange={(e) => updateVal("csr", "points_deducted_per_returned_order", Number(e.target.value))}
+                    onChange={(e) => updateVal("csr", "points_deducted_per_returned_order", e.target.valueAsNumber)}
                     className="w-full rounded-lg border border-rose-200 dark:border-rose-800 bg-white dark:bg-boxdark px-3 py-2 text-sm font-semibold focus:outline-none focus:border-rose-500"
+                    onFocus={(e) => { const t = e.target; setTimeout(() => t.select(), 0); }}
                   />
                 </div>
 
@@ -566,8 +578,9 @@ export default function ScoringConfigModal({ isOpen, onClose, onSaved }: Scoring
                   <input
                     type="number"
                     value={config.csr.points_deducted_per_cancelled_order}
-                    onChange={(e) => updateVal("csr", "points_deducted_per_cancelled_order", Number(e.target.value))}
+                    onChange={(e) => updateVal("csr", "points_deducted_per_cancelled_order", e.target.valueAsNumber)}
                     className="w-full rounded-lg border border-rose-200 dark:border-rose-800 bg-white dark:bg-boxdark px-3 py-2 text-sm font-semibold focus:outline-none focus:border-rose-500"
+                    onFocus={(e) => { const t = e.target; setTimeout(() => t.select(), 0); }}
                   />
                 </div>
 
@@ -578,8 +591,9 @@ export default function ScoringConfigModal({ isOpen, onClose, onSaved }: Scoring
                   <input
                     type="number"
                     value={config.csr.points_deducted_per_expired_order}
-                    onChange={(e) => updateVal("csr", "points_deducted_per_expired_order", Number(e.target.value))}
+                    onChange={(e) => updateVal("csr", "points_deducted_per_expired_order", e.target.valueAsNumber)}
                     className="w-full rounded-lg border border-rose-200 dark:border-rose-800 bg-white dark:bg-boxdark px-3 py-2 text-sm font-semibold focus:outline-none focus:border-rose-500"
+                    onFocus={(e) => { const t = e.target; setTimeout(() => t.select(), 0); }}
                   />
                 </div>
               </div>
@@ -594,8 +608,9 @@ export default function ScoringConfigModal({ isOpen, onClose, onSaved }: Scoring
                   <input
                     type="number"
                     value={config.delivery.points_per_delivered_order}
-                    onChange={(e) => updateVal("delivery", "points_per_delivered_order", Number(e.target.value))}
+                    onChange={(e) => updateVal("delivery", "points_per_delivered_order", e.target.valueAsNumber)}
                     className="w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-boxdark px-3 py-2 text-sm font-semibold focus:outline-none focus:border-primary"
+                    onFocus={(e) => { const t = e.target; setTimeout(() => t.select(), 0); }}
                   />
                 </div>
 
@@ -606,8 +621,9 @@ export default function ScoringConfigModal({ isOpen, onClose, onSaved }: Scoring
                   <input
                     type="number"
                     value={config.delivery.points_per_completed_order ?? 5}
-                    onChange={(e) => updateVal("delivery", "points_per_completed_order", Number(e.target.value))}
+                    onChange={(e) => updateVal("delivery", "points_per_completed_order", e.target.valueAsNumber)}
                     className="w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-boxdark px-3 py-2 text-sm font-semibold focus:outline-none focus:border-primary"
+                    onFocus={(e) => { const t = e.target; setTimeout(() => t.select(), 0); }}
                   />
                 </div>
 
@@ -618,8 +634,9 @@ export default function ScoringConfigModal({ isOpen, onClose, onSaved }: Scoring
                   <input
                     type="number"
                     value={config.delivery.points_deducted_per_returned_order}
-                    onChange={(e) => updateVal("delivery", "points_deducted_per_returned_order", Number(e.target.value))}
+                    onChange={(e) => updateVal("delivery", "points_deducted_per_returned_order", e.target.valueAsNumber)}
                     className="w-full rounded-lg border border-rose-200 dark:border-rose-800 bg-white dark:bg-boxdark px-3 py-2 text-sm font-semibold focus:outline-none focus:border-rose-500"
+                    onFocus={(e) => { const t = e.target; setTimeout(() => t.select(), 0); }}
                   />
                 </div>
 
@@ -630,8 +647,9 @@ export default function ScoringConfigModal({ isOpen, onClose, onSaved }: Scoring
                   <input
                     type="number"
                     value={config.delivery.points_deducted_per_cancelled_order}
-                    onChange={(e) => updateVal("delivery", "points_deducted_per_cancelled_order", Number(e.target.value))}
+                    onChange={(e) => updateVal("delivery", "points_deducted_per_cancelled_order", e.target.valueAsNumber)}
                     className="w-full rounded-lg border border-rose-200 dark:border-rose-800 bg-white dark:bg-boxdark px-3 py-2 text-sm font-semibold focus:outline-none focus:border-rose-500"
+                    onFocus={(e) => { const t = e.target; setTimeout(() => t.select(), 0); }}
                   />
                 </div>
 
@@ -642,8 +660,9 @@ export default function ScoringConfigModal({ isOpen, onClose, onSaved }: Scoring
                   <input
                     type="number"
                     value={config.delivery.points_deducted_per_expired_order}
-                    onChange={(e) => updateVal("delivery", "points_deducted_per_expired_order", Number(e.target.value))}
+                    onChange={(e) => updateVal("delivery", "points_deducted_per_expired_order", e.target.valueAsNumber)}
                     className="w-full rounded-lg border border-rose-200 dark:border-rose-800 bg-white dark:bg-boxdark px-3 py-2 text-sm font-semibold focus:outline-none focus:border-rose-500"
+                    onFocus={(e) => { const t = e.target; setTimeout(() => t.select(), 0); }}
                   />
                 </div>
               </div>
@@ -658,8 +677,9 @@ export default function ScoringConfigModal({ isOpen, onClose, onSaved }: Scoring
                   <input
                     type="number"
                     value={config.recovery.points_per_collected_visit}
-                    onChange={(e) => updateVal("recovery", "points_per_collected_visit", Number(e.target.value))}
+                    onChange={(e) => updateVal("recovery", "points_per_collected_visit", e.target.valueAsNumber)}
                     className="w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-boxdark px-3 py-2 text-sm font-semibold focus:outline-none focus:border-primary"
+                    onFocus={(e) => { const t = e.target; setTimeout(() => t.select(), 0); }}
                   />
                 </div>
 
@@ -670,8 +690,9 @@ export default function ScoringConfigModal({ isOpen, onClose, onSaved }: Scoring
                   <input
                     type="number"
                     value={config.recovery.points_per_completed_order ?? 5}
-                    onChange={(e) => updateVal("recovery", "points_per_completed_order", Number(e.target.value))}
+                    onChange={(e) => updateVal("recovery", "points_per_completed_order", e.target.valueAsNumber)}
                     className="w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-boxdark px-3 py-2 text-sm font-semibold focus:outline-none focus:border-primary"
+                    onFocus={(e) => { const t = e.target; setTimeout(() => t.select(), 0); }}
                   />
                 </div>
 
@@ -682,8 +703,9 @@ export default function ScoringConfigModal({ isOpen, onClose, onSaved }: Scoring
                   <input
                     type="number"
                     value={config.recovery.points_deducted_per_returned_order}
-                    onChange={(e) => updateVal("recovery", "points_deducted_per_returned_order", Number(e.target.value))}
+                    onChange={(e) => updateVal("recovery", "points_deducted_per_returned_order", e.target.valueAsNumber)}
                     className="w-full rounded-lg border border-rose-200 dark:border-rose-800 bg-white dark:bg-boxdark px-3 py-2 text-sm font-semibold focus:outline-none focus:border-rose-500"
+                    onFocus={(e) => { const t = e.target; setTimeout(() => t.select(), 0); }}
                   />
                 </div>
 
@@ -694,8 +716,9 @@ export default function ScoringConfigModal({ isOpen, onClose, onSaved }: Scoring
                   <input
                     type="number"
                     value={config.recovery.points_deducted_per_cancelled_order}
-                    onChange={(e) => updateVal("recovery", "points_deducted_per_cancelled_order", Number(e.target.value))}
+                    onChange={(e) => updateVal("recovery", "points_deducted_per_cancelled_order", e.target.valueAsNumber)}
                     className="w-full rounded-lg border border-rose-200 dark:border-rose-800 bg-white dark:bg-boxdark px-3 py-2 text-sm font-semibold focus:outline-none focus:border-rose-500"
+                    onFocus={(e) => { const t = e.target; setTimeout(() => t.select(), 0); }}
                   />
                 </div>
 
@@ -706,8 +729,9 @@ export default function ScoringConfigModal({ isOpen, onClose, onSaved }: Scoring
                   <input
                     type="number"
                     value={config.recovery.points_deducted_per_expired_order ?? 3}
-                    onChange={(e) => updateVal("recovery", "points_deducted_per_expired_order", Number(e.target.value))}
+                    onChange={(e) => updateVal("recovery", "points_deducted_per_expired_order", e.target.valueAsNumber)}
                     className="w-full rounded-lg border border-rose-200 dark:border-rose-800 bg-white dark:bg-boxdark px-3 py-2 text-sm font-semibold focus:outline-none focus:border-rose-500"
+                    onFocus={(e) => { const t = e.target; setTimeout(() => t.select(), 0); }}
                   />
                 </div>
               </div>
@@ -722,8 +746,9 @@ export default function ScoringConfigModal({ isOpen, onClose, onSaved }: Scoring
                   <input
                     type="number"
                     value={config.verification.points_per_completed_verification}
-                    onChange={(e) => updateVal("verification", "points_per_completed_verification", Number(e.target.value))}
+                    onChange={(e) => updateVal("verification", "points_per_completed_verification", e.target.valueAsNumber)}
                     className="w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-boxdark px-3 py-2 text-sm font-semibold focus:outline-none focus:border-primary"
+                    onFocus={(e) => { const t = e.target; setTimeout(() => t.select(), 0); }}
                   />
                 </div>
 
@@ -734,8 +759,9 @@ export default function ScoringConfigModal({ isOpen, onClose, onSaved }: Scoring
                   <input
                     type="number"
                     value={config.verification.points_per_delivered_order}
-                    onChange={(e) => updateVal("verification", "points_per_delivered_order", Number(e.target.value))}
+                    onChange={(e) => updateVal("verification", "points_per_delivered_order", e.target.valueAsNumber)}
                     className="w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-boxdark px-3 py-2 text-sm font-semibold focus:outline-none focus:border-primary"
+                    onFocus={(e) => { const t = e.target; setTimeout(() => t.select(), 0); }}
                   />
                 </div>
 
@@ -746,8 +772,9 @@ export default function ScoringConfigModal({ isOpen, onClose, onSaved }: Scoring
                   <input
                     type="number"
                     value={config.verification.points_deducted_per_returned_order}
-                    onChange={(e) => updateVal("verification", "points_deducted_per_returned_order", Number(e.target.value))}
+                    onChange={(e) => updateVal("verification", "points_deducted_per_returned_order", e.target.valueAsNumber)}
                     className="w-full rounded-lg border border-rose-200 dark:border-rose-800 bg-white dark:bg-boxdark px-3 py-2 text-sm font-semibold focus:outline-none focus:border-rose-500"
+                    onFocus={(e) => { const t = e.target; setTimeout(() => t.select(), 0); }}
                   />
                 </div>
 
@@ -758,8 +785,9 @@ export default function ScoringConfigModal({ isOpen, onClose, onSaved }: Scoring
                   <input
                     type="number"
                     value={config.verification.points_deducted_per_cancelled_order}
-                    onChange={(e) => updateVal("verification", "points_deducted_per_cancelled_order", Number(e.target.value))}
+                    onChange={(e) => updateVal("verification", "points_deducted_per_cancelled_order", e.target.valueAsNumber)}
                     className="w-full rounded-lg border border-rose-200 dark:border-rose-800 bg-white dark:bg-boxdark px-3 py-2 text-sm font-semibold focus:outline-none focus:border-rose-500"
+                    onFocus={(e) => { const t = e.target; setTimeout(() => t.select(), 0); }}
                   />
                 </div>
 
@@ -770,8 +798,9 @@ export default function ScoringConfigModal({ isOpen, onClose, onSaved }: Scoring
                   <input
                     type="number"
                     value={config.verification.points_deducted_per_expired_order ?? 3}
-                    onChange={(e) => updateVal("verification", "points_deducted_per_expired_order", Number(e.target.value))}
+                    onChange={(e) => updateVal("verification", "points_deducted_per_expired_order", e.target.valueAsNumber)}
                     className="w-full rounded-lg border border-rose-200 dark:border-rose-800 bg-white dark:bg-boxdark px-3 py-2 text-sm font-semibold focus:outline-none focus:border-rose-500"
+                    onFocus={(e) => { const t = e.target; setTimeout(() => t.select(), 0); }}
                   />
                 </div>
               </div>
