@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { X, Calendar, Clock, Save, Edit3, RefreshCw } from "lucide-react";
+import { X, Calendar, Clock, Save, Edit3, RefreshCw, Users } from "lucide-react";
 import { toast } from "react-hot-toast";
 import Cookies from "js-cookie";
 
@@ -27,10 +27,25 @@ interface StatusHistoryEdit {
   created_at: string;
 }
 
+interface Officer {
+  id: number;
+  full_name: string;
+  username: string;
+}
+
+interface Outlet {
+  id: number;
+  name: string;
+  code: string;
+}
+
 interface EditTimelineDatesModalProps {
   isOpen: boolean;
   onClose: () => void;
   order: any;
+  verificationId?: number;
+  verificationOfficers?: Officer[];
+  deliveryOfficers?: Officer[];
   onSaved: () => void;
 }
 
@@ -38,6 +53,9 @@ export default function EditTimelineDatesModal({
   isOpen,
   onClose,
   order,
+  verificationId,
+  verificationOfficers: verificationOfficersProp,
+  deliveryOfficers: deliveryOfficersProp,
   onSaved,
 }: EditTimelineDatesModalProps) {
   const [createdAt, setCreatedAt] = useState("");
@@ -48,6 +66,18 @@ export default function EditTimelineDatesModal({
   const [statusHistories, setStatusHistories] = useState<StatusHistoryEdit[]>([]);
   const [saving, setSaving] = useState(false);
 
+  // Who & where — verification officer, delivery officer, and outlet are
+  // editable elsewhere on the order page too (Verification & Home Location
+  // card), but this modal is the first place an admin looks when they want
+  // to correct "the assignment timeline" as a whole, so it's kept in sync
+  // here rather than sending them somewhere else for it.
+  const [verificationOfficerId, setVerificationOfficerId] = useState("");
+  const [deliveryOfficerId, setDeliveryOfficerId] = useState("");
+  const [outletId, setOutletId] = useState("");
+  const [verificationOfficers, setVerificationOfficers] = useState<Officer[]>(verificationOfficersProp || []);
+  const [deliveryOfficers, setDeliveryOfficers] = useState<Officer[]>(deliveryOfficersProp || []);
+  const [outlets, setOutlets] = useState<Outlet[]>([]);
+
   useEffect(() => {
     if (order && isOpen) {
       setCreatedAt(toDatetimeLocal(order.created_at));
@@ -55,6 +85,10 @@ export default function EditTimelineDatesModal({
       setDeliveryAssignedAt(toDatetimeLocal(order.delivery_assigned_at));
       setRecoveryAssignedAt(toDatetimeLocal(order.recovery_assigned_at));
       setDeliveredAt(toDatetimeLocal(order.delivered_at));
+
+      setVerificationOfficerId(order.assigned_to_user_id != null ? String(order.assigned_to_user_id) : "");
+      setDeliveryOfficerId(order.delivery_officer_id != null ? String(order.delivery_officer_id) : "");
+      setOutletId(order.outlet_id != null ? String(order.outlet_id) : "");
 
       if (order.statusHistories && Array.isArray(order.statusHistories)) {
         setStatusHistories(
@@ -68,7 +102,29 @@ export default function EditTimelineDatesModal({
       } else {
         setStatusHistories([]);
       }
+
+      const token = Cookies.get("auth_token") || localStorage.getItem("token");
+      if ((verificationOfficersProp?.length || 0) === 0 || (deliveryOfficersProp?.length || 0) === 0) {
+        Promise.all([
+          fetch(`${API_BASE}/api/assignments/officers?role=verification&all=true`, { headers: { Authorization: `Bearer ${token}` } }),
+          fetch(`${API_BASE}/api/assignments/officers?role=delivery&all=true&include_admins=true`, { headers: { Authorization: `Bearer ${token}` } }),
+        ]).then(async ([voRes, doRes]) => {
+          const voJson = await voRes.json();
+          const doJson = await doRes.json();
+          if (voJson.success && Array.isArray(voJson.data)) setVerificationOfficers(voJson.data);
+          if (doJson.success && Array.isArray(doJson.data)) setDeliveryOfficers(doJson.data);
+        }).catch((err) => console.error("Error fetching officers:", err));
+      } else {
+        setVerificationOfficers(verificationOfficersProp || []);
+        setDeliveryOfficers(deliveryOfficersProp || []);
+      }
+
+      fetch(`${API_BASE}/api/outlets`, { headers: { Authorization: `Bearer ${token}` } })
+        .then((res) => res.json())
+        .then((json) => { if (json.success && Array.isArray(json.outlets)) setOutlets(json.outlets); })
+        .catch((err) => console.error("Error fetching outlets:", err));
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [order, isOpen]);
 
   if (!isOpen || !order) return null;
@@ -77,6 +133,23 @@ export default function EditTimelineDatesModal({
     setSaving(true);
     try {
       const token = Cookies.get("auth_token") || localStorage.getItem("token");
+
+      if (verificationId) {
+        const assignmentRes = await fetch(`${API_BASE}/api/verification/${verificationId}/assignment`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          body: JSON.stringify({
+            verification_officer_id: verificationOfficerId || null,
+            delivery_officer_id: deliveryOfficerId || null,
+            outlet_id: outletId || null,
+          }),
+        });
+        const assignmentJson = await assignmentRes.json();
+        if (!assignmentRes.ok || !assignmentJson.success) {
+          throw new Error(assignmentJson.message || "Failed to update verification/delivery officer or outlet");
+        }
+      }
+
       const payload = {
         created_at: createdAt ? new Date(createdAt).toISOString() : null,
         verification_assigned_at: verificationAssignedAt ? new Date(verificationAssignedAt).toISOString() : null,
@@ -102,14 +175,14 @@ export default function EditTimelineDatesModal({
 
       const json = await res.json();
       if (json.success) {
-        toast.success("Timeline dates & status history updated successfully!");
+        toast.success("Assignment, timeline dates & status history updated successfully!");
         onSaved();
         onClose();
       } else {
         toast.error(json.message || "Failed to update timeline dates");
       }
     } catch (err: any) {
-      toast.error(err.message || "Error saving timeline dates");
+      toast.error(err.message || "Error saving timeline");
     } finally {
       setSaving(false);
     }
@@ -156,7 +229,80 @@ export default function EditTimelineDatesModal({
 
         {/* Content Body */}
         <div className="py-6 space-y-6 max-h-[65vh] overflow-y-auto pr-1">
-          
+
+          {/* Section 0: Who & Where — verification officer, delivery officer,
+              outlet. Only meaningful once a Verification record exists (the
+              PUT call below needs its id), so skip it entirely rather than
+              showing controls that silently wouldn't save anything. */}
+          {verificationId && (
+          <div>
+            <div className="flex items-center gap-2 mb-3">
+              <Users className="size-4 text-teal-600" />
+              <h4 className="text-sm font-bold text-gray-800 dark:text-white uppercase tracking-wider">
+                Assignment — Who &amp; Where
+              </h4>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="rounded-xl border border-gray-100 dark:border-gray-800 p-4 bg-indigo-50/30 dark:bg-indigo-900/10">
+                <label className="text-xs font-bold text-indigo-800 dark:text-indigo-300 block mb-1">
+                  Verification Officer
+                </label>
+                <select
+                  value={verificationOfficerId}
+                  onChange={(e) => setVerificationOfficerId(e.target.value)}
+                  className="w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-boxdark px-3 py-2 text-xs font-semibold focus:outline-none focus:border-indigo-500"
+                >
+                  <option value="">-- Unassigned --</option>
+                  {order.assigned_to_user_id && !verificationOfficers.some((o) => o.id === order.assigned_to_user_id) && (
+                    <option value={order.assigned_to_user_id}>{order.assigned_to?.full_name} (@{order.assigned_to?.username})</option>
+                  )}
+                  {verificationOfficers.map((o) => (
+                    <option key={o.id} value={o.id}>{o.full_name} (@{o.username})</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="rounded-xl border border-gray-100 dark:border-gray-800 p-4 bg-green-50/30 dark:bg-green-900/10">
+                <label className="text-xs font-bold text-green-800 dark:text-green-300 block mb-1">
+                  Delivery Officer
+                </label>
+                <select
+                  value={deliveryOfficerId}
+                  onChange={(e) => setDeliveryOfficerId(e.target.value)}
+                  className="w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-boxdark px-3 py-2 text-xs font-semibold focus:outline-none focus:border-green-500"
+                >
+                  <option value="">-- Unassigned --</option>
+                  {order.delivery_officer_id && !deliveryOfficers.some((o) => o.id === order.delivery_officer_id) && (
+                    <option value={order.delivery_officer_id}>{order.delivery_officer?.full_name} (@{order.delivery_officer?.username})</option>
+                  )}
+                  {deliveryOfficers.map((o) => (
+                    <option key={o.id} value={o.id}>{o.full_name} (@{o.username})</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="rounded-xl border border-gray-100 dark:border-gray-800 p-4 bg-teal-50/30 dark:bg-teal-900/10">
+                <label className="text-xs font-bold text-teal-800 dark:text-teal-300 block mb-1">
+                  Outlet
+                </label>
+                <select
+                  value={outletId}
+                  onChange={(e) => setOutletId(e.target.value)}
+                  className="w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-boxdark px-3 py-2 text-xs font-semibold focus:outline-none focus:border-teal-500"
+                >
+                  <option value="">-- Unassigned --</option>
+                  {order.outlet_id && !outlets.some((o) => o.id === order.outlet_id) && (
+                    <option value={order.outlet_id}>{order.outlet?.name} {order.outlet?.code ? `(${order.outlet.code})` : ''}</option>
+                  )}
+                  {outlets.map((o) => (
+                    <option key={o.id} value={o.id}>{o.name} ({o.code})</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </div>
+          )}
+
           {/* Section 1: Assignment Timeline */}
           <div>
             <div className="flex items-center gap-2 mb-3">

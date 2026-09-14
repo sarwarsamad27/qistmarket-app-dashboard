@@ -27,6 +27,14 @@ const formatDateTimeUTC = (value?: string): string => {
     return formatExactDate(value, "MMM D, YYYY h:mm A");
 };
 
+const toDateTimeLocalValue = (iso?: string | null) => {
+    if (!iso) return '';
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return '';
+    const pad = (n: number) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+};
+
 // DeliveryPhotoCard Component - Now replaced by shared MediaCard
 
 export default function DeliveredProductDetails({ 
@@ -50,9 +58,15 @@ export default function DeliveredProductDetails({
     const [outletInventory, setOutletInventory] = useState<{ id: number; product_name: string; imei_serial: string | null; color_variant: string | null; installment_price: number }[]>([]);
     const [selectedInventoryId, setSelectedInventoryId] = useState<string>('__custom__');
     const [inventorySearch, setInventorySearch] = useState('');
+    // No outlet resolved for this order (order.outlet_id is null and no
+    // stock unit's IMEI matched one either — see getDeliveredProductDetails'
+    // resolvedOutletId fallback) — nothing to browse until one is connected.
+    const [outletsForConnect, setOutletsForConnect] = useState<{ id: number; name: string; code: string }[]>([]);
+    const [connectOutletId, setConnectOutletId] = useState('');
+    const [connectingOutlet, setConnectingOutlet] = useState(false);
 
     const [editingDelivery, setEditingDelivery] = useState(false);
-    const [deliveryForm, setDeliveryForm] = useState({ feedback: '', verified: false, self_pickup: false, delivery_agent_id: '' });
+    const [deliveryForm, setDeliveryForm] = useState({ feedback: '', verified: false, self_pickup: false, delivery_agent_id: '', end_time: '' });
     const [savingDelivery, setSavingDelivery] = useState(false);
     const [deliveryOfficers, setDeliveryOfficers] = useState<{ id: number; full_name: string; username: string }[]>([]);
 
@@ -115,16 +129,55 @@ export default function DeliveredProductDetails({
 
         const outletId = deliveredProduct.order_info?.outlet_id;
         if (outletId) {
+            await fetchOutletInventoryFor(outletId);
+        } else {
+            setConnectOutletId('');
             try {
                 const token = Cookies.get('auth_token');
-                const res = await fetch(`${BACKEND_URL}/api/outlet/inventory/picker?outlet_id=${outletId}`, {
+                const res = await fetch(`${BACKEND_URL}/api/outlets`, {
                     headers: { Authorization: `Bearer ${token}` },
                 });
                 const json = await res.json();
-                if (json.success && Array.isArray(json.data)) setOutletInventory(json.data);
+                if (json.success && Array.isArray(json.outlets)) setOutletsForConnect(json.outlets);
             } catch (err) {
-                console.error('Error fetching outlet inventory:', err);
+                console.error('Error fetching outlets:', err);
             }
+        }
+    };
+
+    const fetchOutletInventoryFor = async (outletId: number) => {
+        try {
+            const token = Cookies.get('auth_token');
+            const res = await fetch(`${BACKEND_URL}/api/outlet/inventory/picker?outlet_id=${outletId}`, {
+                headers: { Authorization: `Bearer ${token}` },
+            });
+            const json = await res.json();
+            if (json.success && Array.isArray(json.data)) setOutletInventory(json.data);
+        } catch (err) {
+            console.error('Error fetching outlet inventory:', err);
+        }
+    };
+
+    const handleConnectOutlet = async () => {
+        if (!connectOutletId) return;
+        const token = Cookies.get('auth_token');
+        setConnectingOutlet(true);
+        try {
+            const res = await fetch(`${BACKEND_URL}/api/orders/${deliveredProduct.order_info.id}/update-item`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                body: JSON.stringify({ outlet_id: connectOutletId }),
+            });
+            const json = await res.json();
+            if (!res.ok || !json.success) throw new Error(json.message || 'Failed to connect outlet');
+            toast.success('Outlet connected — loading its stock...');
+            await fetchOutletInventoryFor(parseInt(connectOutletId, 10));
+            await fetchDeliveredProductDetails();
+            if (onRefresh) await onRefresh();
+        } catch (err: any) {
+            toast.error(err.message || 'Failed to connect outlet');
+        } finally {
+            setConnectingOutlet(false);
         }
     };
 
@@ -169,6 +222,7 @@ export default function DeliveredProductDetails({
             verified: !!deliveredProduct.delivery_details?.verified,
             self_pickup: !!deliveredProduct.delivery_details?.self_pickup,
             delivery_agent_id: deliveredProduct.delivery_details?.delivery_agent_id != null ? String(deliveredProduct.delivery_details.delivery_agent_id) : '',
+            end_time: toDateTimeLocalValue(deliveredProduct.delivery_details?.end_time),
         });
         setEditingDelivery(true);
         if (deliveryOfficers.length === 0) {
@@ -192,7 +246,10 @@ export default function DeliveredProductDetails({
             const res = await fetch(`${BACKEND_URL}/api/delivery/${deliveredProduct.delivery_details.id}/details`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-                body: JSON.stringify(deliveryForm),
+                body: JSON.stringify({
+                    ...deliveryForm,
+                    end_time: deliveryForm.end_time ? new Date(deliveryForm.end_time).toISOString() : null,
+                }),
             });
             const json = await res.json();
             if (!res.ok || !json.success) throw new Error(json.message || 'Failed to save changes');
@@ -285,6 +342,14 @@ export default function DeliveredProductDetails({
     if (!deliveredProduct) return null;
 
     const isReturned = deliveredProduct.order_info?.status?.toLowerCase() === 'returned';
+    // Once a ledger exists, the Pricing Plan/Payment Details cards below
+    // read their numbers from IT, not these Order fields — so saving a
+    // Total Amount that doesn't match Advance + Monthly x Months here would
+    // just get silently recomputed by the backend to keep the two in sync.
+    // Show that live instead of letting the admin type a number that won't
+    // actually stick.
+    const productEditLedgerId = deliveredProduct.payment_details?.installment_plan?.ledger_id;
+    const computedTotalAmount = (parseFloat(productForm.advance_amount) || 0) + (parseFloat(productForm.monthly_amount) || 0) * (parseInt(productForm.months, 10) || 0);
 
     // Helper function to get delivery agent name
     const getDeliveryAgentName = () => {
@@ -350,9 +415,44 @@ export default function DeliveredProductDetails({
                             <button onClick={openEditProduct} className="text-xs font-bold text-primary hover:underline">Edit</button>
                         )}
                     </div>
-                    {editingProduct ? (
+                    {editingProduct && !deliveredProduct.order_info?.outlet_id ? (
+                        <div className="space-y-4 rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-900/40 dark:bg-amber-900/10">
+                            <p className="text-sm font-medium text-amber-800 dark:text-amber-300">
+                                This order isn't connected to any outlet, so there's no stock to pick a product from. Connect an outlet first — the product picker will appear right after.
+                            </p>
+                            <div>
+                                <label className="block text-xs font-medium text-gray-500 dark:text-gray-400">Outlet</label>
+                                <select
+                                    value={connectOutletId}
+                                    onChange={(e) => setConnectOutletId(e.target.value)}
+                                    className="mt-1 w-full rounded-lg border border-stroke bg-white px-3 py-2 text-sm text-dark dark:border-dark-3 dark:bg-dark-2 dark:text-white"
+                                >
+                                    <option value="">-- Select Outlet --</option>
+                                    {outletsForConnect.map((o) => (
+                                        <option key={o.id} value={o.id}>{o.name} ({o.code})</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div className="flex gap-3">
+                                <button
+                                    onClick={handleConnectOutlet}
+                                    disabled={!connectOutletId || connectingOutlet}
+                                    className="rounded-lg bg-primary px-4 py-2 text-sm font-bold text-white disabled:opacity-50"
+                                >
+                                    {connectingOutlet ? 'Connecting...' : 'Connect Outlet'}
+                                </button>
+                                <button onClick={() => setEditingProduct(false)} disabled={connectingOutlet} className="rounded-lg border border-stroke px-4 py-2 text-sm dark:border-dark-3 dark:text-gray-300">
+                                    Cancel
+                                </button>
+                            </div>
+                        </div>
+                    ) : editingProduct ? (
                         <div className="space-y-4 rounded-lg border border-stroke bg-gray-50 p-4 dark:border-dark-3 dark:bg-dark-3">
-                            <p className="text-xs text-amber-600 dark:text-amber-400 font-medium">Note: changing these does not update the installment ledger below — edit the ledger separately if it also needs correcting.</p>
+                            <p className="text-xs text-amber-600 dark:text-amber-400 font-medium">
+                                {productEditLedgerId
+                                    ? 'Note: Advance/Monthly/Months corrections here also update the pending (unpaid) months in the ledger below — already-paid months are never touched. Total Amount is auto-calculated.'
+                                    : 'Note: changing these does not update the installment ledger below — edit the ledger separately if it also needs correcting.'}
+                            </p>
                             {outletInventory.length > 0 && (
                                 <div>
                                     <label className="block text-xs font-medium text-gray-500 dark:text-gray-400">Pick From Outlet Stock (optional — auto-fills Product Name &amp; IMEI/Serial)</label>
@@ -388,7 +488,19 @@ export default function DeliveredProductDetails({
                             <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
                                 <LabeledInput label="Product Name" value={productForm.product_name} onChange={(v) => setProductForm((f) => ({ ...f, product_name: v }))} />
                                 <LabeledInput label="IMEI / Serial Number" value={productForm.imei_serial} onChange={(v) => setProductForm((f) => ({ ...f, imei_serial: v }))} />
-                                <LabeledInput label="Total Amount" type="number" value={productForm.total_amount} onChange={(v) => setProductForm((f) => ({ ...f, total_amount: v }))} />
+                                {productEditLedgerId ? (
+                                    <div>
+                                        <label className="block text-xs font-medium text-gray-500 dark:text-gray-400">Total Amount (auto-calculated)</label>
+                                        <input
+                                            type="number"
+                                            value={computedTotalAmount}
+                                            disabled
+                                            className="mt-1 w-full rounded-lg border border-stroke bg-gray-100 px-3 py-2 text-sm text-dark dark:border-dark-3 dark:bg-dark-2/50 dark:text-white"
+                                        />
+                                    </div>
+                                ) : (
+                                    <LabeledInput label="Total Amount" type="number" value={productForm.total_amount} onChange={(v) => setProductForm((f) => ({ ...f, total_amount: v }))} />
+                                )}
                                 <LabeledInput label="Advance Amount" type="number" value={productForm.advance_amount} onChange={(v) => setProductForm((f) => ({ ...f, advance_amount: v }))} />
                                 <LabeledInput label="Monthly Amount" type="number" value={productForm.monthly_amount} onChange={(v) => setProductForm((f) => ({ ...f, monthly_amount: v }))} />
                                 <LabeledInput label="Plan Duration (Months)" type="number" value={productForm.months} onChange={(v) => setProductForm((f) => ({ ...f, months: v }))} />
@@ -495,6 +607,15 @@ export default function DeliveredProductDetails({
                                                 <option key={o.id} value={o.id}>{o.full_name} ({o.username})</option>
                                             ))}
                                         </select>
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-medium text-gray-500 dark:text-gray-400">Delivery Date & Time</label>
+                                        <input
+                                            type="datetime-local"
+                                            value={deliveryForm.end_time}
+                                            onChange={(e) => setDeliveryForm((f) => ({ ...f, end_time: e.target.value }))}
+                                            className="mt-1 w-full rounded-lg border border-stroke bg-white px-3 py-2 text-sm text-dark dark:border-dark-3 dark:bg-dark-2 dark:text-white transition focus:border-primary"
+                                        />
                                     </div>
                                     <label className="flex items-center gap-2 text-sm text-dark dark:text-white">
                                         <input type="checkbox" checked={deliveryForm.verified} onChange={(e) => setDeliveryForm((f) => ({ ...f, verified: e.target.checked }))} />

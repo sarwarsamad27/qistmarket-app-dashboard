@@ -1214,6 +1214,29 @@ const VerificationDetails = ({ params }: { params: Promise<{ id: string }> }) =>
     toast.success('Delivery photo deleted');
   };
 
+  const handleReplaceDeliveryUpload = async (file: File, uploadId: number) => {
+    const token = Cookies.get('auth_token');
+    if (!token) {
+      toast.error('Authentication required');
+      return;
+    }
+    const formData = new FormData();
+    formData.append('file', file);
+    try {
+      const res = await fetch(`${BACKEND_URL}/api/delivery/upload/${uploadId}/replace`, {
+        method: 'PUT',
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData,
+      });
+      if (!res.ok) throw new Error('Replacement failed');
+      toast.success('Delivery photo replaced successfully');
+      await fetchData();
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err.message || 'Failed to replace delivery photo');
+    }
+  };
+
   const renderDocumentSlots = (personType: 'purchaser' | 'grantor1' | 'grantor2') => {
     if (!data) return null;
 
@@ -2672,7 +2695,8 @@ const VerificationDetails = ({ params }: { params: Promise<{ id: string }> }) =>
                   subtitle={upload.upload_type?.replace(/_/g, ' ')}
                   fileUrl={upload.file_url as string}
                   uploadedAt={upload.uploaded_at}
-                  isEditable={false}
+                  isEditable={user?.role === 'Super Admin'}
+                  onEdit={(file) => handleReplaceDeliveryUpload(file, upload.id)}
                   onDelete={user?.role === 'Super Admin' ? () => handleDeleteDeliveryUpload(upload.id) : undefined}
                 />
               ))}
