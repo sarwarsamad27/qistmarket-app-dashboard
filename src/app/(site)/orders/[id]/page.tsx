@@ -414,6 +414,7 @@ export default function OrderDetailsPage() {
     // Send Ledger state
     const [sendLedgerModalOpen, setSendLedgerModalOpen] = useState(false);
     const [sendLedgerTarget, setSendLedgerTarget] = useState('primary');
+    const [customLedgerPhone, setCustomLedgerPhone] = useState('');
     const [isSendingLedger, setIsSendingLedger] = useState(false);
 
     // Timeline collapse states
@@ -512,6 +513,27 @@ export default function OrderDetailsPage() {
         if (!res.ok) throw new Error('Location media replacement failed');
         toast.success('Location photo replaced successfully');
         await fetchVerification();
+    };
+
+    const handleAddLocationPhotos = async (files: FileList, locationId: number) => {
+        if (!files || files.length === 0) return;
+        const token = Cookies.get('auth_token');
+        const formData = new FormData();
+        Array.from(files).forEach((file) => formData.append('files', file));
+
+        try {
+            const res = await fetch(`${BACKEND_URL}/api/location/${locationId}/photo`, {
+                method: 'POST',
+                headers: { Authorization: `Bearer ${token}` },
+                body: formData
+            });
+            const json = await res.json();
+            if (!res.ok || !json.success) throw new Error(json.error || json.message || 'Failed to add photo(s)');
+            toast.success('Location photo(s) added successfully');
+            await fetchVerification();
+        } catch (err: any) {
+            toast.error(err.message || 'Failed to add location photo(s)');
+        }
     };
 
     const handleDeleteDocument = async (documentId: number) => {
@@ -907,6 +929,10 @@ export default function OrderDetailsPage() {
 
     const handleSendLedger = async () => {
         if (!order?.installment_ledger?.short_id) return;
+        if (sendLedgerTarget === 'custom' && !customLedgerPhone.trim()) {
+            toast.error('Enter a phone number to send to');
+            return;
+        }
         setIsSendingLedger(true);
         try {
             const token = Cookies.get('auth_token');
@@ -916,7 +942,10 @@ export default function OrderDetailsPage() {
                     'Content-Type': 'application/json',
                     Authorization: `Bearer ${token}`,
                 },
-                body: JSON.stringify({ targetPhone: sendLedgerTarget }),
+                body: JSON.stringify({
+                    targetPhone: sendLedgerTarget,
+                    customPhone: sendLedgerTarget === 'custom' ? customLedgerPhone.trim() : undefined,
+                }),
             });
             const json = await res.json();
             if (json.success) {
@@ -990,7 +1019,11 @@ export default function OrderDetailsPage() {
                 )}
                 {order.installment_ledger && (
                     <button
-                        onClick={() => setSendLedgerModalOpen(true)}
+                        onClick={() => {
+                            setSendLedgerTarget('primary');
+                            setCustomLedgerPhone('');
+                            setSendLedgerModalOpen(true);
+                        }}
                         className="rounded-md bg-green-600 px-6 py-2 text-white hover:bg-opacity-90 shadow-md transition-colors"
                     >
                         📤 Send Ledger
@@ -2488,13 +2521,30 @@ export default function OrderDetailsPage() {
                                                         </div>
                                                     )}
 
-                                                    {loc.photos && loc.photos.length > 0 && (
-                                                        <div>
-                                                            <h4 className="mb-3 font-medium text-gray-700 dark:text-gray-300">Photos</h4>
+                                                    <div>
+                                                        <div className="mb-3 flex items-center justify-between">
+                                                            <h4 className="font-medium text-gray-700 dark:text-gray-300">Photos</h4>
+                                                            <label className="cursor-pointer rounded-md bg-primary px-3 py-1.5 text-xs font-semibold text-white hover:bg-opacity-90">
+                                                                + Add Photos
+                                                                <input
+                                                                    type="file"
+                                                                    accept="image/*"
+                                                                    multiple
+                                                                    className="hidden"
+                                                                    onChange={(e) => {
+                                                                        if (e.target.files && e.target.files.length > 0) {
+                                                                            handleAddLocationPhotos(e.target.files, loc.id);
+                                                                        }
+                                                                        e.target.value = '';
+                                                                    }}
+                                                                />
+                                                            </label>
+                                                        </div>
+                                                        {loc.photos && loc.photos.length > 0 ? (
                                                             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                                                                 {loc.photos.map((photo: any) => (
-                                                                    <MediaCard 
-                                                                        key={photo.id} 
+                                                                    <MediaCard
+                                                                        key={photo.id}
                                                                         id={photo.id}
                                                                         title={`${loc.label} - Photo`}
                                                                         fileUrl={photo.file_url}
@@ -2507,8 +2557,10 @@ export default function OrderDetailsPage() {
                                                                     />
                                                                 ))}
                                                             </div>
-                                                        </div>
-                                                    )}
+                                                        ) : (
+                                                            <p className="text-sm text-gray-400">No photos yet.</p>
+                                                        )}
+                                                    </div>
                                                 </div>
                                             ))}
                                         </div>
@@ -2770,16 +2822,38 @@ export default function OrderDetailsPage() {
 
                         {order?.verification?.purchaser?.alternate_phone_number && (
                             <label className="flex items-center space-x-3 cursor-pointer">
-                                <input 
-                                    type="radio" 
-                                    name="sendLedgerTarget" 
-                                    value="both" 
+                                <input
+                                    type="radio"
+                                    name="sendLedgerTarget"
+                                    value="both"
                                     checked={sendLedgerTarget === 'both'}
                                     onChange={(e) => setSendLedgerTarget(e.target.value)}
                                     className="form-radio h-5 w-5 text-primary"
                                 />
                                 <span className="text-gray-900 dark:text-white">Both Numbers</span>
                             </label>
+                        )}
+
+                        <label className="flex items-center space-x-3 cursor-pointer">
+                            <input
+                                type="radio"
+                                name="sendLedgerTarget"
+                                value="custom"
+                                checked={sendLedgerTarget === 'custom'}
+                                onChange={(e) => setSendLedgerTarget(e.target.value)}
+                                className="form-radio h-5 w-5 text-primary"
+                            />
+                            <span className="text-gray-900 dark:text-white">Custom Number</span>
+                        </label>
+                        {sendLedgerTarget === 'custom' && (
+                            <input
+                                type="tel"
+                                autoFocus
+                                value={customLedgerPhone}
+                                onChange={(e) => setCustomLedgerPhone(e.target.value)}
+                                placeholder="03XXXXXXXXX"
+                                className="w-full rounded-md border border-stroke bg-transparent px-4 py-2 text-black outline-none transition focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white"
+                            />
                         )}
                     </div>
                     <div className="mt-6 flex justify-end gap-3">
@@ -2792,7 +2866,7 @@ export default function OrderDetailsPage() {
                         </button>
                         <button
                             onClick={handleSendLedger}
-                            disabled={isSendingLedger}
+                            disabled={isSendingLedger || (sendLedgerTarget === 'custom' && !customLedgerPhone.trim())}
                             className="rounded-md bg-green-600 px-4 py-2 text-white hover:bg-opacity-90 disabled:opacity-50"
                         >
                             {isSendingLedger ? 'Sending...' : 'Send'}

@@ -790,6 +790,46 @@ export default function DeliveredProductDetails({
                                         )}
                                     </div>
 
+                                    <div className="mt-4">
+                                        <h4 className="mb-3 text-sm font-medium text-dark dark:text-white">Product Information</h4>
+                                        <div className="grid grid-cols-1 gap-4 rounded-lg border border-stroke bg-white p-4 dark:border-dark-3 dark:bg-dark-3 md:grid-cols-3">
+                                            <div>
+                                                <label className="block text-xs font-medium text-gray-500 dark:text-gray-400">Product Name</label>
+                                                <p className="mt-1 font-semibold text-dark dark:text-white">{ad.product_details?.product_name || 'N/A'}</p>
+                                            </div>
+                                            <div>
+                                                <label className="block text-xs font-medium text-gray-500 dark:text-gray-400">Color Variant</label>
+                                                <p className="mt-1 text-dark dark:text-white">{ad.product_details?.color_variant || 'N/A'}</p>
+                                            </div>
+                                            <div>
+                                                <label className="block text-xs font-medium text-gray-500 dark:text-gray-400">Category</label>
+                                                <p className="mt-1 text-dark dark:text-white">{ad.product_details?.category || 'N/A'}</p>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="mt-4">
+                                        <h4 className="mb-3 text-sm font-medium text-dark dark:text-white">Pricing Plan</h4>
+                                        <div className="grid grid-cols-1 gap-4 rounded-lg border border-stroke bg-white p-4 dark:border-dark-3 dark:bg-dark-3 md:grid-cols-4">
+                                            <div>
+                                                <label className="block text-xs font-medium text-gray-500 dark:text-gray-400">Total Amount</label>
+                                                <p className="mt-1 font-bold text-primary">{ad.product_details?.total_amount != null ? `Rs. ${ad.product_details.total_amount.toLocaleString()}` : 'N/A'}</p>
+                                            </div>
+                                            <div>
+                                                <label className="block text-xs font-medium text-gray-500 dark:text-gray-400">Advance Amount</label>
+                                                <p className="mt-1 font-semibold text-dark dark:text-white">{ad.product_details?.advance_amount != null ? `Rs. ${ad.product_details.advance_amount.toLocaleString()}` : 'N/A'}</p>
+                                            </div>
+                                            <div>
+                                                <label className="block text-xs font-medium text-gray-500 dark:text-gray-400">Monthly Amount</label>
+                                                <p className="mt-1 font-semibold text-dark dark:text-white">{ad.product_details?.monthly_amount != null ? `Rs. ${ad.product_details.monthly_amount.toLocaleString()}` : 'N/A'}</p>
+                                            </div>
+                                            <div>
+                                                <label className="block text-xs font-medium text-gray-500 dark:text-gray-400">Plan Duration</label>
+                                                <p className="mt-1 font-semibold text-dark dark:text-white">{ad.product_details?.months != null ? `${ad.product_details.months} Months` : 'N/A'}</p>
+                                            </div>
+                                        </div>
+                                    </div>
+
                                     {ad.uploads && ad.uploads.length > 0 && (
                                         <div className="mt-4">
                                             <h4 className="mb-3 text-sm font-medium text-dark dark:text-white">Delivery Uploads</h4>

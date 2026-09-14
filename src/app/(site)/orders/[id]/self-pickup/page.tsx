@@ -54,6 +54,14 @@ export default function SelfPickupPage() {
   const [isLicenseExceeded, setIsLicenseExceeded] = useState(false);
 
   const [activeStep, setActiveStep] = useState(1);
+  // Highest step reached this session — lets the tab bar allow jumping
+  // forward again to any step already completed (not just backward), so
+  // stepping back to fix something doesn't strand the flow and force a
+  // refresh + full restart.
+  const [maxStepReached, setMaxStepReached] = useState(1);
+  useEffect(() => {
+    setMaxStepReached((m) => Math.max(m, activeStep));
+  }, [activeStep]);
 
   // OTP States
   const [otpMode, setOtpMode] = useState<'with_otp' | 'without_otp'>('with_otp');
@@ -717,8 +725,10 @@ export default function SelfPickupPage() {
                   activeStep === s.id ? "bg-red-600 text-white shadow-lg shadow-red-100" : "text-gray-400 hover:text-gray-600"
                 )}
                 onClick={() => {
-                  // Only allow navigating back or to steps already "validatable"
-                  if (s.id < activeStep || (s.id === 2 && selectedInventory)) {
+                  // Allow navigating back, forward to any step already reached
+                  // this session, or straight to Plan as soon as inventory is
+                  // picked (even before clicking "Next Step" the first time).
+                  if (s.id <= maxStepReached || (s.id === 2 && selectedInventory)) {
                     setActiveStep(s.id);
                   }
                 }}
