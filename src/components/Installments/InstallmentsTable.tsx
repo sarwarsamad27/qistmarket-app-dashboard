@@ -233,21 +233,20 @@ export default function InstallmentsTable({ data, onPay, selectedIds = [], onSel
                                             {(() => {
                                                 const ledgerRows = order.installmentLedger || [];
                                                 const today = new Date(); today.setHours(0, 0, 0, 0);
-                                                let actIdx = ledgerRows.findIndex(r => {
-                                                    if (r.status === 'paid') return false;
-                                                    const m = r.monthNumber ?? r.month ?? 0;
-                                                    if (m <= 0) return false;
-                                                    const dueDate = r.dueDate || r.due_date;
-                                                    if (!dueDate) return true;
-                                                    const d = new Date(dueDate);
-                                                    if (isNaN(d.getTime())) return true;
+                                                // "Current" = the most recently overdue unpaid row (latest due date
+                                                // that has already passed) — catch-up first, matching the backend's
+                                                // getNormalizedLedger arrears rule. Falls back to the earliest
+                                                // unpaid row when nothing has come due yet.
+                                                const unpaid = ledgerRows.map((r, i) => ((r.monthNumber ?? r.month ?? 0) > 0 && r.status !== 'paid') ? i : -1).filter(i => i !== -1);
+                                                let actIdx = -1;
+                                                for (const i of unpaid) {
+                                                    const dueDate = ledgerRows[i].dueDate || ledgerRows[i].due_date;
+                                                    const d = dueDate ? new Date(dueDate) : null;
+                                                    if (!d || isNaN(d.getTime())) { actIdx = i; continue; }
                                                     d.setHours(0, 0, 0, 0);
-                                                    return d >= today;
-                                                });
-                                                if (actIdx === -1) {
-                                                    const unpaid = ledgerRows.map((r, i) => ((r.monthNumber ?? r.month ?? 0) > 0 && r.status !== 'paid') ? i : -1).filter(i => i !== -1);
-                                                    if (unpaid.length > 0) actIdx = unpaid[unpaid.length - 1];
+                                                    if (d <= today) actIdx = i;
                                                 }
+                                                if (actIdx === -1 && unpaid.length > 0) actIdx = unpaid[0];
                                                 const activeNext = actIdx !== -1 ? ledgerRows[actIdx] : null;
                                                 if (!activeNext) return <span className="text-xs text-green-500 font-semibold">✓ Fully Paid</span>;
 
@@ -482,25 +481,25 @@ export default function InstallmentsTable({ data, onPay, selectedIds = [], onSel
                                                                 const ledgerRows = order.installmentLedger || [];
                                                                 const today = new Date(); today.setHours(0, 0, 0, 0);
 
-                                                                // Active open/payable index: first unpaid month whose due date is TODAY or in FUTURE.
-                                                                // If past due dates have passed, they lock and roll arrears forward to the active month.
-                                                                let activePayableIndex = ledgerRows.findIndex(r => {
-                                                                    if (r.status === 'paid') return false;
-                                                                    const m = r.monthNumber ?? r.month ?? 0;
-                                                                    if (m <= 0) return false;
-                                                                    const dueDate = r.dueDate || r.due_date;
-                                                                    if (!dueDate) return true;
-                                                                    const d = new Date(dueDate);
-                                                                    if (isNaN(d.getTime())) return true;
-                                                                    d.setHours(0, 0, 0, 0);
-                                                                    return d >= today;
-                                                                });
-
                                                                 const unpaidIndices = ledgerRows
                                                                     .map((r, i) => ((r.monthNumber ?? r.month ?? 0) > 0 && r.status !== 'paid') ? i : -1)
                                                                     .filter(i => i !== -1);
+
+                                                                // Active open/payable index: the most recently overdue unpaid
+                                                                // month (latest due date that has already passed) — catch up
+                                                                // on backlog first, matching getNormalizedLedger's arrears
+                                                                // rule. Falls back to the earliest unpaid month when nothing
+                                                                // has come due yet.
+                                                                let activePayableIndex = -1;
+                                                                for (const i of unpaidIndices) {
+                                                                    const dueDate = ledgerRows[i].dueDate || ledgerRows[i].due_date;
+                                                                    const d = dueDate ? new Date(dueDate) : null;
+                                                                    if (!d || isNaN(d.getTime())) { activePayableIndex = i; continue; }
+                                                                    d.setHours(0, 0, 0, 0);
+                                                                    if (d <= today) activePayableIndex = i;
+                                                                }
                                                                 if (activePayableIndex === -1 && unpaidIndices.length > 0) {
-                                                                    activePayableIndex = unpaidIndices[unpaidIndices.length - 1];
+                                                                    activePayableIndex = unpaidIndices[0];
                                                                 }
                                                                 // The final unpaid installment must never stay locked once it's due -
                                                                 // otherwise the customer has no way left to finish paying off the loan.

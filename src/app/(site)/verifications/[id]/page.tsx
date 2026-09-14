@@ -875,6 +875,44 @@ const VerificationDetails = ({ params }: { params: Promise<{ id: string }> }) =>
     }
   };
 
+  const handleAddLocationPhotos = async (files: FileList | File[], locationId: number) => {
+    if (!data || !files || files.length === 0) return;
+
+    const token = Cookies.get('auth_token');
+    if (!token) {
+        toast.error('Authentication required');
+        return;
+    }
+
+    const formData = new FormData();
+    Array.from(files).forEach((file) => formData.append('files', file));
+
+    try {
+        const res = await fetch(`${BACKEND_URL}/api/location/${locationId}/photo`, {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${token}` },
+            body: formData
+        });
+
+        if (!res.ok) {
+            const errorData = await res.json();
+            throw new Error(errorData.error || 'Adding location photo(s) failed');
+        }
+
+        const refreshRes = await fetch(`${BACKEND_URL}/api/verification/order/${id}`, {
+            headers: { Authorization: `Bearer ${token}` },
+        });
+        const refreshJson = await refreshRes.json();
+        if (refreshJson.success && refreshJson.data?.verification) {
+            setData(refreshJson.data.verification);
+            toast.success('Location photo(s) added successfully');
+        }
+    } catch (err: any) {
+        console.error('Add location photo error:', err);
+        toast.error(err.message || 'Failed to add location photo(s)');
+    }
+  };
+
   const handleNewDocumentUpload = async (file: File, documentType: string, personType: 'purchaser' | 'grantor1' | 'grantor2') => {
     if (!data) return;
     const token = Cookies.get('auth_token');
@@ -3134,9 +3172,26 @@ const VerificationDetails = ({ params }: { params: Promise<{ id: string }> }) =>
                       <Field label="Captured At" value={loc.created_at ? formatDateTimeUTC(loc.created_at) : null} />
                     </div>
 
-                    {loc.photos && loc.photos.length > 0 && (
-                      <div>
-                        <h4 className="mb-3 font-medium text-gray-700 dark:text-gray-300">Photos</h4>
+                    <div>
+                      <div className="mb-3 flex items-center justify-between">
+                        <h4 className="font-medium text-gray-700 dark:text-gray-300">Photos</h4>
+                        <label className="cursor-pointer rounded-md bg-primary px-3 py-1.5 text-xs font-semibold text-white hover:bg-opacity-90">
+                          + Add Photos
+                          <input
+                            type="file"
+                            accept="image/*"
+                            multiple
+                            className="hidden"
+                            onChange={(e) => {
+                              if (e.target.files && e.target.files.length > 0) {
+                                handleAddLocationPhotos(e.target.files, loc.id);
+                              }
+                              e.target.value = '';
+                            }}
+                          />
+                        </label>
+                      </div>
+                      {loc.photos && loc.photos.length > 0 ? (
                         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                           {loc.photos.map((photo) => (
                             <MediaCard
@@ -3152,8 +3207,10 @@ const VerificationDetails = ({ params }: { params: Promise<{ id: string }> }) =>
                             />
                           ))}
                         </div>
-                      </div>
-                    )}
+                      ) : (
+                        <p className="text-sm text-gray-400">No photos yet.</p>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>
