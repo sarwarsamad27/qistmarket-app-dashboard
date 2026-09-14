@@ -274,6 +274,8 @@ interface Order {
     residential_type?: string | null;
     assigned_to: { username: string; full_name: string } | null;
     assigned_to_user_id: number;
+    outlet?: { id: number; name: string; code: string } | null;
+    outlet_id?: number | null;
     zone?: string | null;
     block?: string | null;
     house_no?: string | null;
@@ -1326,6 +1328,12 @@ export default function OrderDetailsPage() {
                             <p className="font-semibold">{order.order_ref}</p>
                         </div>
                         <div>
+                            <p className="text-sm text-gray-500 dark:text-gray-400">Outlet</p>
+                            <p className="font-semibold">
+                                {order.outlet ? `${order.outlet.name}${order.outlet.code ? ` (${order.outlet.code})` : ''}` : 'Not Assigned'}
+                            </p>
+                        </div>
+                        <div>
                             <p className="text-sm text-gray-500 dark:text-gray-400">Suggested Product Name</p>
                             <p className="font-semibold">{order.product_name}</p>
                         </div>
@@ -1591,6 +1599,32 @@ export default function OrderDetailsPage() {
                             </div>
                         </div>
                     </div>
+
+                    {/* Outlet Assignment */}
+                    {order.outlet && (
+                        <div className="mb-8 relative">
+                            <div className="absolute -left-[35px] top-1.5 h-6 w-6 rounded-full border-4 border-white bg-teal-500 dark:border-gray-800 shadow-sm"></div>
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between bg-teal-50 dark:bg-teal-900/10 p-4 rounded-xl border border-teal-100 dark:border-teal-900/30 shadow-sm transition-all hover:shadow-md">
+                                <div>
+                                    <div className="flex items-center gap-3 mb-1">
+                                        <span className="font-bold text-[15px] tracking-wide text-teal-800 dark:text-teal-300 uppercase">
+                                            Outlet Assigned
+                                        </span>
+                                    </div>
+                                    <div className="flex items-center gap-2 mt-3">
+                                        <div className="flex items-center gap-1.5">
+                                            <div className="w-6 h-6 rounded-full bg-teal-200 dark:bg-teal-800 flex items-center justify-center text-xs font-bold text-teal-700 dark:text-teal-300">
+                                                {order.outlet?.name?.charAt(0) || 'O'}
+                                            </div>
+                                            <span className="text-sm font-semibold text-teal-800 dark:text-teal-300">
+                                                {order.outlet?.name} {order.outlet?.code ? `(${order.outlet.code})` : ''}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
 
                     {/* Verification Officer Assignment */}
                     {order.verification_assigned_at && order.assigned_to && (
@@ -2076,7 +2110,7 @@ export default function OrderDetailsPage() {
                                         { label: "Gross Salary", field: "gross_salary" },
                                         { label: "Nearest Location", field: "nearest_location" }
                                     ].map(f => {
-                                        const isEditable = user?.role === 'Super Admin' && order.status === 'delivered';
+                                        const isEditable = user?.role === 'Super Admin';
                                         return isEditable ? (
                                             <EditableField
                                                 key={f.field}
@@ -2120,7 +2154,7 @@ export default function OrderDetailsPage() {
                                                             subtitle={doc.document_type?.replace(/_/g, ' ')}
                                                             fileUrl={doc.file_url}
                                                             uploadedAt={doc.uploaded_at}
-                                                            isEditable={user?.role === 'Super Admin' && order.status === 'delivered'}
+                                                            isEditable={user?.role === 'Super Admin'}
                                                             onEdit={(file) => handleMediaReplace(file, doc.id, doc.document_type, doc.person_type, doc.person_id)}
                                                             onDelete={user?.role === 'Super Admin' ? () => handleDeleteDocument(doc.id) : undefined}
                                                             editHistory={verification.edit_history || []}
@@ -2164,7 +2198,7 @@ export default function OrderDetailsPage() {
                                                         subtitle={doc.document_type?.replace(/_/g, ' ')}
                                                         fileUrl={doc.file_url}
                                                         uploadedAt={doc.uploaded_at}
-                                                        isEditable={user?.role === 'Super Admin' && order.status === 'delivered'}
+                                                        isEditable={user?.role === 'Super Admin'}
                                                         onEdit={(file) => handleMediaReplace(file, doc.id, doc.document_type, doc.person_type, doc.person_id)}
                                                         onDelete={user?.role === 'Super Admin' ? () => handleDeleteDocument(doc.id) : undefined}
                                                         editHistory={verification.edit_history || []}
@@ -2183,7 +2217,7 @@ export default function OrderDetailsPage() {
 
                         {/* Grantors */}
                         {verification.grantors && verification.grantors.map((grantor: any) => {
-                            const isEditable = user?.role === 'Super Admin' && order.status === 'delivered';
+                            const isEditable = user?.role === 'Super Admin';
                             return (
                                 <div key={grantor.id} className="mb-16">
                                     <div className="flex flex-wrap items-center gap-3 mb-4">
@@ -2465,7 +2499,7 @@ export default function OrderDetailsPage() {
                                                                         title={`${loc.label} - Photo`}
                                                                         fileUrl={photo.file_url}
                                                                         uploadedAt={photo.uploaded_at}
-                                                                        isEditable={user?.role === 'Super Admin' && order.status === 'delivered'}
+                                                                        isEditable={user?.role === 'Super Admin'}
                                                                         onEdit={(file) => handleLocationMediaReplace(file, photo.id)}
                                                                         onDelete={user?.role === 'Super Admin' ? () => handleDeleteLocationPhoto(photo.id) : undefined}
                                                                         editHistory={verification?.edit_history}
@@ -2772,7 +2806,10 @@ export default function OrderDetailsPage() {
                 isOpen={editTimelineModalOpen}
                 onClose={() => setEditTimelineModalOpen(false)}
                 order={order}
-                onSaved={() => { fetchOrder(); }}
+                verificationId={verification?.id}
+                verificationOfficers={verificationOfficers}
+                deliveryOfficers={orderDeliveryOfficers}
+                onSaved={() => { fetchOrder(); fetchVerification(); }}
             />
         </div>
     );
