@@ -1529,18 +1529,24 @@ function PaytriggerProcessingScreen({ order, delivery, onExit }: { order: any; d
         <div className="space-y-2">
           <h2 className="text-2xl font-black text-gray-900 tracking-tight">Delivery Initiated</h2>
           <p className="text-gray-500 font-bold">Your delivery process has started.</p>
-          <p className="text-gray-400 text-sm">Waiting for the device to be enrolled and activated via Software Activation.</p>
+          <p className="text-gray-400 text-sm">
+            {device
+              ? 'Waiting for the device to be enrolled and activated via Software Activation.'
+              : 'Waiting for a lock-screen photo to complete this delivery.'}
+          </p>
         </div>
 
-        <div className="grid grid-cols-2 gap-4 text-left">
+        <div className={`grid ${device ? 'grid-cols-2' : 'grid-cols-1'} gap-4 text-left`}>
           <div className="p-5 bg-gray-50 rounded-2xl border border-gray-100">
             <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Delivery Status</p>
             <p className="font-black text-amber-600 flex items-center gap-2"><Clock className="w-4 h-4" /> Processing</p>
           </div>
-          <div className="p-5 bg-gray-50 rounded-2xl border border-gray-100">
-            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Software Activation Status</p>
-            <p className="font-black text-blue-600 flex items-center gap-2"><Wifi className="w-4 h-4" /> {enrollmentStatusLabel(device?.enrollment_status)}</p>
-          </div>
+          {device && (
+            <div className="p-5 bg-gray-50 rounded-2xl border border-gray-100">
+              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Software Activation Status</p>
+              <p className="font-black text-blue-600 flex items-center gap-2"><Wifi className="w-4 h-4" /> {enrollmentStatusLabel(device?.enrollment_status)}</p>
+            </div>
+          )}
         </div>
 
         {device && (
@@ -1551,36 +1557,44 @@ function PaytriggerProcessingScreen({ order, delivery, onExit }: { order: any; d
           </div>
         )}
 
-        {/* Manual Lock Screen Photo Upload Option */}
-        <div className="p-5 bg-emerald-50/60 rounded-2xl border border-emerald-100 text-left space-y-3">
-          <div className="flex items-center gap-2">
-            <Camera className="w-5 h-5 text-emerald-600" />
-            <h3 className="text-sm font-black text-emerald-900">Manual Lock Photo Bypass</h3>
+        {/* A real PayTrigger-gated device (Tecno/Infinix/Itel, toggle on) can only be
+            completed by the PayTrigger webhook — no manual upload option is shown.
+            A manual "Waiting For Software Activation" pending delivery (unsupported
+            brand, or the toggle was off) has no PayTrigger device, so this photo
+            upload is the only way to complete it. */}
+        {!device && (
+          <div className="p-5 bg-emerald-50/60 rounded-2xl border border-emerald-100 text-left space-y-3">
+            <div className="flex items-center gap-2">
+              <Camera className="w-5 h-5 text-emerald-600" />
+              <h3 className="text-sm font-black text-emerald-900">Lock Screen Photo</h3>
+            </div>
+            <p className="text-xs text-emerald-700 font-medium">
+              Upload a photo of the manually locked screen to mark this delivery as completed.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-3 items-stretch">
+              <input
+                type="file"
+                accept="image/*"
+                onChange={(e) => setPhotoFile(e.target.files?.[0] || null)}
+                className="text-xs text-gray-600 border border-emerald-200 rounded-xl p-2 bg-white flex-1"
+              />
+              <button
+                onClick={handleManualLockSubmit}
+                disabled={isSubmittingPhoto || !photoFile}
+                className="px-4 py-2 bg-emerald-600 text-white font-bold rounded-xl text-xs hover:bg-emerald-700 disabled:opacity-50 transition-all flex items-center justify-center gap-2"
+              >
+                {isSubmittingPhoto ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Submit & Complete'}
+              </button>
+            </div>
           </div>
-          <p className="text-xs text-emerald-700 font-medium">
-            If this mobile cannot be enrolled via Software Activation, upload a photo of the manually locked screen to mark delivery as completed.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-3 items-stretch">
-            <input
-              type="file"
-              accept="image/*"
-              onChange={(e) => setPhotoFile(e.target.files?.[0] || null)}
-              className="text-xs text-gray-600 border border-emerald-200 rounded-xl p-2 bg-white flex-1"
-            />
-            <button
-              onClick={handleManualLockSubmit}
-              disabled={isSubmittingPhoto || !photoFile}
-              className="px-4 py-2 bg-emerald-600 text-white font-bold rounded-xl text-xs hover:bg-emerald-700 disabled:opacity-50 transition-all flex items-center justify-center gap-2"
-            >
-              {isSubmittingPhoto ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Submit & Complete'}
-            </button>
-          </div>
-        </div>
+        )}
 
         <div className="flex items-center gap-3 p-4 bg-amber-50 rounded-2xl border border-amber-100 text-left">
           <AlertCircle className="w-6 h-6 text-amber-600 flex-shrink-0" />
           <p className="text-xs text-amber-800 font-bold leading-relaxed">
-            Do not initiate this delivery again. This screen updates automatically once Software Activation confirms the device is active — you can safely leave and come back.
+            {device
+              ? 'Do not initiate this delivery again. This screen updates automatically once Software Activation confirms the device is active — you can safely leave and come back.'
+              : 'Do not initiate this delivery again. Submit the lock-screen photo above to complete it.'}
           </p>
         </div>
 

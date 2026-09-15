@@ -123,6 +123,44 @@ const matchesOverdueBucket = (days: number, bucket: string) => {
 const selectClass =
   'min-w-0 w-full rounded-xl border border-stroke bg-gray-50 px-3 py-2.5 text-xs font-semibold text-gray-600 outline-none focus:border-red-500 dark:border-strokedark dark:bg-meta-4 dark:text-gray-300 transition-all'
 
+// Typo-tolerant name search: a plain substring check misses common spelling
+// variants (e.g. searching "Zulqrnain" for a customer stored as "Zulqarnan
+// Arfi" — same name, different transliteration). Names are searched loosely;
+// CNIC/phone stay exact substring matches since those must be precise.
+const levenshteinDistance = (a: string, b: string) => {
+  const m = a.length
+  const n = b.length
+  const dp = Array.from({ length: n + 1 }, (_, i) => i)
+  for (let i = 1; i <= m; i += 1) {
+    let prev = dp[0]
+    dp[0] = i
+    for (let j = 1; j <= n; j += 1) {
+      const temp = dp[j]
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1
+      dp[j] = Math.min(dp[j] + 1, dp[j - 1] + 1, prev + cost)
+      prev = temp
+    }
+  }
+  return dp[n]
+}
+
+const fuzzyNameMatch = (name: string | null | undefined, needle: string) => {
+  const normalizedName = (name || '').toLowerCase().trim()
+  const normalizedNeedle = needle.toLowerCase().trim()
+  if (!normalizedName || !normalizedNeedle) return false
+  if (normalizedName.includes(normalizedNeedle)) return true
+  if (normalizedNeedle.length < 3) return false // too short for fuzzy tolerance to be meaningful
+
+  const nameWords = normalizedName.split(/\s+/).filter(Boolean)
+  const needleWords = normalizedNeedle.split(/\s+/).filter(Boolean)
+  return needleWords.every((nw) =>
+    nameWords.some((w) => {
+      const maxDistance = nw.length <= 4 ? 1 : 2
+      return levenshteinDistance(w, nw) <= maxDistance
+    })
+  )
+}
+
 const BlacklistedCustomerList = () => {
   const [customers, setCustomers] = useState<CustomerGroup[]>([])
   const [reasonTypes, setReasonTypes] = useState<ReasonType[]>([])
@@ -544,15 +582,22 @@ const BlacklistedCustomerList = () => {
     return customers.filter(c => {
       if (globalFilter) {
         const matchesCustomer =
-          (c.customer.name || '').toLowerCase().includes(needle) ||
+          fuzzyNameMatch(c.customer.name, globalFilter) ||
           (c.customer.whatsapp_number || '').includes(globalFilter) ||
           (c.customer.cnic_number && c.customer.cnic_number.toLowerCase().includes(needle))
         const matchesGuarantor = (c.customer.guarantors || []).some((g: Guarantor) =>
-          (g.name || '').toLowerCase().includes(needle) ||
+          fuzzyNameMatch(g.name, globalFilter) ||
           (g.cnic_number || '').toLowerCase().includes(needle) ||
           (g.telephone_number || '').includes(globalFilter)
         )
-        if (!matchesCustomer && !matchesGuarantor) return false
+        // Also match by order ref / IMEI — someone investigating a specific
+        // order (e.g. from the Returns screen's "already blacklisted"
+        // warning) searches by order number, not by the customer's name.
+        const matchesOrder = (c.orders || []).some((o: any) =>
+          (o.order_ref || '').toLowerCase().includes(needle) ||
+          (o.product_details?.imei_serial || '').toLowerCase().includes(needle)
+        )
+        if (!matchesCustomer && !matchesGuarantor && !matchesOrder) return false
       }
       if (reasonFilter !== ALL && (c.customer.blacklist_reason_code || 'not_recorded') !== reasonFilter) return false
       if (areaFilter !== ALL && (c.customer.area || '-') !== areaFilter) return false
