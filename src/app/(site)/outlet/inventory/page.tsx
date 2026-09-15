@@ -265,18 +265,45 @@ export default function OutletInventoryPage() {
         }
     };
 
-    const deleteItem = async (id: number) => {
-        if (!confirm("Delete this inventory record?")) return;
-        const res = await fetch(`${API_BASE}/api/outlet/inventory/${id}`, {
+    // Deletes ONE unit (a single IMEI/serial row, or a non-serialized batch
+    // row). Refetches the full inventory+stats from the backend afterwards
+    // (rather than just splicing local state) so the top stat cards and the
+    // stock-value math never include a deleted unit.
+    const deleteItem = async (item: InventoryItem) => {
+        const label = item.imei_serial
+            ? `IMEI ${item.imei_serial} (${item.product_name})`
+            : `${item.quantity} unit(s) of ${item.product_name}`;
+        if (!confirm(`Delete ${label}? This cannot be undone.`)) return;
+        const res = await fetch(`${API_BASE}/api/outlet/inventory/${item.id}`, {
             method: "DELETE",
             headers: getAuthHeaders(),
         });
         const data = await res.json();
         if (data.success) {
-            setInventory(prev => prev.filter(i => i.id !== id));
             showAlert("success", "Item deleted.");
+            fetchInventory();
         } else {
-            showAlert("error", "Could not delete item.");
+            showAlert("error", data.message || "Could not delete item.");
+        }
+    };
+
+    // Deletes an ENTIRE product group — every unit/IMEI under it — in one go,
+    // via the same bulk-delete endpoint used for manual multi-select.
+    const deleteGroup = async (grp: GroupedItem) => {
+        const ids = grp.children.map(c => c.id);
+        if (!confirm(`Delete "${grp.product_name}" and all ${ids.length} unit(s) (including every IMEI)? This cannot be undone.`)) return;
+        const res = await fetch(`${API_BASE}/api/outlet/inventory/bulk-delete`, {
+            method: "POST",
+            headers: getAuthHeaders(),
+            body: JSON.stringify({ ids }),
+        });
+        const data = await res.json();
+        if (data.success) {
+            setSelectedIds(prev => prev.filter(id => !ids.includes(id)));
+            showAlert(data.blocked ? "error" : "success", data.message || `${data.count} unit(s) deleted.`);
+            fetchInventory();
+        } else {
+            showAlert("error", data.message || "Could not delete product.");
         }
     };
 
@@ -290,11 +317,11 @@ export default function OutletInventoryPage() {
         });
         const data = await res.json();
         if (data.success) {
-            setInventory(prev => prev.filter(i => !selectedIds.includes(i.id)));
             setSelectedIds([]);
-            showAlert("success", `${data.count} items deleted.`);
+            showAlert(data.blocked ? "error" : "success", data.message || `${data.count} items deleted.`);
+            fetchInventory();
         } else {
-            showAlert("error", "Bulk delete failed.");
+            showAlert("error", data.message || "Bulk delete failed.");
         }
     };
 
@@ -547,6 +574,13 @@ export default function OutletInventoryPage() {
                                                         >
                                                             {isExpanded ? "Hide" : `${grp.children.length} unit${grp.children.length > 1 ? "s" : ""}`}
                                                         </button>
+                                                        <button
+                                                            onClick={(e) => { e.stopPropagation(); deleteGroup(grp); }}
+                                                            title="Delete this product and all its units/IMEIs"
+                                                            className="text-gray-400 hover:text-red-500 transition-colors p-1"
+                                                        >
+                                                            <Trash2 size={15} />
+                                                        </button>
                                                     </div>
                                                 </td>
                                             </tr>
@@ -646,9 +680,18 @@ export default function OutletInventoryPage() {
                                                         {/* Actions */}
                                                         <td className="px-4 py-3 text-center">
                                                             <div className="flex flex-col items-center gap-1">
-                                                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${STATUS_COLORS[item.status] || "bg-gray-100 text-gray-600"}`}>
-                                                                    {item.status === "Used Stock" ? "In Stock" : item.status}
-                                                                </span>
+                                                                <div className="flex items-center gap-2">
+                                                                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${STATUS_COLORS[item.status] || "bg-gray-100 text-gray-600"}`}>
+                                                                        {item.status === "Used Stock" ? "In Stock" : item.status}
+                                                                    </span>
+                                                                    <button
+                                                                        onClick={() => deleteItem(item)}
+                                                                        title={item.imei_serial ? "Delete this IMEI/unit" : "Delete this batch"}
+                                                                        className="text-gray-400 hover:text-red-500 transition-colors p-0.5"
+                                                                    >
+                                                                        <Trash2 size={13} />
+                                                                    </button>
+                                                                </div>
                                                                 {item.status === "Used Stock" && (
                                                                     <span className="px-1.5 py-0.5 rounded-full text-[8px] font-black bg-orange-100 text-orange-700 dark:bg-orange-900/20 dark:text-orange-400 uppercase tracking-wider border border-orange-200 dark:border-orange-800">
                                                                         Used Item
