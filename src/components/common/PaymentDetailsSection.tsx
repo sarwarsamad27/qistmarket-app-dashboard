@@ -22,6 +22,7 @@ export const PaymentDetailsSection = ({
     editable = false,
     orderId,
     onSaved,
+    returned = false,
 }: {
     paymentDetails: any,
     title?: string,
@@ -29,6 +30,10 @@ export const PaymentDetailsSection = ({
     /** Needed only for the missing-ledger repair action. */
     orderId?: number,
     onSaved?: () => Promise<void> | void,
+    /** This is a returned order's historical schedule — the row carrying
+     * arrears is where collection actually stopped, not an active "still
+     * owed" balance, so it gets a clearer label than the live-ledger "arr" badge. */
+    returned?: boolean,
 }) => {
     const [expandedInstallments, setExpandedInstallments] = useState(true);
     const [isEditMode, setIsEditMode] = useState(false);
@@ -472,9 +477,15 @@ export const PaymentDetailsSection = ({
                                                     <td className="px-4 py-2 text-sm font-medium text-dark dark:text-white">
                                                         Rs. {inst.due_amount?.toLocaleString()}
                                                         {inst.arrears > 0 && (
-                                                            <div className="text-[10px] text-red-500 font-medium">
-                                                                +{inst.arrears?.toLocaleString()} arr
-                                                            </div>
+                                                            returned ? (
+                                                                <div className="mt-1 inline-block rounded bg-orange-100 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-orange-700 dark:bg-orange-900/30 dark:text-orange-400">
+                                                                    Installments stopped here (+Rs. {inst.arrears?.toLocaleString()} unpaid)
+                                                                </div>
+                                                            ) : (
+                                                                <div className="text-[10px] text-red-500 font-medium">
+                                                                    +{inst.arrears?.toLocaleString()} arr
+                                                                </div>
+                                                            )
                                                         )}
                                                     </td>
                                                     <td className="px-4 py-2 text-sm font-bold text-green-600 dark:text-green-400">

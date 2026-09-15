@@ -851,9 +851,15 @@ export default function DeliveredProductDetails({
 
                                     {ad.payment_details && (
                                         <div className="mt-4">
+                                            {ad.payment_details.installment_plan && (
+                                                <p className="mb-3 rounded-lg border border-orange-200 bg-orange-50 px-3 py-2 text-xs font-medium text-orange-700 dark:border-orange-900/40 dark:bg-orange-900/10 dark:text-orange-300">
+                                                    Installments stopped when this order was returned on {formatDateTimeUTC(ad.archived_at)} — any months due after that date were never collected and won't accrue further arrears.
+                                                </p>
+                                            )}
                                             <PaymentDetailsSection
                                                 paymentDetails={ad.payment_details}
                                                 title="Payment Details (Cleared due to Return)"
+                                                returned
                                             />
                                         </div>
                                     )}
