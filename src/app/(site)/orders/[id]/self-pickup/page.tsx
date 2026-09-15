@@ -78,6 +78,14 @@ export default function SelfPickupPage() {
   const [ledger, setLedger] = useState<any[]>([]);
   const [feedback, setFeedback] = useState('');
   const [faceImage, setFaceImage] = useState<string | null>(null);
+  // Optional — a real photo of the exact unit handed over. Many brands/
+  // models aren't on the qistmarket.pk catalog at all, so this is the only
+  // way the customer's ledger ever gets a genuine product photo for those.
+  // A plain file input with capture="environment" (not a custom camera UI
+  // like faceImage above) opens the device's own camera app on mobile while
+  // still working as a normal file picker on desktop.
+  const [productImage, setProductImage] = useState<string | null>(null);
+  const [productImageFile, setProductImageFile] = useState<File | null>(null);
   const [devices, setDevices] = useState<MediaDeviceInfo[]>([]);
   const [selectedDeviceId, setSelectedDeviceId] = useState<string>('');
   const [isMirrored, setIsMirrored] = useState(true);
@@ -593,6 +601,15 @@ export default function SelfPickupPage() {
     }
   };
 
+  const handleProductPhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setProductImageFile(file);
+    const reader = new FileReader();
+    reader.onload = () => setProductImage(reader.result as string);
+    reader.readAsDataURL(file);
+  };
+
   const handleSubmit = async () => {
     if (!selectedInventory) return toast.error('Select an item from inventory');
     if (!selectedPlan) return toast.error('Select an installment plan');
@@ -633,6 +650,10 @@ export default function SelfPickupPage() {
         const res = await fetch(faceImage);
         const blob = await res.blob();
         formData.append('face_photo', blob, 'face_photo.jpg');
+      }
+
+      if (productImageFile) {
+        formData.append('product_photo', productImageFile, productImageFile.name || 'product_photo.jpg');
       }
 
       const res = await fetch(`${BACKEND_URL}/api/orders/self-pickup/submit`, {
@@ -1369,6 +1390,33 @@ export default function SelfPickupPage() {
                         </div>
                       </div>
                     )}
+
+                    <div className="bg-gray-50 border border-gray-100 p-6 rounded-[2rem] md:col-span-2">
+                      <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3">Product Photo (Optional)</p>
+                      <p className="text-xs font-bold text-gray-400 mb-4">
+                        A real photo of this exact unit — shows on the customer&apos;s ledger. Only needed for
+                        products not already on the qistmarket.pk catalog (like appliances/ACs).
+                      </p>
+                      <div className="flex items-center gap-4">
+                        {productImage ? (
+                          <img src={productImage} alt="Product" className="w-20 h-20 rounded-xl object-cover border-2 border-white shadow-sm" />
+                        ) : (
+                          <div className="w-20 h-20 rounded-xl bg-white border-2 border-dashed border-gray-200 flex items-center justify-center text-gray-300">
+                            <ImageIcon className="w-8 h-8" />
+                          </div>
+                        )}
+                        <label className="cursor-pointer px-5 py-3 bg-white border-2 border-gray-200 hover:border-indigo-400 rounded-2xl font-black text-xs uppercase tracking-widest text-gray-600 transition-colors">
+                          {productImage ? 'Retake' : 'Add Photo'}
+                          <input
+                            type="file"
+                            accept="image/*"
+                            capture="environment"
+                            className="hidden"
+                            onChange={handleProductPhotoChange}
+                          />
+                        </label>
+                      </div>
+                    </div>
                   </div>
 
                   <div className="space-y-3">
