@@ -92,6 +92,14 @@ interface Order {
   is_customer_blacklisted?: boolean
   can_exchange?: boolean
   verification: VerificationNested | null
+  // Present only while status is 'awaiting_paytrigger_enrollment'. A non-empty
+  // paytrigger_devices means this is a real PayTrigger-gated device (Tecno/
+  // Infinix/Itel, enrollment toggle on) — completed only by the PayTrigger
+  // webhook, never by a manual lock-screen photo. Empty/absent means this is
+  // a manual "Waiting For Software Activation" pending delivery (unsupported
+  // brand, or the toggle was off) — the manual lock-screen photo is the only
+  // way to complete it.
+  delivery?: { status?: string; paytrigger_devices?: { id: number }[] } | null
   productHistories?: {
     id: number
     previous_product: string
@@ -1329,17 +1337,23 @@ const OrderListContent = ({ forcedStatus, forcedChannel, apiEndpoint, hideAction
                 {/* Software Activation / Manual Lock Screen Photo actions for awaiting_paytrigger_enrollment */}
                 {!hideActions && orderStatus === 'awaiting_paytrigger_enrollment' && (
                   <>
-                    <li>
-                      <button
-                        onClick={() => {
-                          handleOpenManualLockModal(order)
-                          setIsOpen(false)
-                        }}
-                        className="block w-full px-4 py-2.5 text-left font-semibold text-emerald-700 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-900/30"
-                      >
-                        📷 Submit Lock Screen Photo
-                      </button>
-                    </li>
+                    {/* A real PayTrigger-gated device (Tecno/Infinix/Itel, toggle on) can
+                        only be completed by the PayTrigger webhook — no manual upload option.
+                        Only a manual "Waiting For Software Activation" pending delivery
+                        (unsupported brand, or toggle off) gets the lock-screen photo option. */}
+                    {!(order.delivery?.paytrigger_devices && order.delivery.paytrigger_devices.length > 0) && (
+                      <li>
+                        <button
+                          onClick={() => {
+                            handleOpenManualLockModal(order)
+                            setIsOpen(false)
+                          }}
+                          className="block w-full px-4 py-2.5 text-left font-semibold text-emerald-700 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-900/30"
+                        >
+                          📷 Submit Lock Screen Photo
+                        </button>
+                      </li>
+                    )}
                     <li>
                       <button
                         onClick={() => {

@@ -134,6 +134,30 @@ export default function OutletReturnsPage() {
 
 
 
+  const [cancellingId, setCancellingId] = useState<number | null>(null);
+
+  const handleCancelReturn = async (record: any) => {
+    if (!confirm(`Cancel this return for order #${record.order?.order_ref}? The order will go back to Delivered.`)) return;
+    setCancellingId(record.id);
+    try {
+      const res = await fetch(`${API_BASE}/api/outlet/cancel-direct-return`, {
+        method: "POST",
+        headers: { ...getHeaders(), "Content-Type": "application/json" },
+        body: JSON.stringify({ record_id: record.id }),
+      });
+      const d = await res.json();
+      if (!d.success) throw new Error(d.error || "Failed");
+
+      toast.success(d.message || "Return cancelled");
+      (d.warnings || []).forEach((w: string) => toast(w, { icon: "⚠️", duration: 6000 }));
+      fetchRecords();
+    } catch (e: any) {
+      toast.error(e.message || "Failed to cancel return");
+    } finally {
+      setCancellingId(null);
+    }
+  };
+
   const handleClearSelection = () => {
     setSelectedOrder(null);
     setOrderQuery("");
@@ -380,12 +404,13 @@ export default function OutletReturnsPage() {
                   <th className="px-5 py-4">Financials</th>
                   <th className="px-5 py-4">Initiated By</th>
                   <th className="px-5 py-4">Status & Date</th>
+                  <th className="px-5 py-4">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-stroke dark:divide-strokedark">
                 {completedRecords.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="text-center py-20 text-gray-400 font-medium">
+                    <td colSpan={7} className="text-center py-20 text-gray-400 font-medium">
                       <History size={48} className="mx-auto mb-4 opacity-10" />
                       <p className="uppercase tracking-widest text-xs font-black">No completed returns.</p>
                     </td>
@@ -426,33 +451,30 @@ export default function OutletReturnsPage() {
                       )}
                     </td>
                     <td className="px-5 py-4">
-                      <div className="flex flex-col gap-1">
-                        <div className="flex items-center gap-2">
-                          <div className="w-1.5 h-1.5 rounded-full bg-success"></div>
-                          <p className="text-xs font-black text-gray-700 dark:text-gray-200">
-                            {r.verified_at ? formatExactDate(r.verified_at) : ""}
-                          </p>
-                        </div>
-                        {(() => {
-                          const returnTime = new Date(r.verified_at || r.created_at).getTime();
-                          if (isNaN(returnTime)) return null;
-                          const clearTime = returnTime + 3 * 24 * 60 * 60 * 1000;
-                          const clearsAtDateStr = formatExactDate(new Date(clearTime), 'MMM DD, YYYY');
-                          const now = Date.now();
-                          const diffMs = clearTime - now;
-                          const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
-                          const text = diffMs <= 0
-                            ? `Moves to Cleared: ${clearsAtDateStr} (Today)`
-                            : diffDays === 1
-                            ? `Moves to Cleared: ${clearsAtDateStr} (Tomorrow)`
-                            : `Moves to Cleared: ${clearsAtDateStr} (${diffDays} days left)`;
-                          return (
-                            <span className="text-[9px] font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/50 px-1.5 py-0.5 rounded border border-emerald-200 dark:border-emerald-800/60 w-fit">
-                              {text}
-                            </span>
-                          );
-                        })()}
+                      <div className="flex items-center gap-2">
+                        <div className="w-1.5 h-1.5 rounded-full bg-success"></div>
+                        <p className="text-xs font-black text-gray-700 dark:text-gray-200">
+                          {r.verified_at ? formatExactDate(r.verified_at) : ""}
+                        </p>
                       </div>
+                    </td>
+                    <td className="px-5 py-4">
+                      {r.can_cancel ? (
+                        <button
+                          onClick={() => handleCancelReturn(r)}
+                          disabled={cancellingId === r.id}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 disabled:opacity-50 transition-all dark:bg-red-900/20 dark:border-red-900/40 dark:text-red-400"
+                        >
+                          {cancellingId === r.id ? (
+                            <div className="w-3 h-3 border-2 border-red-400/40 border-t-red-500 rounded-full animate-spin" />
+                          ) : (
+                            <X size={12} />
+                          )}
+                          Cancel
+                        </button>
+                      ) : (
+                        <span className="text-[10px] font-bold text-gray-300 uppercase tracking-widest italic">—</span>
+                      )}
                     </td>
                   </tr>
                 ))}
