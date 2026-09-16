@@ -320,7 +320,15 @@ export default function CsrDashboardPage() {
   const renderMiddle = () => {
     if (!stats) return null;
     const { csrRanking, targetTracking } = stats;
-    const topPerformer = csrRanking[0];
+    // "Top Ranking CSR" must reflect the actual best achiever (same criterion
+    // as the ranking table's default "By Achievement" view / its #1 trophy
+    // badge), not raw backend `score` — score is dominated by complaint-solve
+    // points, which let an officer with 0 deliveries/0 sales but many solved
+    // complaints outrank everyone with real sales.
+    const topPerformer = [...csrRanking].sort((a, b) => {
+      if (b.delivered !== a.delivered) return b.delivered - a.delivered;
+      return b.totalSales - a.totalSales;
+    })[0];
 
 
     return (
