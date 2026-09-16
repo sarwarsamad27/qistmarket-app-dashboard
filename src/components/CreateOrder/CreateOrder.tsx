@@ -66,6 +66,8 @@ const CreateOrders: React.FC = () => {
   const [activeCustomPlan, setActiveCustomPlan] = useState<{ cashPrice: number, months: number, profit: number } | null>(null);
   const [phoneMatches, setPhoneMatches] = useState<any[]>([]);
   const [checkingPhone, setCheckingPhone] = useState(false);
+  const [altPhoneMatches, setAltPhoneMatches] = useState<any[]>([]);
+  const [checkingAltPhone, setCheckingAltPhone] = useState(false);
 
   // Custom Product Calculation States
   const [customCashPrice, setCustomCashPrice] = useState<string>('');
@@ -196,6 +198,46 @@ const CreateOrders: React.FC = () => {
     const timer = setTimeout(checkPhone, 500);
     return () => clearTimeout(timer);
   }, [formData.whatsapp_number]);
+
+  // Alternate Contact Number Cross-Check
+  useEffect(() => {
+    const checkAltPhone = async () => {
+      const phone = (formData.alternate_contact || '').replace(/\s+/g, '');
+      if (phone.length === 11 && /^0[0-9]{10}$/.test(phone)) {
+        setCheckingAltPhone(true);
+        try {
+          const token = Cookies.get("auth_token");
+          const response = await fetch(`${BACKEND_URL}/api/check-phone`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${token}`
+            },
+            body: JSON.stringify({ phone })
+          });
+          const result = await response.json();
+          if (result.success) {
+            setAltPhoneMatches(result.results);
+            if (result.results.length > 0) {
+              toast.error(`Found ${result.results.length} existing record(s) for alternate contact!`, {
+                duration: 4000,
+                icon: '⚠️'
+              });
+            }
+          }
+        } catch (error) {
+          console.error("Error checking alternate phone:", error);
+        } finally {
+          setCheckingAltPhone(false);
+        }
+      } else {
+        setAltPhoneMatches([]);
+      }
+    };
+
+    const timer = setTimeout(checkAltPhone, 500);
+    return () => clearTimeout(timer);
+  }, [formData.alternate_contact]);
 
   // Round up logic
   const roundUp = (val: number) => Math.ceil(val / 50) * 50;
@@ -530,10 +572,10 @@ const CreateOrders: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Check if customer is blacklisted
-    const isBlacklisted = phoneMatches.some((m: any) => m.is_blacklisted === true);
+    // Check if customer or alternate contact is blacklisted
+    const isBlacklisted = phoneMatches.some((m: any) => m.is_blacklisted === true) || altPhoneMatches.some((m: any) => m.is_blacklisted === true);
     if (isBlacklisted) {
-      toast.error("Order cannot be placed. This customer is blacklisted!", {
+      toast.error("Order cannot be placed. Customer or alternate contact is blacklisted!", {
         duration: 5000,
         icon: '🚫'
       });
@@ -753,14 +795,77 @@ const CreateOrders: React.FC = () => {
 
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">Alternate Contact <span className="text-gray-400 font-normal">(Optional)</span></label>
-                  <input
-                    type="tel"
-                    name="alternate_contact"
-                    value={formData.alternate_contact}
-                    onChange={handleChange}
-                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-4 focus:ring-red-100 focus:border-red-500 outline-none transition-all"
-                    placeholder="Secondary contact number"
-                  />
+                  <div className="relative">
+                    <input
+                      type="tel"
+                      name="alternate_contact"
+                      value={formData.alternate_contact}
+                      onChange={handleChange}
+                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-4 focus:ring-red-100 focus:border-red-500 outline-none transition-all"
+                      placeholder="Secondary contact number"
+                    />
+                    {checkingAltPhone && <div className="absolute right-4 top-1/2 -translate-y-1/2 animate-spin rounded-full h-4 w-4 border-b-2 border-red-600"></div>}
+                  </div>
+
+                  {altPhoneMatches.length > 0 && (
+                    <div className="mt-4 bg-white border-2 border-red-100 rounded-2xl shadow-lg shadow-red-100/50 overflow-hidden animate-in zoom-in-95 duration-300">
+                      <div className="bg-red-50 px-4 py-3 border-b border-red-100 flex items-center justify-between">
+                        <div className="flex items-center gap-2 text-red-700 font-bold text-xs uppercase tracking-wider">
+                          <AlertCircle className="w-4 h-4" /> 
+                          Existing Records Found for Alternate Number ({altPhoneMatches.length})
+                        </div>
+                      </div>
+                      <div className="max-h-[180px] overflow-y-auto custom-scrollbar">
+                        <div className="divide-y divide-red-50">
+                          {altPhoneMatches.map((m: any) => (
+                            <div key={m.id} className="p-3 hover:bg-red-50/30 transition-colors group">
+                              <div className="flex items-start justify-between gap-3">
+                                <div className="space-y-1">
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-sm font-black text-gray-900 group-hover:text-red-600 transition-colors">{m.order_ref}</span>
+                                    {m.is_blacklisted ? (
+                                      <span className="text-[9px] font-bold px-2 py-0.5 rounded-full uppercase bg-red-150 text-red-700 border border-red-200 animate-pulse">
+                                        Blacklisted
+                                      </span>
+                                    ) : (
+                                      <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full uppercase ${
+                                        m.status === 'delivered' ? 'bg-emerald-100 text-emerald-700' :
+                                        m.status === 'cancelled' ? 'bg-gray-100 text-gray-600' :
+                                        'bg-amber-100 text-amber-700'
+                                      }`}>
+                                        {m.status}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <p className="text-[11px] text-gray-500 font-medium">
+                                    Customer: <span className="text-gray-900">{m.customer_name}</span>
+                                  </p>
+                                </div>
+                                <div className="text-right">
+                                  <div className="text-[9px] font-black text-red-500 bg-red-50 px-2 py-1 rounded-lg uppercase border border-red-100 shadow-sm">
+                                    {m.role}
+                                  </div>
+                                  <p className="text-[9px] text-gray-400 mt-1 font-bold">
+                                    {new Date(m.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {altPhoneMatches.some((m: any) => m.is_blacklisted === true) && (
+                    <div className="mt-4 p-4 bg-red-50 border-2 border-red-200 rounded-2xl flex items-start gap-3 animate-in slide-in-from-top-2 duration-300">
+                      <AlertCircle className="w-5 h-5 text-red-600 shrink-0 mt-0.5 animate-bounce" />
+                      <div>
+                        <h4 className="text-sm font-black text-red-800 uppercase tracking-wide">CRITICAL: Alternate Contact Blacklisted</h4>
+                        <p className="text-xs text-red-600 font-bold mt-1">This alternate contact number is marked as blacklisted in the system. Placing any new orders for them is strictly disabled.</p>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 <div>
@@ -1341,7 +1446,7 @@ const CreateOrders: React.FC = () => {
             <div className="flex flex-col sm:flex-row gap-4 pt-8">
               <button
                 type="submit"
-                disabled={loading || phoneMatches.some((m: any) => m.is_blacklisted === true)}
+                disabled={loading || phoneMatches.some((m: any) => m.is_blacklisted === true) || altPhoneMatches.some((m: any) => m.is_blacklisted === true)}
                 className="flex-[2] bg-red-600 text-white py-4 rounded-2xl font-bold hover:bg-red-700 hover:shadow-xl hover:shadow-red-100 transition-all disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-3 text-lg"
               >
                 {loading ? (
