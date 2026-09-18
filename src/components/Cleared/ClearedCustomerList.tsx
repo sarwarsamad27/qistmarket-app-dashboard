@@ -114,6 +114,26 @@ const ClearedCustomerList = () => {
       },
     },
     {
+      id: 'cleared_at',
+      accessorFn: (row) => row.customer.cleared_at,
+      header: 'Cleared Date',
+      cell: ({ getValue }) => {
+        const val = getValue() as string
+        if (!val) return '-'
+        const date = new Date(val)
+        return (
+          <div className="flex flex-col">
+            <span className="font-bold text-emerald-600 dark:text-emerald-400">
+              {date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+            </span>
+            <span className="text-[10px] text-gray-400 font-bold uppercase">
+              {date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}
+            </span>
+          </div>
+        )
+      },
+    },
+    {
       id: 'total_paid',
       accessorFn: (row) => row.ledgerSummary.totalPaid,
       header: 'Total Paid',
