@@ -168,6 +168,7 @@ const BlacklistedCustomerList = () => {
   const [globalFilter, setGlobalFilter] = useState('')
   const [loading, setLoading] = useState(false)
   const [whitelistingCnic, setWhitelistingCnic] = useState<string | null>(null)
+  const [whitelistingGrantorId, setWhitelistingGrantorId] = useState<number | null>(null)
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set())
   const { openProfile } = useProfileModal()
   const { user } = useAuth()
@@ -285,6 +286,71 @@ const BlacklistedCustomerList = () => {
       toast.error(err.message || 'Failed to whitelist customer')
     } finally {
       setWhitelistingCnic(null)
+    }
+  }
+
+  // Whitelists ONE guarantor without touching the customer's own blacklist
+  // status — same per-entity action already available inside the full
+  // profile modal (CustomerProfileModal's handleWhitelistGrantor), just
+  // reachable here too from the inline expanded row so it doesn't require
+  // opening the modal first. Unlike handleWhitelist above, this never
+  // removes the row — the customer (and any other still-blacklisted
+  // guarantor) can remain listed even after this one guarantor clears.
+  const handleWhitelistGrantor = async (customerGroup: CustomerGroup, grantor: Guarantor) => {
+    const cnic = grantor.cnic_number
+    if (!cnic) {
+      toast.error('Guarantor has no CNIC on file — cannot whitelist.')
+      return
+    }
+    const reason = window.prompt(`Reason for whitelisting Guarantor ${grantor.grantor_number || ''} (${grantor.name}):`, '')
+    if (reason === null) return // cancelled
+    if (!reason.trim()) {
+      toast.error('A reason is required to whitelist.')
+      return
+    }
+
+    setWhitelistingGrantorId(grantor.id)
+    try {
+      const token = Cookies.get('auth_token')
+      const res = await fetch(`${BACKEND_URL}/api/accounts/blacklist/action`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          cnic,
+          action: 'whitelist',
+          targetType: 'grantor',
+          grantorId: grantor.id,
+          reason: reason.trim(),
+        }),
+      })
+      const json = await res.json()
+      if (!res.ok || json.success === false) throw new Error(json.message || 'Failed to whitelist guarantor')
+
+      toast.success(json.message || `Guarantor ${grantor.grantor_number || ''} whitelisted successfully.`)
+      const rowKey = getRowKey(customerGroup)
+      setCustomers(prev =>
+        prev.map(c =>
+          getRowKey(c) !== rowKey
+            ? c
+            : {
+                ...c,
+                customer: {
+                  ...c.customer,
+                  guarantors: (c.customer.guarantors || []).map((g: Guarantor) =>
+                    g.id === grantor.id ? { ...g, is_blacklisted: false } : g
+                  ),
+                },
+              }
+        )
+      )
+    } catch (err: any) {
+      console.error(err)
+      toast.error(err.message || 'Failed to whitelist guarantor')
+    } finally {
+      setWhitelistingGrantorId(null)
     }
   }
 
@@ -798,10 +864,21 @@ const BlacklistedCustomerList = () => {
                                       </div>
                                       <span className="font-bold text-dark dark:text-white text-sm">{g.name}</span>
                                     </div>
-                                    <span className={`inline-flex shrink-0 items-center gap-1 rounded-full px-2.5 py-0.5 text-[9px] font-black uppercase text-white ${g.is_blacklisted ? g.blacklist_status === 'Pending Whitelist' ? 'bg-amber-500' : 'bg-red-500' : 'bg-emerald-500'}`}>
-                                      {g.is_blacklisted ? <AlertTriangle size={10} /> : <ShieldCheck size={10} />}
-                                      {g.is_blacklisted ? g.blacklist_status || 'Blacklisted' : 'Whitelisted'}
-                                    </span>
+                                    <div className="flex shrink-0 items-center gap-2">
+                                      <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[9px] font-black uppercase text-white ${g.is_blacklisted ? g.blacklist_status === 'Pending Whitelist' ? 'bg-amber-500' : 'bg-red-500' : 'bg-emerald-500'}`}>
+                                        {g.is_blacklisted ? <AlertTriangle size={10} /> : <ShieldCheck size={10} />}
+                                        {g.is_blacklisted ? g.blacklist_status || 'Blacklisted' : 'Whitelisted'}
+                                      </span>
+                                      {canWhitelist && g.is_blacklisted && (
+                                        <button
+                                          onClick={() => handleWhitelistGrantor(row.original, g)}
+                                          disabled={whitelistingGrantorId === g.id}
+                                          className="inline-flex items-center gap-1 rounded-full bg-emerald-500 px-2.5 py-0.5 text-[9px] font-black uppercase text-white hover:bg-emerald-600 disabled:opacity-60"
+                                        >
+                                          <ShieldCheck size={10} /> {whitelistingGrantorId === g.id ? 'Whitelisting...' : 'Whitelist'}
+                                        </button>
+                                      )}
+                                    </div>
                                   </div>
 
                                   {/* Contact section */}
