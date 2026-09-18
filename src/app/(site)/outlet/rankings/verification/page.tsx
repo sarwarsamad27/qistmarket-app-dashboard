@@ -83,7 +83,7 @@ export default function VerificationOfficerRankingsPage() {
                         <p className="text-sm text-gray-400 mt-2 font-bold">Global and per-outlet verification officer performance — current month</p>
                     </div>
                     <div className="flex items-center gap-3">
-                        {outlets.length > 0 && (
+                        {outlets.length > 1 && (
                             <select
                                 value={selectedOutlet}
                                 onChange={(e) => setSelectedOutlet(e.target.value)}
