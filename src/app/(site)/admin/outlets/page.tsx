@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Cookies from "js-cookie";
 import toast from "react-hot-toast";
-import { Store, Plus, Search, Warehouse, PackageCheck, Wallet, Pencil, Users2, X } from "lucide-react";
+import { Store, Plus, Search, Warehouse, PackageCheck, Wallet, Pencil, Users2, X, Trash2 } from "lucide-react";
 import Breadcrumb from "@/components/Breadcrumbs/Breadcrumb";
 import PageHeader from "@/components/Accounts/PageHeader";
 import EmptyState from "@/components/Accounts/EmptyState";
@@ -111,6 +111,19 @@ export default function AdminOutletsPage() {
     setEditing(o);
     setForm({ code: o.code, name: o.name, address: o.address || "", phone: o.phone || "", status: o.status });
     setShowForm(true);
+  };
+
+  const handleDelete = async (o: Outlet) => {
+    if (!confirm(`Move "${o.name}" to the Recycle Bin? It will disappear from outlet lists everywhere until restored.`)) return;
+    try {
+      const res = await fetch(`${BACKEND_URL}/api/outlets/${o.id}`, { method: "DELETE", headers: authHeaders() });
+      const data = await res.json();
+      if (!res.ok || !data.success) throw new Error(data.message || "Delete failed.");
+      toast.success(data.message || "Outlet moved to Recycle Bin.");
+      load();
+    } catch (err: any) {
+      toast.error(err.message);
+    }
   };
 
   const handleSave = async (e: React.FormEvent) => {
@@ -237,6 +250,9 @@ export default function AdminOutletsPage() {
                         </button>
                         <button onClick={() => openEdit(o)} className="inline-flex items-center gap-1 text-xs font-bold text-[#ff3d3d] hover:underline">
                           <Pencil className="size-3.5" /> Edit
+                        </button>
+                        <button onClick={() => handleDelete(o)} className="inline-flex items-center gap-1 text-xs font-bold text-gray-400 hover:text-red-600 hover:underline">
+                          <Trash2 className="size-3.5" /> Delete
                         </button>
                       </div>
                     </td>
