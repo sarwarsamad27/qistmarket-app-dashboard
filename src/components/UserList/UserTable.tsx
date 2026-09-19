@@ -729,7 +729,7 @@ const UsersTable = () => {
     { accessorKey: "cnic", header: "CNIC", enableColumnFilter: true },
     { accessorKey: "role", header: "Role", enableColumnFilter: true },
     {
-      accessorKey: "outlet", header: "Outlet", enableColumnFilter: false,
+      accessorKey: "outlet", header: "Outlet", enableColumnFilter: true,
       cell: ({ row }) => row.original.outlet?.name || "N/A",
     },
     { accessorKey: "status", header: "Status", enableColumnFilter: true },
