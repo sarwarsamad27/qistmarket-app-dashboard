@@ -70,8 +70,49 @@ export default function SelfPickupPage() {
   const [otpSent, setOtpSent] = useState(false);
   const [blockedPhoneMsg, setBlockedPhoneMsg] = useState<string | null>(null);
   const [showBlockedPopup, setShowBlockedPopup] = useState(false);
+  const [phoneMatches, setPhoneMatches] = useState<any[]>([]);
+  const [checkingPhone, setCheckingPhone] = useState(false);
   const [otpVerified, setOtpVerified] = useState(false);
   const [otpLoading, setOtpLoading] = useState(false);
+
+  // Same live cross-check as Create Order: as soon as a full number is typed,
+  // look it up and show every existing record; blacklisted matches block OTP.
+  useEffect(() => {
+    const cleaned = phone.replace(/\s+/g, '');
+    if (!/^0[0-9]{10}$/.test(cleaned)) {
+      setPhoneMatches([]);
+      setBlockedPhoneMsg(null);
+      return;
+    }
+    const timer = setTimeout(async () => {
+      setCheckingPhone(true);
+      try {
+        const token = Cookies.get('auth_token');
+        const res = await fetch(`${BACKEND_URL}/api/check-phone`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ phone: cleaned }),
+        });
+        const result = await res.json();
+        if (result.success) {
+          const matches: any[] = result.results || [];
+          setPhoneMatches(matches);
+          if (matches.length > 0) {
+            toast.error(`Found ${matches.length} existing order(s) for this number!`, { duration: 4000, icon: '⚠️' });
+          }
+          if (matches.some((m) => m.is_blacklisted === true)) {
+            setBlockedPhoneMsg('Yeh number black list / defaulter mein hai. Is number par OTP nahi bheja ja sakta, aur self pickup aage nahi barh sakta.');
+            setShowBlockedPopup(true);
+          }
+        }
+      } catch (e) {
+        console.error('Error checking phone:', e);
+      } finally {
+        setCheckingPhone(false);
+      }
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [phone]);
 
   // Suggested Plans
   const [suggestedPlans, setSuggestedPlans] = useState<any[]>([]);
@@ -1126,7 +1167,6 @@ export default function SelfPickupPage() {
                               // A different number needs its own OTP AND its own
                               // blacklist check — never carry over a code sent to
                               // the previous number.
-                              setBlockedPhoneMsg(null);
                               if (otpSent) { setOtpSent(false); setOtp(''); }
                             }}
                             className={`w-full pl-16 pr-6 py-6 bg-gray-50 border-2 focus:bg-white rounded-[2rem] font-black text-xl outline-none transition-all shadow-inner ${blockedPhoneMsg ? 'border-red-500 bg-red-50' : 'border-transparent focus:border-red-500'}`}
@@ -1137,6 +1177,35 @@ export default function SelfPickupPage() {
                           <div className="flex items-start gap-3 bg-red-50 border-2 border-red-200 text-red-700 rounded-2xl px-5 py-4 text-sm font-bold">
                             <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
                             <span>{blockedPhoneMsg}</span>
+                          </div>
+                        )}
+                        {checkingPhone && <p className="text-xs font-bold text-gray-400 ml-4">Checking number...</p>}
+                        {phoneMatches.length > 0 && (
+                          <div className="bg-white border-2 border-red-100 rounded-2xl shadow-lg shadow-red-100/50 overflow-hidden text-left">
+                            <div className="bg-red-50 px-4 py-3 border-b border-red-100 flex items-center gap-2 text-red-700 font-bold text-xs uppercase tracking-wider">
+                              <AlertCircle className="w-4 h-4" /> Existing Records Found ({phoneMatches.length})
+                            </div>
+                            <div className="max-h-[200px] overflow-y-auto divide-y divide-red-50">
+                              {phoneMatches.map((m: any) => (
+                                <div key={m.id} className="p-3 flex items-start justify-between gap-3">
+                                  <div className="space-y-1">
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-sm font-black text-gray-900">{m.order_ref}</span>
+                                      {m.is_blacklisted ? (
+                                        <span className="text-[9px] font-bold px-2 py-0.5 rounded-full uppercase bg-red-100 text-red-700 border border-red-200">Blacklisted</span>
+                                      ) : (
+                                        <span className="text-[9px] font-bold px-2 py-0.5 rounded-full uppercase bg-amber-100 text-amber-700">{m.status}</span>
+                                      )}
+                                    </div>
+                                    <p className="text-[11px] text-gray-500 font-medium">Customer: <span className="text-gray-900">{m.customer_name}</span></p>
+                                  </div>
+                                  <div className="text-right">
+                                    <div className="text-[9px] font-black text-red-500 bg-red-50 px-2 py-1 rounded-lg uppercase border border-red-100">{m.role}</div>
+                                    <a href={`/orders/${m.id}`} target="_blank" rel="noopener noreferrer" className="text-[10px] text-blue-600 font-bold underline">View Order</a>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
                           </div>
                         )}
                         {!otpSent && (
