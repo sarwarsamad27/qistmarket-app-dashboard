@@ -208,7 +208,7 @@ export default function RecycleBinPage() {
             <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">
               {tab === 'orders'
                 ? 'Orders deleted from the app land here first. Restore to bring one back exactly as it was, or delete permanently to remove it and all its records for good — that step cannot be undone.'
-                : 'Outlets deleted from the app land here first. Restore to bring one back exactly as it was, or delete permanently to remove it for good — only allowed once it has no orders or staff left pointing at it.'}
+                : 'Outlets deleted from the app land here first. Restore to bring one back exactly as it was, or delete permanently to remove it together with its inventory, cash, expenses and vendors for good (its staff accounts, orders and customer ledgers are kept, unlinked) — that step cannot be undone.'}
             </p>
           </div>
           <input
@@ -237,7 +237,7 @@ export default function RecycleBinPage() {
                   Array.from(selectedIds),
                   tab === 'orders'
                     ? `Permanently delete ${selectedCount} order(s)? This will remove them and all associated records (verification, ledger, deliveries, payments, etc.) for good. This action CANNOT be undone.`
-                    : `Permanently delete ${selectedCount} outlet(s)? Only outlets with no orders or staff left will actually be removed. This action CANNOT be undone.`
+                    : `Permanently delete ${selectedCount} outlet(s)? This deletes the outlet together with its inventory, cash, expenses, vendors and bank accounts. Its staff accounts and orders are kept (unlinked from the outlet). This action CANNOT be undone.`
                 )}
                 className="inline-flex items-center gap-1.5 text-red-700 dark:text-red-400 font-semibold hover:underline disabled:opacity-50"
               >
