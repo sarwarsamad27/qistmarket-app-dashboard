@@ -21,7 +21,7 @@ export default function VerificationOfficerRankingsPage() {
     const [outlets, setOutlets] = useState<any[]>([]);
     const [selectedOutlet, setSelectedOutlet] = useState<string>("all");
     const [currentUser, setCurrentUser] = useState<any>(null);
-    const [sortBy, setSortBy] = useState<'achievement' | 'completed' | 'score' | 'rejected'>('achievement');
+    const [sortBy, setSortBy] = useState<'target' | 'achievement' | 'completed' | 'score' | 'rejected'>('achievement');
 
     const fetchRankings = async () => {
         setLoading(true);
@@ -57,6 +57,7 @@ export default function VerificationOfficerRankingsPage() {
         : officers.filter(o => String(o.outlet_id) === selectedOutlet);
 
     const sortedOfficers = [...filtered].sort((a, b) => {
+        if (sortBy === 'target') return (b.target_percent ?? -1) - (a.target_percent ?? -1) || (b.score || 0) - (a.score || 0);
         if (sortBy === 'achievement') {
             const totalA = a.total_verifications || 0;
             const totalB = b.total_verifications || 0;
@@ -121,7 +122,8 @@ export default function VerificationOfficerRankingsPage() {
                                 { id: 'achievement', label: 'BY ACHIEVEMENT' },
                                 { id: 'completed', label: 'BY COMPLETED' },
                                 { id: 'score', label: 'BY SCORE' },
-                                { id: 'rejected', label: 'BY REJECTED' }
+                                { id: 'rejected', label: 'BY REJECTED' },
+                                { id: 'target', label: 'BY TARGET %' }
                             ].map(tab => (
                                 <button
                                     key={tab.id}
@@ -145,6 +147,7 @@ export default function VerificationOfficerRankingsPage() {
                                         <th className="px-6 py-4 text-[8px] md:text-[9px] font-black text-gray-400 uppercase min-w-[150px]">Achievement</th>
                                         <th className="px-6 py-4 text-[8px] md:text-[9px] font-black text-gray-400 uppercase text-center min-w-[90px]">Rejected</th>
                                         <th className="px-6 py-4 text-[8px] md:text-[9px] font-black text-gray-400 uppercase text-center min-w-[80px]">Score</th>
+                                        <th className="px-6 py-4 text-[8px] md:text-[9px] font-black text-gray-400 uppercase text-center min-w-[110px]">Target %</th>
                                         <th className="px-6 py-4 text-[8px] md:text-[9px] font-black text-gray-400 uppercase text-right min-w-[80px]">Trend</th>
                                     </tr>
                                 </thead>
@@ -201,6 +204,16 @@ export default function VerificationOfficerRankingsPage() {
                                                 </td>
                                                 <td className="px-6 py-4 text-center font-black text-rose-500 text-sm min-w-[90px]">{item.rejected_verifications || 0}</td>
                                                 <td className="px-6 py-4 text-center font-black text-blue-600 dark:text-blue-400 text-sm min-w-[80px]">{(item.score || 0).toLocaleString()}</td>
+                                                <td className="px-6 py-4 text-center min-w-[110px]">
+                                                    {item.target_percent === null || item.target_percent === undefined ? (
+                                                        <span className="text-xs font-bold text-gray-300">No target</span>
+                                                    ) : (
+                                                        <div className="flex flex-col items-center gap-1">
+                                                            <span className={`text-xs font-black ${item.target_percent >= 100 ? 'text-emerald-500' : item.target_percent >= 50 ? 'text-amber-500' : 'text-rose-500'}`}>{item.target_percent}%</span>
+                                                            <span className="text-[9px] font-bold text-gray-400">{(item.target_achieved || 0).toLocaleString()} / {item.target.toLocaleString()}</span>
+                                                        </div>
+                                                    )}
+                                                </td>
                                                 <td className="px-6 py-4 text-right min-w-[80px]">
                                                     <div className={`flex items-center justify-end gap-1 font-black text-xs ${(item.trend || 0) >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
                                                         {(item.trend || 0) >= 0 ? <ArrowUpRight size={12} /> : <ArrowDownRight size={12} />}
