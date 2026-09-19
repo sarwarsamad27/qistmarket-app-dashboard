@@ -248,7 +248,14 @@ export default function ScoringConfigModal({ isOpen, onClose, onSaved }: Scoring
             type,
             id: Number(idStr),
             section: activeTab,
-            rules: config[activeTab as keyof ScoringConfig],
+            // Only the fields that actually differ from the global rules — a full
+            // copy would freeze every other field for this officer/outlet, so later
+            // global changes would silently stop applying to them.
+            rules: Object.fromEntries(
+              Object.entries(config[activeTab as keyof ScoringConfig] as Record<string, number>).filter(
+                ([k, v]) => v !== (globalConfig?.[activeTab as keyof ScoringConfig] as Record<string, number> | undefined)?.[k]
+              )
+            ),
           }),
         });
         const json = await res.json();

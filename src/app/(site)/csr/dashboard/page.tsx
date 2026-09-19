@@ -229,10 +229,6 @@ export default function CsrDashboardPage() {
             </div>
             <div className="flex flex-col gap-1">
                 <h2 className="text-xs sm:text-sm font-black text-gray-800 break-words leading-tight">{card.value}</h2>
-                <div className={`flex items-center gap-1 text-[9px] sm:text-[10px] font-black ${card.inc >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
-                    {card.inc >= 0 ? <TrendingUp size={10} /> : <TrendingDown size={10} />}
-                    {Math.abs(card.inc)}%
-                </div>
             </div>
           </div>
         ))}
