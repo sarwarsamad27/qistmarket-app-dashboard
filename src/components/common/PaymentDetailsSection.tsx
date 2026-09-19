@@ -4,6 +4,7 @@ import toast from 'react-hot-toast';
 import { cn } from '@/lib/utils';
 import { formatExactDate } from '@/utils/dateUtils';
 import { Modal } from '@/components/Modal/Modal';
+import { OrderPaymentIds } from './OrderPaymentIds';
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5000';
 
@@ -413,6 +414,8 @@ export const PaymentDetailsSection = ({
                             <p className="text-xs text-gray-500 dark:text-gray-400">Paid / {paymentDetails.installment_plan.summary?.total_due_amount?.toLocaleString()}</p>
                         </div>
                     </div>
+
+                    {orderId && ledgerId && !returned && <OrderPaymentIds orderId={orderId} />}
 
                     {/* Progress Bar */}
                     {paymentDetails.installment_plan.summary?.total_installments > 0 && (
