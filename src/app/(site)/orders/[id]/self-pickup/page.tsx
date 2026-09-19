@@ -68,6 +68,8 @@ export default function SelfPickupPage() {
   const [phone, setPhone] = useState('');
   const [otp, setOtp] = useState('');
   const [otpSent, setOtpSent] = useState(false);
+  const [blockedPhoneMsg, setBlockedPhoneMsg] = useState<string | null>(null);
+  const [showBlockedPopup, setShowBlockedPopup] = useState(false);
   const [otpVerified, setOtpVerified] = useState(false);
   const [otpLoading, setOtpLoading] = useState(false);
 
@@ -500,6 +502,12 @@ export default function SelfPickupPage() {
       if (data.success) {
         setOtpSent(true);
         toast.success('OTP sent successfully');
+      } else if (data.code === 'PHONE_BLACKLISTED') {
+        // Number is already blacklisted / a defaulter elsewhere — no OTP was
+        // sent and the flow must not proceed. Surface it as a blocking popup
+        // (not just a toast) so it can't be missed.
+        setBlockedPhoneMsg(data.message || 'Yeh number black list / defaulter mein hai.');
+        setShowBlockedPopup(true);
       } else {
         toast.error(data.message || 'Failed to send OTP');
       }
@@ -717,6 +725,23 @@ export default function SelfPickupPage() {
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 min-h-screen bg-white shadow-1 rounded-[10px]">
+      {showBlockedPopup && blockedPhoneMsg && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 p-4">
+          <div className="w-full max-w-md rounded-[2rem] bg-white p-8 text-center shadow-2xl">
+            <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full bg-red-100 text-red-600">
+              <AlertCircle className="h-9 w-9" />
+            </div>
+            <h3 className="mb-2 text-2xl font-black text-gray-900">Number Blocked</h3>
+            <p className="mb-6 text-sm font-bold text-gray-500">{blockedPhoneMsg}</p>
+            <button
+              onClick={() => setShowBlockedPopup(false)}
+              className="w-full rounded-[1.5rem] bg-red-600 py-4 text-sm font-black uppercase tracking-widest text-white hover:bg-red-700"
+            >
+              OK — Use A Different Number
+            </button>
+          </div>
+        </div>
+      )}
       <div className="flex items-center justify-between mb-8">
         <div>
           <Breadcrumb pageName={`Self Pickup / ${order?.order_ref}`} />
@@ -1096,16 +1121,29 @@ export default function SelfPickupPage() {
                           <input
                             type="text"
                             value={phone}
-                            onChange={(e) => setPhone(e.target.value)}
-                            className="w-full pl-16 pr-6 py-6 bg-gray-50 border-2 border-transparent focus:border-red-500 focus:bg-white rounded-[2rem] font-black text-xl outline-none transition-all shadow-inner"
+                            onChange={(e) => {
+                              setPhone(e.target.value);
+                              // A different number needs its own OTP AND its own
+                              // blacklist check — never carry over a code sent to
+                              // the previous number.
+                              setBlockedPhoneMsg(null);
+                              if (otpSent) { setOtpSent(false); setOtp(''); }
+                            }}
+                            className={`w-full pl-16 pr-6 py-6 bg-gray-50 border-2 focus:bg-white rounded-[2rem] font-black text-xl outline-none transition-all shadow-inner ${blockedPhoneMsg ? 'border-red-500 bg-red-50' : 'border-transparent focus:border-red-500'}`}
                           />
                           {otpSent && <span className="absolute right-6 top-1/2 -translate-y-1/2 bg-red-100 text-red-600 text-[10px] font-black px-2.5 py-1.5 rounded-lg uppercase">Code Active</span>}
                         </div>
+                        {blockedPhoneMsg && (
+                          <div className="flex items-start gap-3 bg-red-50 border-2 border-red-200 text-red-700 rounded-2xl px-5 py-4 text-sm font-bold">
+                            <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
+                            <span>{blockedPhoneMsg}</span>
+                          </div>
+                        )}
                         {!otpSent && (
                           <button
                             onClick={sendOTP}
-                            disabled={otpLoading}
-                            className="w-full py-5 bg-red-600 text-white rounded-[2rem] font-black uppercase tracking-widest text-sm shadow-xl shadow-red-100 hover:bg-opacity-90 active:scale-95 transition-all"
+                            disabled={otpLoading || !!blockedPhoneMsg}
+                            className="w-full py-5 bg-red-600 text-white rounded-[2rem] font-black uppercase tracking-widest text-sm shadow-xl shadow-red-100 hover:bg-opacity-90 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                           >
                             Generate One-Time Password
                           </button>
