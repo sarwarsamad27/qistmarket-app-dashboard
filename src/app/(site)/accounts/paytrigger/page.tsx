@@ -15,6 +15,7 @@ const authHeaders = () => ({ Authorization: `Bearer ${Cookies.get("auth_token")}
 
 interface Device {
   imei: string;
+  remaining_balance?: number;
   order_ref: string | null;
   product_model: string | null;
   lock_status: string;
@@ -80,7 +81,7 @@ export default function PayTriggerPage() {
         if (json.success) {
           let list: Device[] = json.data;
           if (tab === "unpaid") {
-            list = list.filter((d) => d.lock_status !== "locked" && remainingBalance(d.order?.installment_ledger?.ledger_rows) > 0);
+            list = list.filter((d) => d.lock_status !== "locked" && (d.remaining_balance ?? remainingBalance(d.order?.installment_ledger?.ledger_rows)) > 0);
           }
           setDevices(list);
         }
@@ -237,7 +238,7 @@ export default function PayTriggerPage() {
                       </span>
                     </td>
                     {tab === "unpaid" && (
-                      <td className="px-4 py-3.5 text-right tabular-nums font-bold text-amber-600">{PKR(remainingBalance(d.order?.installment_ledger?.ledger_rows))}</td>
+                      <td className="px-4 py-3.5 text-right tabular-nums font-bold text-amber-600">{PKR(d.remaining_balance ?? remainingBalance(d.order?.installment_ledger?.ledger_rows))}</td>
                     )}
                     {tab === "ptp" && (
                       <td className="px-4 py-3.5 text-gray-500">{d.promised_date ? new Date(d.promised_date).toLocaleDateString() : "—"}</td>
