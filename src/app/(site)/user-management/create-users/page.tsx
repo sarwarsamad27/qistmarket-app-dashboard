@@ -20,7 +20,9 @@ const CreateUsers: React.FC = () => {
     outlet_id: '',
   });
   const [loading, setLoading] = useState(false);
-  const [outlets, setOutlets] = useState<{ id: number; name: string; code: string }[]>([]);
+  const [outlets, setOutlets] = useState<{ id: number; name: string; code: string; address?: string | null }[]>([]);
+  const [missingAddress, setMissingAddress] = useState('');
+  const [savingAddress, setSavingAddress] = useState(false);
   const [showOutletModal, setShowOutletModal] = useState(false);
   const [newOutlet, setNewOutlet] = useState({ name: '', code: '', address: '' });
   const [creatingOutlet, setCreatingOutlet] = useState(false);
@@ -127,9 +129,38 @@ const CreateUsers: React.FC = () => {
     }
   };
 
+  const selectedOutletRecord = outlets.find((o) => String(o.id) === String(formData.outlet_id));
+  const selectedOutletNeedsAddress = !!selectedOutletRecord && !(selectedOutletRecord.address || '').trim();
+
+  // The branch address is what customers see on their ledger — an outlet created
+  // without one can have it filled in right here while assigning a user to it.
+  const handleSaveOutletAddress = async () => {
+    if (!selectedOutletRecord || !missingAddress.trim()) {
+      toast.error('Please enter the outlet address');
+      return;
+    }
+    setSavingAddress(true);
+    try {
+      const res = await fetch(`${BACKEND_URL}/api/outlets/${selectedOutletRecord.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${Cookies.get("auth_token")}` },
+        body: JSON.stringify({ address: missingAddress.trim() }),
+      });
+      const result = await res.json();
+      if (!res.ok || !result.success) throw new Error(result.message || 'Failed to save address');
+      setOutlets((prev) => prev.map((o) => (o.id === selectedOutletRecord.id ? { ...o, address: missingAddress.trim() } : o)));
+      setMissingAddress('');
+      toast.success('Outlet address saved');
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to save address');
+    } finally {
+      setSavingAddress(false);
+    }
+  };
+
   const handleCreateOutlet = async () => {
-    if (!newOutlet.name || !newOutlet.code) {
-      toast.error("Name and Code are required for an outlet");
+    if (!newOutlet.name || !newOutlet.code || !newOutlet.address.trim()) {
+      toast.error("Name, Code and Address are required for an outlet");
       return;
     }
     setCreatingOutlet(true);
@@ -505,6 +536,30 @@ const CreateUsers: React.FC = () => {
                       + Add New
                     </button>
                   </div>
+                  {selectedOutletNeedsAddress && (
+                    <div className="mt-3 rounded-lg border border-amber-300 bg-amber-50 p-3">
+                      <p className="text-sm font-medium text-amber-800 mb-2">
+                        {selectedOutletRecord?.name} has no address yet — it shows as N/A on customers' ledgers. Add it here:
+                      </p>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="text"
+                          value={missingAddress}
+                          onChange={(e) => setMissingAddress(e.target.value)}
+                          placeholder="Full location address"
+                          className="flex-1 px-4 py-2 rounded-lg border border-gray-300 bg-white outline-none focus:border-[#ff3d3d]"
+                        />
+                        <button
+                          type="button"
+                          onClick={handleSaveOutletAddress}
+                          disabled={savingAddress}
+                          className="px-4 py-2 rounded-lg bg-[#ff3d3d] text-white font-medium disabled:opacity-50"
+                        >
+                          {savingAddress ? 'Saving...' : 'Save Address'}
+                        </button>
+                      </div>
+                    </div>
+                  )}
                   <p className="text-xs text-gray-500 mt-2 italic">
                     Assigning a user to an outlet scopes their data and permissions to that branch.
                   </p>
@@ -587,7 +642,7 @@ const CreateUsers: React.FC = () => {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Address</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Address *</label>
                 <input
                   type="text"
                   className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-[#ff3d3d] outline-none"
