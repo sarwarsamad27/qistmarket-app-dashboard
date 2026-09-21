@@ -14,6 +14,11 @@ const nextConfig = {
         source: '/ledger/:token',
         destination: `${backend}/ledger/:token`,
       },
+      {
+        // Important Documents (PDF downloads) on the customer ledger page
+        source: '/ledger/:token/document/:type',
+        destination: `${backend}/ledger/:token/document/:type`,
+      },
     ];
   },
   images: {
