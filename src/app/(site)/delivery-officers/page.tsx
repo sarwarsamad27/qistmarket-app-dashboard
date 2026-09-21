@@ -170,12 +170,18 @@ export default function DeliveryOfficers() {
     socketRef.current = io(BACKEND_URL, {
       auth: { token },
       reconnection: true,
-      reconnectionAttempts: 5,
+      reconnectionAttempts: Infinity, // never give up: a dead admin socket = stale online/offline
+      reconnectionDelayMax: 5000,
       reconnectionDelay: 1000,
     });
 
     socketRef.current.on('connect', () => {
       socketRef.current.emit('join_admin_notifications', token);
+    });
+
+    // Events fired while this socket was down are lost — re-load the list on every reconnect.
+    socketRef.current.io.on('reconnect', () => {
+      fetchDeliveryBoys();
     });
 
     socketRef.current.on('officer_status_update', (data: { officerId: number; is_online: boolean; timestamp?: string }) => {

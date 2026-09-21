@@ -387,13 +387,12 @@ function InstallmentsViewContent() {
 
       return [
         idx + 1,
-        row.order_ref || '',
-        row.customer_name || '',
-        row.whatsapp_number || '',
-        row.alternate_number || '',
         row.area || '',
         row.dueDate ? new Date(row.dueDate).toLocaleDateString("en-PK") : '',
         row.purchaseDate ? formatExactDate(row.purchaseDate, 'DD MMM YYYY, hh:mm A') : '',
+        row.customer_name || '',
+        row.whatsapp_number || '',
+        row.alternate_number || '',
         row.grantor1Name || '',
         row.grantor1Phone || '',
         row.grantor2Name || '',
@@ -402,19 +401,24 @@ function InstallmentsViewContent() {
         row.imei_serial || '',
         row.monthlyAmount || 0,
         row.remainingAmount || 0,
-        row.arrearsAmount || 0,
         row.partialPayment || "-",
         paymentHistoryStr,
-        row.status || '',
-        row.note || ''
+        row.consumer_number || '',
+        row.note || '',
+        row.recovery_officer?.name || '',
+        row.order_ref || '',
+        row.arrearsAmount || 0,
+        row.smartpay_consumer_number || '',
+        row.status || ''
       ];
     });
   };
 
   const getExportHeaders = () => [
-    "S.No", "Order Ref", "Customer Name", "WhatsApp", "Alt Contact", "Area",
-    "Due Date", "Purchase Date", "G1 Name", "G1 Phone", "G2 Name", "G2 Phone",
-    "Product", "IMEI", "Due Amount", "Remaining", "Arrears", "Partial", "Logs", "Status", "Note"
+    "S No.", "Area", "Installment Due Date", "Date of Purchase", "Customer Name", "Contact No.", "Alternate No.",
+    "G1. Name", "G1. No.", "G2. Name", "G2. Number", "Item", "Device Serial No.", "Installment Amount",
+    "Due Amount", "Partial Payment", "Paid Date / History", "1Bill ID", "Installment Note", "Recovery Officer",
+    "Order Ref", "Arrears", "SmartPay Consumer No.", "Status"
   ];
 
   const exportPDF = (rowsToExport: any[], filename: string) => {
@@ -433,8 +437,6 @@ function InstallmentsViewContent() {
       headStyles: { fillColor: [227, 30, 36], textColor: 255, fontSize: 7 },
       columnStyles: {
         0: { cellWidth: 20 },
-        1: { cellWidth: 40 },
-        2: { cellWidth: 50 },
         // other columns will auto-size
       },
       margin: { top: 60, left: 20, right: 20, bottom: 20 }
@@ -937,31 +939,31 @@ function InstallmentsViewContent() {
                     className="h-4 w-4 rounded border-gray-300 text-[#E31E24] focus:ring-[#E31E24] dark:border-strokedark cursor-pointer"
                   />
                 </th>
-                <th className="px-3 py-4 text-[10px] font-black text-gray-400 uppercase text-center w-12">S.No</th>
-                <th className="px-4 py-4 text-[10px] font-black text-gray-400 uppercase min-w-[120px]">Order Ref</th>
-                <th className="px-4 py-4 text-[10px] font-black text-gray-400 uppercase min-w-[160px]">Customer</th>
-                <th className="px-4 py-4 text-[10px] font-black text-gray-400 uppercase min-w-[140px]">WhatsApp</th>
-                <th className="px-4 py-4 text-[10px] font-black text-gray-400 uppercase min-w-[140px]">Alt Contact</th>
+                <th className="px-3 py-4 text-[10px] font-black text-gray-400 uppercase text-center w-12">S No.</th>
                 <th className="px-4 py-4 text-[10px] font-black text-gray-400 uppercase min-w-[140px]">Area</th>
-                <th className="px-4 py-4 text-[10px] font-black text-gray-400 uppercase min-w-[120px]">Due Date</th>
-                <th className="px-4 py-4 text-[10px] font-black text-gray-400 uppercase min-w-[120px]">Purchase Date</th>
-                <th className="px-4 py-4 text-[10px] font-black text-gray-400 uppercase min-w-[160px]">Guarantor 1 Name</th>
-                <th className="px-4 py-4 text-[10px] font-black text-gray-400 uppercase min-w-[140px]">Guarantor 1 Phone</th>
-                <th className="px-4 py-4 text-[10px] font-black text-gray-400 uppercase min-w-[160px]">Guarantor 2 Name</th>
-                <th className="px-4 py-4 text-[10px] font-black text-gray-400 uppercase min-w-[140px]">Guarantor 2 Phone</th>
+                <th className="px-4 py-4 text-[10px] font-black text-gray-400 uppercase min-w-[120px]">Installment Due Date</th>
+                <th className="px-4 py-4 text-[10px] font-black text-gray-400 uppercase min-w-[120px]">Date of Purchase</th>
+                <th className="px-4 py-4 text-[10px] font-black text-gray-400 uppercase min-w-[160px]">Customer Name</th>
+                <th className="px-4 py-4 text-[10px] font-black text-gray-400 uppercase min-w-[140px]">Contact No.</th>
+                <th className="px-4 py-4 text-[10px] font-black text-gray-400 uppercase min-w-[140px]">Alternate No.</th>
+                <th className="px-4 py-4 text-[10px] font-black text-gray-400 uppercase min-w-[160px]">G1. Name</th>
+                <th className="px-4 py-4 text-[10px] font-black text-gray-400 uppercase min-w-[140px]">G1. No.</th>
+                <th className="px-4 py-4 text-[10px] font-black text-gray-400 uppercase min-w-[160px]">G2. Name</th>
+                <th className="px-4 py-4 text-[10px] font-black text-gray-400 uppercase min-w-[140px]">G2. Number</th>
                 <th className="px-4 py-4 text-[10px] font-black text-gray-400 uppercase min-w-[170px]">Item</th>
-                <th className="px-4 py-4 text-[10px] font-black text-gray-400 uppercase min-w-[150px]">IMEI / Device ID</th>
-                <th className="px-4 py-4 text-[10px] font-black text-gray-400 uppercase min-w-[180px]">1Bill Consumer No.</th>
-                <th className="px-4 py-4 text-[10px] font-black text-gray-400 uppercase min-w-[180px]">SmartPay Consumer No.</th>
-                <th className="px-4 py-4 text-[10px] font-black text-gray-400 uppercase min-w-[170px]">Recovery Officer</th>
-                <th className="px-4 py-4 text-[10px] font-black text-gray-400 uppercase min-w-[110px] text-right">Monthly Due</th>
-                <th className="px-4 py-4 text-[10px] font-black text-gray-400 uppercase min-w-[125px] text-right">Total Remaining</th>
-                <th className="px-4 py-4 text-[10px] font-black text-gray-400 uppercase min-w-[110px] text-right">Arrears</th>
-                <th className="px-4 py-4 text-[10px] font-black text-gray-400 uppercase min-w-[120px] text-right">Partial Paid</th>
+                <th className="px-4 py-4 text-[10px] font-black text-gray-400 uppercase min-w-[150px]">Device Serial No.</th>
+                <th className="px-4 py-4 text-[10px] font-black text-gray-400 uppercase min-w-[110px] text-right">Installment Amount</th>
+                <th className="px-4 py-4 text-[10px] font-black text-gray-400 uppercase min-w-[125px] text-right">Due Amount</th>
+                <th className="px-4 py-4 text-[10px] font-black text-gray-400 uppercase min-w-[120px] text-right">Partial Payment</th>
                 <th className="px-4 py-4 text-[10px] font-black text-gray-400 uppercase min-w-[160px]">Paid Date / History</th>
+                <th className="px-4 py-4 text-[10px] font-black text-gray-400 uppercase min-w-[180px]">1Bill ID & QR</th>
                 <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase min-w-[190px]">Installment Note</th>
+                <th className="px-4 py-4 text-[10px] font-black text-gray-400 uppercase min-w-[170px]">Recovery Officer</th>
+                <th className="px-4 py-4 text-[10px] font-black text-gray-400 uppercase min-w-[120px]">Order Ref</th>
+                <th className="px-4 py-4 text-[10px] font-black text-gray-400 uppercase min-w-[110px] text-right">Arrears</th>
+                <th className="px-4 py-4 text-[10px] font-black text-gray-400 uppercase min-w-[180px]">SmartPay Consumer No.</th>
                 <th className="px-4 py-4 text-[10px] font-black text-gray-400 uppercase min-w-[110px] text-center">Status</th>
-                <th className="px-4 py-4 text-[10px] font-black text-gray-400 uppercase w-16 text-center">Action</th>
+                <th className="px-4 py-4 text-[10px] font-black text-gray-400 uppercase w-16 text-center">Actions</th>
               </tr>
 
               {/* ADVANCED COLUMN FILTERS ROW */}
@@ -973,12 +975,14 @@ function InstallmentsViewContent() {
                 <td className="px-2 py-2">
                   <input
                     type="text"
-                    value={colFilters.order_ref}
-                    onChange={(e) => setColFilters(prev => ({ ...prev, order_ref: e.target.value }))}
-                    placeholder="Filter Ref"
+                    value={colFilters.area}
+                    onChange={(e) => setColFilters(prev => ({ ...prev, area: e.target.value }))}
+                    placeholder="Filter Area"
                     className="w-full rounded bg-white dark:bg-boxdark border-gray-150 dark:border-strokedark px-2 py-1 text-xs outline-none focus:border-[#E31E24]"
                   />
                 </td>
+                <td className="px-2 py-2"></td>
+                <td className="px-2 py-2"></td>
                 <td className="px-2 py-2">
                   <input
                     type="text"
@@ -1006,17 +1010,6 @@ function InstallmentsViewContent() {
                     className="w-full rounded bg-white dark:bg-boxdark border-gray-150 dark:border-strokedark px-2 py-1 text-xs outline-none focus:border-[#E31E24]"
                   />
                 </td>
-                <td className="px-2 py-2">
-                  <input
-                    type="text"
-                    value={colFilters.area}
-                    onChange={(e) => setColFilters(prev => ({ ...prev, area: e.target.value }))}
-                    placeholder="Filter Area"
-                    className="w-full rounded bg-white dark:bg-boxdark border-gray-150 dark:border-strokedark px-2 py-1 text-xs outline-none focus:border-[#E31E24]"
-                  />
-                </td>
-                <td className="px-2 py-2"></td>
-                <td className="px-2 py-2"></td>
                 <td className="px-2 py-2">
                   <input
                     type="text"
@@ -1062,6 +1055,16 @@ function InstallmentsViewContent() {
                 <td className="px-2 py-2"></td>
                 <td className="px-2 py-2"></td>
                 <td className="px-2 py-2"></td>
+                <td className="px-2 py-2">
+                  <input
+                    type="text"
+                    value={colFilters.order_ref}
+                    onChange={(e) => setColFilters(prev => ({ ...prev, order_ref: e.target.value }))}
+                    placeholder="Filter Ref"
+                    className="w-full rounded bg-white dark:bg-boxdark border-gray-150 dark:border-strokedark px-2 py-1 text-xs outline-none focus:border-[#E31E24]"
+                  />
+                </td>
+                <td className="px-2 py-2"></td>
                 <td className="px-2 py-2"></td>
                 <td className="px-2 py-2">
                   <select
@@ -1086,7 +1089,7 @@ function InstallmentsViewContent() {
             <tbody className="divide-y divide-gray-100 dark:divide-strokedark text-[13px]">
               {loading ? (
                 <tr>
-                  <td colSpan={25} className="py-20 text-center">
+                  <td colSpan={26} className="py-20 text-center">
                     <div className="flex flex-col items-center justify-center gap-3">
                       <Loader2 className="h-8 w-8 text-[#E31E24] animate-spin" />
                       <span className="text-xs font-black tracking-wider uppercase text-gray-400">Querying installments database...</span>
@@ -1095,7 +1098,7 @@ function InstallmentsViewContent() {
                 </tr>
               ) : filteredInstallments.length === 0 ? (
                 <tr>
-                  <td colSpan={25} className="py-16 text-center text-gray-400">
+                  <td colSpan={26} className="py-16 text-center text-gray-400">
                     <div className="flex flex-col items-center justify-center gap-2">
                       <AlertCircle className="h-8 w-8 text-gray-300" />
                       <span className="text-xs font-black uppercase tracking-wider">No installments found for the selected month and filters</span>
@@ -1119,52 +1122,20 @@ function InstallmentsViewContent() {
                         />
                       </td>
                       <td className="px-3 py-3.5 text-center font-black text-gray-300">{(page - 1) * limit + index + 1}</td>
-                      <td className="px-4 py-3.5 font-bold text-slate-800 dark:text-white">{inst.order_ref}</td>
-                      <td className="px-4 py-3.5 font-black text-slate-800 dark:text-slate-200">{inst.customer_name}</td>
-                      <td className="px-4 py-3.5 font-semibold text-gray-700">{inst.whatsapp_number}</td>
-                      <td className="px-4 py-3.5 font-semibold text-gray-700">{inst.alternate_number}</td>
                       <td className="px-4 py-3.5 font-medium">{inst.area}</td>
                       <td className="px-4 py-3.5 font-bold text-gray-700 dark:text-slate-300">{dueDateStr}</td>
                       <td className="px-4 py-3.5 font-semibold text-gray-600">{purchaseDateStr}</td>
+                      <td className="px-4 py-3.5 font-black text-slate-800 dark:text-slate-200">{inst.customer_name}</td>
+                      <td className="px-4 py-3.5 font-semibold text-gray-700">{inst.whatsapp_number}</td>
+                      <td className="px-4 py-3.5 font-semibold text-gray-700">{inst.alternate_number}</td>
                       <td className="px-4 py-3.5 font-semibold text-gray-700">{inst.grantor1Name}</td>
                       <td className="px-4 py-3.5 font-semibold text-gray-600">{inst.grantor1Phone}</td>
                       <td className="px-4 py-3.5 font-semibold text-gray-700">{inst.grantor2Name}</td>
                       <td className="px-4 py-3.5 font-semibold text-gray-600">{inst.grantor2Phone}</td>
                       <td className="px-4 py-3.5 font-bold text-gray-700 dark:text-slate-300">{inst.product_name}</td>
                       <td className="px-4 py-3.5 font-mono font-bold text-gray-600">{inst.imei_serial}</td>
-                      <td className="px-4 py-3.5">
-                        {inst.consumer_number ? (
-                          <div className="flex flex-col gap-1">
-                            <span className="font-mono font-bold text-sm tracking-widest text-[#E31E24]">{inst.consumer_number}</span>
-                          </div>
-                        ) : (
-                          <span className="text-gray-400 italic text-xs">Not Generated</span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3.5">
-                        {inst.smartpay_consumer_number ? (
-                          <div className="flex flex-col gap-1">
-                            <span className="font-mono font-bold text-sm tracking-widest text-emerald-600">{inst.smartpay_consumer_number}</span>
-                          </div>
-                        ) : (
-                          <span className="text-gray-400 italic text-xs">Not Generated</span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3.5">
-                        {inst.recovery_officer ? (
-                          <div className="flex flex-col gap-0.5">
-                            <span className="font-bold text-slate-800 dark:text-slate-200">{inst.recovery_officer.name}</span>
-                            <span className="text-xs text-gray-500">{inst.recovery_officer.phone || 'No phone'}</span>
-                          </div>
-                        ) : (
-                          <span className="text-gray-400 italic text-xs">Unassigned</span>
-                        )}
-                      </td>
                       <td className="px-4 py-3.5 text-right font-black text-slate-900 dark:text-white">Rs. {inst.monthlyAmount.toLocaleString()}</td>
                       <td className="px-4 py-3.5 text-right font-black text-[#E31E24]">Rs. {inst.remainingAmount.toLocaleString()}</td>
-                      <td className="px-4 py-3.5 text-right font-black text-amber-600 dark:text-amber-400">
-                        {inst.arrearsAmount ? `Rs. ${inst.arrearsAmount.toLocaleString()}` : "-"}
-                      </td>
                       <td className="px-4 py-3.5 text-right font-black text-emerald-600 dark:text-emerald-400">
                         {inst.partialPayment ? `Rs. ${inst.partialPayment.toLocaleString()}` : "-"}
                       </td>
@@ -1189,6 +1160,31 @@ function InstallmentsViewContent() {
                           )}
                         </div>
                       </td>
+                      <td className="px-4 py-3.5">
+                        {inst.consumer_number ? (
+                          <div className="flex flex-col gap-1">
+                            <span className="font-mono font-bold text-sm tracking-widest text-[#E31E24]">{inst.consumer_number}</span>
+                          </div>
+                        ) : (
+                          <span className="text-gray-400 italic text-xs">Not Generated</span>
+                        )}
+                                              {inst.status !== "paid" && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setQrOrderId(inst.order_id);
+                              setQrMonthNumber(inst.monthNumber);
+                              setQrDefaultAmount(inst.remainingAmount);
+                              setQrCustomerName(inst.customer_name);
+                              setQrModalOpen(true);
+                            }}
+                            className="mt-1 inline-flex items-center gap-1 rounded border border-gray-200 px-2 py-0.5 text-[10px] font-black uppercase text-[#E31E24] hover:bg-red-50"
+                            title="Generate SmartPay QR"
+                          >
+                            QR
+                          </button>
+                        )}
+                      </td>
                       <td className="px-6 py-3.5 max-w-[200px] truncate">
                         {inst.note ? (
                           <span
@@ -1204,6 +1200,29 @@ function InstallmentsViewContent() {
                           >
                             + Add note
                           </button>
+                        )}
+                      </td>
+                      <td className="px-4 py-3.5">
+                        {inst.recovery_officer ? (
+                          <div className="flex flex-col gap-0.5">
+                            <span className="font-bold text-slate-800 dark:text-slate-200">{inst.recovery_officer.name}</span>
+                            <span className="text-xs text-gray-500">{inst.recovery_officer.phone || 'No phone'}</span>
+                          </div>
+                        ) : (
+                          <span className="text-gray-400 italic text-xs">Unassigned</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3.5 font-bold text-slate-800 dark:text-white">{inst.order_ref}</td>
+                      <td className="px-4 py-3.5 text-right font-black text-amber-600 dark:text-amber-400">
+                        {inst.arrearsAmount ? `Rs. ${inst.arrearsAmount.toLocaleString()}` : "-"}
+                      </td>
+                      <td className="px-4 py-3.5">
+                        {inst.smartpay_consumer_number ? (
+                          <div className="flex flex-col gap-1">
+                            <span className="font-mono font-bold text-sm tracking-widest text-emerald-600">{inst.smartpay_consumer_number}</span>
+                          </div>
+                        ) : (
+                          <span className="text-gray-400 italic text-xs">Not Generated</span>
                         )}
                       </td>
                       <td className="px-4 py-3.5 text-center">

@@ -101,7 +101,8 @@ export default function RecoveryOfficersPage() {
         socketRef.current = io(BACKEND_URL, {
             auth: { token },
             reconnection: true,
-            reconnectionAttempts: 5,
+            reconnectionAttempts: Infinity, // never give up: a dead admin socket = stale online/offline
+      reconnectionDelayMax: 5000,
             reconnectionDelay: 1000,
         });
 
@@ -109,7 +110,12 @@ export default function RecoveryOfficersPage() {
             socketRef.current.emit('join_admin_notifications', token);
         });
 
-        socketRef.current.on('officer_status_update', (data: { officerId: number; is_online: boolean; last_online_at?: string }) => {
+        // Events fired while this socket was down are lost — re-load the list on every reconnect.
+    socketRef.current.io.on('reconnect', () => {
+      fetchOfficers();
+    });
+
+    socketRef.current.on('officer_status_update', (data: { officerId: number; is_online: boolean; last_online_at?: string }) => {
             setOfficers((prev) =>
                 prev.map((o) => (o.id === data.officerId 
                     ? { ...o, is_online: data.is_online, last_online_at: data.last_online_at || o.last_online_at } 
