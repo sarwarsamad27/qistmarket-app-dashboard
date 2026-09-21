@@ -302,6 +302,47 @@ export default function DeliveryOfficers() {
     }
   }, [selectedBoyId, selectedMonth]);
 
+  // Live presence without refreshing: the socket gives instant updates, and this quiet
+  // poll (every 8s while the tab is visible + on focus) guarantees online/offline is never
+  // stale even if a socket event was missed. Only presence fields are merged, so search,
+  // sorting and the open rider panel are left untouched.
+  useEffect(() => {
+    const syncPresence = async () => {
+      if (typeof document !== 'undefined' && document.hidden) return;
+      try {
+        const token = Cookies.get('auth_token');
+        if (!token) return;
+        const response = await fetch(`${BACKEND_URL}/api/delivery-management/dashboard`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const result = await response.json();
+        if (!result.success) return;
+        const byId = new Map<number, any>((result.data as any[]).map((b: any) => [b.id, b]));
+        const merge = (b: any) => {
+          const f = byId.get(b.id);
+          return f ? { ...b, is_online: f.is_online, last_online_at: f.last_online_at } : b;
+        };
+        setDeliveryBoys((prev: any[]) => prev.map(merge));
+        setFilteredBoys((prev: any[]) => prev.map(merge));
+        setBoyDetails((prev: any) => {
+          if (!prev) return prev;
+          const f = byId.get(prev.boy.id);
+          return f ? { ...prev, boy: { ...prev.boy, is_online: f.is_online, last_online_at: f.last_online_at ?? prev.boy.last_online_at } } : prev;
+        });
+      } catch (e) {
+        /* keep showing the last known state */
+      }
+    };
+    const timer = setInterval(syncPresence, 8000);
+    window.addEventListener('focus', syncPresence);
+    document.addEventListener('visibilitychange', syncPresence);
+    return () => {
+      clearInterval(timer);
+      window.removeEventListener('focus', syncPresence);
+      document.removeEventListener('visibilitychange', syncPresence);
+    };
+  }, []);
+
   const fetchDeliveryBoys = async (): Promise<void> => {
     try {
       const token = Cookies.get('auth_token');
