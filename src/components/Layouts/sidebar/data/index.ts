@@ -261,6 +261,7 @@ export const NAV_DATA = [
         icon: Icons.BarChartIcon,
         items: [
           { title: "Officer Rankings", url: "/admin/rankings" },
+          { title: "Officer Targets", url: "/outlet/officer-targets" },
         ],
       },
       {

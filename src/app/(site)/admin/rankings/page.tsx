@@ -54,6 +54,11 @@ interface RankRow {
   approved_verifications?: number;
   rejected_verifications?: number;
   avg_verification_minutes?: number | null;
+  delivered_count?: number;
+  sale_amount?: number;
+  achievement_percent?: number | null;
+  trend_percent?: number;
+  target?: number | null;
   // Delivery supplementary KPIs
   successful_deliveries?: number;
   failed_deliveries?: number;
@@ -112,8 +117,9 @@ const TIER_STYLE: Record<string, string> = {
 };
 
 function supplementaryKpiLine(board: string, r: RankRow): string | null {
-  if (board === "verification" && r.total_verifications !== undefined) {
-    return `${r.total_verifications} total · ${r.approved_verifications} approved · ${r.rejected_verifications} rejected${r.avg_verification_minutes ? ` · avg ${r.avg_verification_minutes}m` : ""}`;
+  if (board === "verification" && r.delivered_count !== undefined) {
+    const ach = r.achievement_percent === null || r.achievement_percent === undefined ? "no target" : `${r.achievement_percent}% of ${r.target} target`;
+    return `${r.delivered_count} delivered · ${ach} · Rs. ${(r.sale_amount || 0).toLocaleString()} sales · ${(r.trend_percent || 0) >= 0 ? "▲" : "▼"} ${Math.abs(r.trend_percent || 0)}% vs last month`;
   }
   if (board === "delivery" && r.successful_deliveries !== undefined) {
     return `${r.successful_deliveries} successful · ${r.failed_deliveries} failed${r.avg_delivery_minutes ? ` · avg ${r.avg_delivery_minutes}m` : ""}`;
@@ -149,10 +155,10 @@ const OFFICER_TABS: Record<string, Tab[]> = {
     { key: "complaints", label: "By Complaints", value: (r) => r.complaints_solved ?? 0 },
   ],
   verification: [
-    { key: "achievement", label: "By Achievement", value: (r) => (r.total_verifications ? Math.round(((r.approved_verifications || 0) / r.total_verifications) * 1000) / 10 : 0) },
-    { key: "sales", label: "By Sale Amount", value: (r) => r.total_sales ?? 0 },
+    { key: "delivered", label: "By Delivered", value: (r) => r.delivered_count ?? 0 },
+    { key: "achievement", label: "By Achievement %", value: (r) => r.achievement_percent ?? -1 },
     { key: "score", label: "By Score", value: (r) => r.score ?? 0 },
-    { key: "approved", label: "By Approved", value: (r) => r.approved_verifications ?? 0 },
+    { key: "sales", label: "By Sale Amount", value: (r) => r.sale_amount ?? 0 },
   ],
   delivery: [
     { key: "achievement", label: "By Achievement", value: (r) => { const t = (r.successful_deliveries || 0) + (r.failed_deliveries || 0); return t ? Math.round(((r.successful_deliveries || 0) / t) * 1000) / 10 : 0; } },

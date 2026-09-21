@@ -21,7 +21,7 @@ export default function VerificationOfficerRankingsPage() {
     const [outlets, setOutlets] = useState<any[]>([]);
     const [selectedOutlet, setSelectedOutlet] = useState<string>("all");
     const [currentUser, setCurrentUser] = useState<any>(null);
-    const [sortBy, setSortBy] = useState<'target' | 'achievement' | 'completed' | 'score' | 'rejected'>('achievement');
+    const [sortBy, setSortBy] = useState<'delivered' | 'achievement' | 'score' | 'sales'>('delivered');
 
     const fetchRankings = async () => {
         setLoading(true);
@@ -56,18 +56,24 @@ export default function VerificationOfficerRankingsPage() {
         ? officers
         : officers.filter(o => String(o.outlet_id) === selectedOutlet);
 
+    // Ranking order: 1) Delivered  2) Achievement %  3) Score  4) Sale Amount  - the tab picks
+    // which one leads; the rest always break ties in that same order.
+    const byDelivered = (a: any, b: any) => (b.delivered_count || 0) - (a.delivered_count || 0);
+    const byAchievement = (a: any, b: any) => (b.achievement_percent ?? -1) - (a.achievement_percent ?? -1);
+    const byScore = (a: any, b: any) => (b.score || 0) - (a.score || 0);
+    const bySales = (a: any, b: any) => (b.sale_amount || 0) - (a.sale_amount || 0);
+    const orders: Record<string, Array<(a: any, b: any) => number>> = {
+        delivered: [byDelivered, byAchievement, byScore, bySales],
+        achievement: [byAchievement, byDelivered, byScore, bySales],
+        score: [byScore, byDelivered, byAchievement, bySales],
+        sales: [bySales, byDelivered, byAchievement, byScore],
+    };
     const sortedOfficers = [...filtered].sort((a, b) => {
-        if (sortBy === 'target') return (b.target_percent ?? -1) - (a.target_percent ?? -1) || (b.score || 0) - (a.score || 0);
-        if (sortBy === 'achievement') {
-            const totalA = a.total_verifications || 0;
-            const totalB = b.total_verifications || 0;
-            const pctA = totalA > 0 ? (a.approved_verifications || 0) / totalA : 0;
-            const pctB = totalB > 0 ? (b.approved_verifications || 0) / totalB : 0;
-            return pctB - pctA || (b.approved_verifications || 0) - (a.approved_verifications || 0);
+        for (const cmp of orders[sortBy]) {
+            const r = cmp(a, b);
+            if (r !== 0) return r;
         }
-        if (sortBy === 'completed') return (b.approved_verifications || 0) - (a.approved_verifications || 0);
-        if (sortBy === 'rejected') return (b.rejected_verifications || 0) - (a.rejected_verifications || 0);
-        return (b.score || 0) - (a.score || 0);
+        return 0;
     }).map((o, idx) => ({ ...o, displayRank: idx + 1 }));
 
     return (
@@ -119,11 +125,10 @@ export default function VerificationOfficerRankingsPage() {
                         {/* Sorting Tabs */}
                         <div className="flex border-b border-gray-100 dark:border-strokedark bg-gray-50/50 dark:bg-meta-4/20 px-4 md:px-8 overflow-x-auto no-scrollbar shrink-0">
                             {[
-                                { id: 'achievement', label: 'BY ACHIEVEMENT' },
-                                { id: 'completed', label: 'BY COMPLETED' },
+                                { id: 'delivered', label: 'BY DELIVERED' },
+                                { id: 'achievement', label: 'BY ACHIEVEMENT %' },
                                 { id: 'score', label: 'BY SCORE' },
-                                { id: 'rejected', label: 'BY REJECTED' },
-                                { id: 'target', label: 'BY TARGET %' }
+                                { id: 'sales', label: 'BY SALE AMOUNT' },
                             ].map(tab => (
                                 <button
                                     key={tab.id}
@@ -142,19 +147,16 @@ export default function VerificationOfficerRankingsPage() {
                                     <tr>
                                         <th className="px-6 py-4 text-[8px] md:text-[9px] font-black text-gray-400 uppercase min-w-[60px]">Rank</th>
                                         <th className="px-6 py-4 text-[8px] md:text-[9px] font-black text-gray-400 uppercase min-w-[220px]">Verification Participant</th>
-                                        <th className="px-6 py-4 text-[8px] md:text-[9px] font-black text-gray-400 uppercase text-center min-w-[80px]">Total</th>
-                                        <th className="px-6 py-4 text-[8px] md:text-[9px] font-black text-gray-400 uppercase text-center min-w-[100px]">Completed</th>
-                                        <th className="px-6 py-4 text-[8px] md:text-[9px] font-black text-gray-400 uppercase min-w-[150px]">Achievement</th>
-                                        <th className="px-6 py-4 text-[8px] md:text-[9px] font-black text-gray-400 uppercase text-center min-w-[90px]">Rejected</th>
+                                        <th className="px-6 py-4 text-[8px] md:text-[9px] font-black text-gray-400 uppercase text-center min-w-[100px]">Delivered</th>
+                                        <th className="px-6 py-4 text-[8px] md:text-[9px] font-black text-gray-400 uppercase min-w-[170px]">Achievement %</th>
                                         <th className="px-6 py-4 text-[8px] md:text-[9px] font-black text-gray-400 uppercase text-center min-w-[80px]">Score</th>
-                                        <th className="px-6 py-4 text-[8px] md:text-[9px] font-black text-gray-400 uppercase text-center min-w-[110px]">Target %</th>
-                                        <th className="px-6 py-4 text-[8px] md:text-[9px] font-black text-gray-400 uppercase text-right min-w-[80px]">Trend</th>
+                                        <th className="px-6 py-4 text-[8px] md:text-[9px] font-black text-gray-400 uppercase text-right min-w-[130px]">Sale Amount</th>
+                                        <th className="px-6 py-4 text-[8px] md:text-[9px] font-black text-gray-400 uppercase text-right min-w-[90px]">Trend</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-100 dark:divide-strokedark">
                                     {sortedOfficers.map((item) => {
-                                        const total = item.total_verifications || 0;
-                                        const achievementPct = total > 0 ? Math.round(((item.approved_verifications || 0) / total) * 100) : 0;
+                                        const achievementPct: number | null = item.achievement_percent ?? null;
                                         const isCurrentUser = item.officer_id === currentUser?.id;
                                         const isSameOutlet = item.outlet_id === currentUser?.outlet_id;
                                         const rank = item.displayRank;
@@ -192,32 +194,28 @@ export default function VerificationOfficerRankingsPage() {
                                                         </div>
                                                     </div>
                                                 </td>
-                                                <td className="px-6 py-4 text-center font-black text-gray-800 dark:text-white text-sm min-w-[80px]">{item.total_verifications || 0}</td>
-                                                <td className="px-6 py-4 text-center font-black text-blue-600 dark:text-blue-400 text-sm min-w-[100px]">{item.approved_verifications || 0}</td>
-                                                <td className="px-6 py-4 min-w-[150px]">
-                                                    <div className="flex items-center gap-2">
-                                                        <div className="w-20 bg-gray-100 dark:bg-meta-4 h-2 rounded-full overflow-hidden shrink-0">
-                                                            <div className={`h-full rounded-full transition-all duration-1000 ${achievementPct >= 80 ? 'bg-blue-500' : achievementPct >= 50 ? 'bg-amber-500' : 'bg-rose-500'}`} style={{ width: `${Math.min(100, achievementPct)}%` }}></div>
-                                                        </div>
-                                                        <span className="text-xs font-black text-gray-800 dark:text-white shrink-0">{achievementPct}%</span>
-                                                    </div>
-                                                </td>
-                                                <td className="px-6 py-4 text-center font-black text-rose-500 text-sm min-w-[90px]">{item.rejected_verifications || 0}</td>
-                                                <td className="px-6 py-4 text-center font-black text-blue-600 dark:text-blue-400 text-sm min-w-[80px]">{(item.score || 0).toLocaleString()}</td>
-                                                <td className="px-6 py-4 text-center min-w-[110px]">
-                                                    {item.target_percent === null || item.target_percent === undefined ? (
+                                                <td className="px-6 py-4 text-center font-black text-blue-600 dark:text-blue-400 text-sm min-w-[100px]">{item.delivered_count || 0}</td>
+                                                <td className="px-6 py-4 min-w-[170px]">
+                                                    {achievementPct === null ? (
                                                         <span className="text-xs font-bold text-gray-300">No target</span>
                                                     ) : (
-                                                        <div className="flex flex-col items-center gap-1">
-                                                            <span className={`text-xs font-black ${item.target_percent >= 100 ? 'text-emerald-500' : item.target_percent >= 50 ? 'text-amber-500' : 'text-rose-500'}`}>{item.target_percent}%</span>
-                                                            <span className="text-[9px] font-bold text-gray-400">{(item.target_achieved || 0).toLocaleString()} / {item.target.toLocaleString()}</span>
+                                                        <div className="flex flex-col gap-1">
+                                                            <div className="flex items-center gap-2">
+                                                                <div className="w-20 bg-gray-100 dark:bg-meta-4 h-2 rounded-full overflow-hidden shrink-0">
+                                                                    <div className={`h-full rounded-full transition-all duration-1000 ${achievementPct >= 80 ? 'bg-blue-500' : achievementPct >= 50 ? 'bg-amber-500' : 'bg-rose-500'}`} style={{ width: `${Math.min(100, achievementPct)}%` }}></div>
+                                                                </div>
+                                                                <span className="text-xs font-black text-gray-800 dark:text-white shrink-0">{achievementPct}%</span>
+                                                            </div>
+                                                            <span className="text-[9px] font-bold text-gray-400">{item.delivered_count || 0} / {(item.target || 0).toLocaleString()} target</span>
                                                         </div>
                                                     )}
                                                 </td>
-                                                <td className="px-6 py-4 text-right min-w-[80px]">
-                                                    <div className={`flex items-center justify-end gap-1 font-black text-xs ${(item.trend || 0) >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
-                                                        {(item.trend || 0) >= 0 ? <ArrowUpRight size={12} /> : <ArrowDownRight size={12} />}
-                                                        {Math.abs(item.trend || 0)}%
+                                                <td className="px-6 py-4 text-center font-black text-blue-600 dark:text-blue-400 text-sm min-w-[80px]">{(item.score || 0).toLocaleString()}</td>
+                                                <td className="px-6 py-4 text-right font-black text-gray-800 dark:text-white text-sm min-w-[130px]">Rs. {(item.sale_amount || 0).toLocaleString()}</td>
+                                                <td className="px-6 py-4 text-right min-w-[90px]" title={`Delivered this month vs last month till the same date & time (${item.prev_delivered || 0} last month)`}>
+                                                    <div className={`flex items-center justify-end gap-1 font-black text-xs ${(item.trend_percent || 0) >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
+                                                        {(item.trend_percent || 0) >= 0 ? <ArrowUpRight size={12} /> : <ArrowDownRight size={12} />}
+                                                        {Math.abs(item.trend_percent || 0)}%
                                                     </div>
                                                 </td>
                                             </tr>

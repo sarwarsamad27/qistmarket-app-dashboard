@@ -15,6 +15,7 @@ interface Officer {
     id: number;
     username: string;
     full_name: string;
+    outlet?: { name: string } | null;
 }
 
 export default function OfficerTargetsPage() {
@@ -160,6 +161,7 @@ export default function OfficerTargetsPage() {
                                 >
                                     <option value="recovery">Recovery Officers</option>
                                     <option value="delivery">Delivery Officers</option>
+                                    <option value="verification">Verification Officers</option>
                                 </select>
                             </div>
 
@@ -172,10 +174,16 @@ export default function OfficerTargetsPage() {
                                 >
                                     <option value="">-- Choose Officer --</option>
                                     {officers.map(off => (
-                                        <option key={off.id} value={off.id}>{off.full_name || off.username}</option>
+                                        <option key={off.id} value={off.id}>{off.full_name || off.username}{off.outlet?.name ? ` (${off.outlet.name})` : ''}</option>
                                     ))}
                                 </select>
                             </div>
+
+                            {officerType === 'verification' && (
+                                <p className="rounded-xl bg-blue-50 dark:bg-meta-4 border border-blue-100 dark:border-strokedark p-3 text-[11px] font-bold text-blue-700 dark:text-blue-300">
+                                    Verification officers are measured on DELIVERED customers: Target Customers = how many of their customers should get delivered this month, Target Amount = total sale value of those deliveries.
+                                </p>
+                            )}
 
                             <div>
                                 <label className="block text-xs font-black uppercase tracking-widest text-gray-400 mb-2">Target Amount (PKR)</label>
