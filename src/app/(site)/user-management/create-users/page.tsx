@@ -524,7 +524,7 @@ const CreateUsers: React.FC = () => {
                       <option value="">Select an Outlet</option>
                       {outlets.map(outlet => (
                         <option key={outlet.id} value={outlet.id}>
-                          {outlet.name} ({outlet.code})
+                          {outlet.name} ({outlet.code}){!(outlet.address || '').trim() ? ' — ⚠ address missing' : ''}
                         </option>
                       ))}
                     </select>
