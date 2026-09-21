@@ -274,7 +274,7 @@ export default function VerificationOfficersPage() {
     }, [selectedOfficer, selectedMonth]);
 
     // Live presence without refreshing: the socket gives instant updates, and this quiet
-    // poll (every 8s while the tab is visible + on focus) guarantees the online/offline
+    // poll (every 3s while the tab is visible + on focus) guarantees the online/offline
     // state is never stale even if a socket event was missed. It only merges presence
     // fields, so search text, sorting and the selected officer are left untouched.
     useEffect(() => {
@@ -283,10 +283,10 @@ export default function VerificationOfficersPage() {
             try {
                 const token = Cookies.get('auth_token');
                 if (!token) return;
-                const res = await fetch(`${BACKEND_URL}/api/officers/verification`, { headers: { Authorization: `Bearer ${token}` } });
+                const res = await fetch(`${BACKEND_URL}/api/officers/presence`, { headers: { Authorization: `Bearer ${token}` } });
                 const result = await res.json();
                 if (!result.success) return;
-                const fresh: any[] = result.data.officers || [];
+                const fresh: any[] = result.data || [];
                 const byId = new Map(fresh.map((o: any) => [o.id, o]));
                 const merge = (o: any) => {
                     const f: any = byId.get(o.id);
@@ -299,7 +299,7 @@ export default function VerificationOfficersPage() {
                 /* keep showing the last known state */
             }
         };
-        const timer = setInterval(syncPresence, 8000);
+        const timer = setInterval(syncPresence, 3000);
         window.addEventListener('focus', syncPresence);
         document.addEventListener('visibilitychange', syncPresence);
         return () => {
