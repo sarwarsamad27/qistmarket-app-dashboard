@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Cookies from "js-cookie";
 import toast from "react-hot-toast";
-import { Lock, Unlock, CalendarClock, Smartphone, Search, Settings, ShieldCheck, Save } from "lucide-react";
+import { Lock, Unlock, CalendarClock, Smartphone, Search, Settings, ShieldCheck, Save, Loader2 } from "lucide-react";
 import Breadcrumb from "@/components/Breadcrumbs/Breadcrumb";
 import PageHeader from "@/components/Accounts/PageHeader";
 import EmptyState from "@/components/Accounts/EmptyState";
@@ -54,17 +54,9 @@ export default function PayTriggerPage() {
   const [configLoading, setConfigLoading] = useState(false);
   const [ruleNum, setRuleNum] = useState("1");
   const [savingRule, setSavingRule] = useState(false);
+  const [actionImei, setActionImei] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetch(`${BACKEND_URL}/api/paytrigger/devices/summary`, { headers: authHeaders() })
-      .then((res) => res.json())
-      .then((json) => { if (json.success) setSummary(json.data); })
-      .catch((err) => console.error("Failed to load PayTrigger summary:", err))
-      .finally(() => setLoadingSummary(false));
-  }, []);
-
-  useEffect(() => {
-    if (tab === "settings") return;
+  const reloadDevices = () => {
     setLoadingList(true);
     const params = new URLSearchParams({ limit: "100" });
     if (search) params.set("search", search);
@@ -74,7 +66,6 @@ export default function PayTriggerPage() {
       if (promisedFrom) params.set("promisedFrom", promisedFrom);
       if (promisedTo) params.set("promisedTo", promisedTo);
     }
-
     fetch(`${BACKEND_URL}/api/paytrigger/devices?${params}`, { headers: authHeaders() })
       .then((res) => res.json())
       .then((json) => {
@@ -88,6 +79,45 @@ export default function PayTriggerPage() {
       })
       .catch((err) => console.error("Failed to load devices:", err))
       .finally(() => setLoadingList(false));
+    fetch(`${BACKEND_URL}/api/paytrigger/devices/summary`, { headers: authHeaders() })
+      .then((res) => res.json())
+      .then((json) => { if (json.success) setSummary(json.data); })
+      .catch(() => {});
+  };
+
+  const handleLockToggle = async (d: Device) => {
+    const locking = d.lock_status !== "locked";
+    setActionImei(d.imei);
+    try {
+      const res = await fetch(`${BACKEND_URL}/api/paytrigger/device/${encodeURIComponent(d.imei)}/${locking ? "lock" : "unlock"}`, {
+        method: "POST",
+        headers: { ...authHeaders(), "Content-Type": "application/json" },
+      });
+      const data = await res.json();
+      if (data.success && (!data.data || data.data.code === 200 || !data.data.code)) {
+        toast.success(`Device ${locking ? "locked" : "unlocked"} successfully.`);
+        reloadDevices();
+      } else {
+        toast.error(data.message || `Failed to ${locking ? "lock" : "unlock"} device.`);
+      }
+    } catch (err: any) {
+      toast.error("Connection failed.");
+    } finally {
+      setActionImei(null);
+    }
+  };
+
+  useEffect(() => {
+    fetch(`${BACKEND_URL}/api/paytrigger/devices/summary`, { headers: authHeaders() })
+      .then((res) => res.json())
+      .then((json) => { if (json.success) setSummary(json.data); })
+      .catch((err) => console.error("Failed to load PayTrigger summary:", err))
+      .finally(() => setLoadingSummary(false));
+  }, []);
+
+  useEffect(() => {
+    if (tab === "settings") return;
+    reloadDevices();
   }, [tab, search, ptpStatus, promisedFrom, promisedTo]);
 
   useEffect(() => {
@@ -223,6 +253,7 @@ export default function PayTriggerPage() {
                   <th className="px-4 py-3 font-bold">Status</th>
                   {tab === "unpaid" && <th className="px-4 py-3 text-right font-bold">Outstanding</th>}
                   {tab === "ptp" && <th className="px-4 py-3 font-bold">Promised Date</th>}
+                  <th className="px-4 py-3 text-right font-bold">Action</th>
                 </tr>
               </thead>
               <tbody>
@@ -243,6 +274,22 @@ export default function PayTriggerPage() {
                     {tab === "ptp" && (
                       <td className="px-4 py-3.5 text-gray-500">{d.promised_date ? new Date(d.promised_date).toLocaleDateString() : "—"}</td>
                     )}
+                    <td className="px-4 py-3.5 text-right">
+                      <button
+                        onClick={() => handleLockToggle(d)}
+                        disabled={actionImei === d.imei}
+                        className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition disabled:opacity-50 ${d.lock_status === "locked" ? "bg-emerald-50 text-emerald-600 hover:bg-emerald-100 dark:bg-emerald-500/10" : "bg-rose-50 text-rose-600 hover:bg-rose-100 dark:bg-rose-500/10"}`}
+                      >
+                        {actionImei === d.imei ? (
+                          <Loader2 className="size-3.5 animate-spin" />
+                        ) : d.lock_status === "locked" ? (
+                          <Unlock className="size-3.5" />
+                        ) : (
+                          <Lock className="size-3.5" />
+                        )}
+                        {d.lock_status === "locked" ? "Unlock" : "Lock"}
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>

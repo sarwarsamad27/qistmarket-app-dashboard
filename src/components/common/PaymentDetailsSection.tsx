@@ -87,7 +87,11 @@ export const PaymentDetailsSection = ({
             label: inst.label,
             due_date: inst.due_date ? new Date(inst.due_date).toISOString().slice(0, 10) : '',
             amount: String(inst.due_amount ?? 0),
-            paid_amount: String(inst.paid_amount ?? 0),
+            // What was actually collected against THIS row — not the capped due_amount an
+            // overpayment shows as elsewhere on the page. Editing this and saving is what
+            // lets an overpayment (or its correction) ripple onto later installments; see
+            // ledgerController.editLedgerRows / cascadeLedgerPayments on the backend.
+            paid_amount: String(inst.collected_amount ?? inst.paid_amount ?? 0),
             payment_method: inst.payment_method || '',
         })));
         setIsEditMode(true);
@@ -493,6 +497,11 @@ export const PaymentDetailsSection = ({
                                                     </td>
                                                     <td className="px-4 py-2 text-sm font-bold text-green-600 dark:text-green-400">
                                                         {inst.paid_amount > 0 ? `Rs. ${inst.paid_amount.toLocaleString()}` : '-'}
+                                                        {inst.collected_amount > inst.paid_amount + 0.5 && (
+                                                            <div className="text-[10px] font-medium text-blue-500">
+                                                                Rs. {inst.collected_amount.toLocaleString()} collected — Rs. {(inst.collected_amount - inst.paid_amount).toLocaleString()} credited to a later installment
+                                                            </div>
+                                                        )}
                                                     </td>
                                                     <td className="px-4 py-2 text-sm font-bold text-red-500">
                                                         {inst.remaining_amount > 0 ? `Rs. ${inst.remaining_amount.toLocaleString()}` : '-'}
