@@ -8,6 +8,15 @@ import { OrderPaymentIds } from './OrderPaymentIds';
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5000';
 
+// <input type="datetime-local"> wants local-time 'YYYY-MM-DDTHH:mm', not an ISO/UTC string.
+const toDatetimeLocal = (iso?: string | null) => {
+    if (!iso) return '';
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return '';
+    const pad = (n: number) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+};
+
 type EditableRow = {
     month: number;
     label: string;
@@ -15,6 +24,7 @@ type EditableRow = {
     amount: string; // kept as string while editing, parsed on save
     paid_amount: string;
     payment_method: string;
+    paid_at: string; // datetime-local string ('' = leave as auto-set by the backend)
 };
 
 export const PaymentDetailsSection = ({
@@ -93,6 +103,7 @@ export const PaymentDetailsSection = ({
             // ledgerController.editLedgerRows / cascadeLedgerPayments on the backend.
             paid_amount: String(inst.collected_amount ?? inst.paid_amount ?? 0),
             payment_method: inst.payment_method || '',
+            paid_at: toDatetimeLocal(inst.paid_at),
         })));
         setIsEditMode(true);
     };
@@ -121,6 +132,9 @@ export const PaymentDetailsSection = ({
                         amount: parseFloat(r.amount) || 0,
                         paid_amount: parseFloat(r.paid_amount) || 0,
                         payment_method: r.payment_method || null,
+                        // '' means "leave it to the backend" (defaults to now() on a paid-amount
+                        // change); a value here is the admin explicitly picking the payment date.
+                        paid_at: r.paid_at ? new Date(r.paid_at).toISOString() : null,
                     })),
                 }),
             });
@@ -554,7 +568,15 @@ export const PaymentDetailsSection = ({
                                                         {(parseFloat(row.amount) || 0) - (parseFloat(row.paid_amount) || 0)}
                                                     </td>
                                                     <td className="px-4 py-2 text-xs text-gray-400 italic">auto</td>
-                                                    <td className="px-4 py-2 text-xs text-gray-400">—</td>
+                                                    <td className="px-2 py-2">
+                                                        <input
+                                                            type="datetime-local"
+                                                            value={row.paid_at}
+                                                            onChange={(e) => updateRow(row.month, 'paid_at', e.target.value)}
+                                                            title="Leave blank to let the system set this automatically when Paid changes"
+                                                            className="w-44 rounded border border-stroke bg-white px-2 py-1 text-xs dark:border-dark-3 dark:bg-dark-2 dark:text-white"
+                                                        />
+                                                    </td>
                                                     <td className="px-2 py-2">
                                                         <input
                                                             type="text"
