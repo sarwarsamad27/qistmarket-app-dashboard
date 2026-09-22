@@ -578,7 +578,19 @@ export const PaymentDetailsSection = ({
                                                         />
                                                     </td>
                                                     <td className="px-4 py-2 text-xs text-gray-400">
-                                                        {(parseFloat(row.amount) || 0) - (parseFloat(row.paid_amount) || 0)}
+                                                        {(() => {
+                                                            // Paid here is pre-filled from collected_amount (the true figure,
+                                                            // which can exceed this row's own due — that's the whole point of
+                                                            // the overpayment cascade), so a naive amount-minus-paid can go
+                                                            // negative. That's not an error — it just means the excess is
+                                                            // about to cascade onto a later installment on save — but showing
+                                                            // a raw negative number here reads as a bug, so say what it means.
+                                                            const due = parseFloat(row.amount) || 0;
+                                                            const paid = parseFloat(row.paid_amount) || 0;
+                                                            const diff = due - paid;
+                                                            if (diff >= 0) return diff.toLocaleString();
+                                                            return <span className="text-blue-500">+{Math.abs(diff).toLocaleString()} will cascade forward</span>;
+                                                        })()}
                                                     </td>
                                                     <td className="px-4 py-2 text-xs text-gray-400 italic">auto</td>
                                                     <td className="px-2 py-2">
