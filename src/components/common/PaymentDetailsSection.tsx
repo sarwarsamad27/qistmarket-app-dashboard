@@ -510,10 +510,23 @@ export const PaymentDetailsSection = ({
                                                         )}
                                                     </td>
                                                     <td className="px-4 py-2 text-sm font-bold text-green-600 dark:text-green-400">
-                                                        {inst.paid_amount > 0 ? `Rs. ${inst.paid_amount.toLocaleString()}` : '-'}
+                                                        {(() => {
+                                                            // The bigger of the two is always what actually changed hands on this
+                                                            // row: collected_amount when the excess moved FORWARD to a later
+                                                            // installment (paid_amount here stays capped at the row's own due),
+                                                            // or paid_amount when this row is the LAST one and had nowhere further
+                                                            // to send its own unallocated excess (see unallocated_excess below).
+                                                            const shown = Math.max(inst.collected_amount || 0, inst.paid_amount || 0);
+                                                            return shown > 0 ? `Rs. ${shown.toLocaleString()}` : '-';
+                                                        })()}
                                                         {inst.collected_amount > inst.paid_amount + 0.5 && (
                                                             <div className="text-[10px] font-medium text-blue-500">
-                                                                Rs. {inst.collected_amount.toLocaleString()} collected — Rs. {(inst.collected_amount - inst.paid_amount).toLocaleString()} credited to a later installment
+                                                                Rs. {inst.paid_amount.toLocaleString()} applied here — Rs. {(inst.collected_amount - inst.paid_amount).toLocaleString()} credited to a later installment
+                                                            </div>
+                                                        )}
+                                                        {inst.unallocated_excess > 0.5 && (
+                                                            <div className="text-[10px] font-bold text-orange-600 dark:text-orange-400">
+                                                                Rs. {inst.unallocated_excess.toLocaleString()} extra — no installment left to apply it to, needs refund/adjustment
                                                             </div>
                                                         )}
                                                     </td>
