@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Breadcrumb from "@/components/Breadcrumbs/Breadcrumb";
 import Cookies from "js-cookie";
 import toast from "react-hot-toast";
@@ -99,6 +99,13 @@ export default function PayTriggerAdminPage() {
     setSearching(true);
     setDevice(null);
     setError("");
+    await loadDevice(q);
+    setSearching(false);
+  };
+
+  // silent = background auto-refresh: keeps the current card on screen and
+  // swallows errors instead of blanking the page.
+  const loadDevice = async (q: string, silent = false) => {
     try {
       const res = await fetch(`${API_BASE}/api/paytrigger/device/${encodeURIComponent(q)}/status`, {
         headers: getAuthHeaders(),
@@ -119,15 +126,24 @@ export default function PayTriggerAdminPage() {
           last_sync_at: local.last_sync_at || "",
           raw_state: data.data.remote || data.data.local?.raw_state,
         });
-      } else {
+      } else if (!silent) {
         setError(data.message || "Device not found or API error");
       }
     } catch (e) {
-      setError("Connection failed. Is the backend running?");
-    } finally {
-      setSearching(false);
+      if (!silent) setError("Connection failed. Is the backend running?");
     }
   };
+
+  // Until the device is ACTIVE the backend reconcile job keeps updating its
+  // state (and completes the order once active) — mirror that here without a
+  // manual "Refresh Status".
+  const loadedImei = device?.imei;
+  const isActive = device?.enrollment_status === "active" || device?.enrollment_status === "locked";
+  useEffect(() => {
+    if (!loadedImei || isActive) return;
+    const id = setInterval(() => loadDevice(loadedImei, true), 60 * 1000);
+    return () => clearInterval(id);
+  }, [loadedImei, isActive]);
 
   const handleAction = async (action: string) => {
     const q = imei.trim();

@@ -281,8 +281,8 @@ const OrderListContent = ({ forcedStatus, forcedChannel, apiEndpoint, hideAction
   }
 
   // ── Data Fetching ──────────────────────────────────────────────────────────
-  const fetchOrders = async () => {
-    setLoading(true)
+  const fetchOrders = async (silent = false) => {
+    if (!silent) setLoading(true)
     try {
       const token = Cookies.get('auth_token')
       if (!token) return
@@ -345,7 +345,7 @@ const OrderListContent = ({ forcedStatus, forcedChannel, apiEndpoint, hideAction
     } catch (err) {
       console.error(err)
     } finally {
-      setLoading(false)
+      if (!silent) setLoading(false)
     }
   }
 
@@ -397,6 +397,14 @@ const OrderListContent = ({ forcedStatus, forcedChannel, apiEndpoint, hideAction
   useEffect(() => {
     fetchOrders()
   }, [pagination.page, pagination.limit, globalFilter, columnFilters, sorting, dateRange, startDate, endDate, statusFilter])
+
+  // "Waiting For Software Activation" orders leave this list on their own (PayTrigger
+  // webhook / backend reconcile job), so keep it live instead of needing a manual reload.
+  useEffect(() => {
+    if (forcedStatus !== 'awaiting_paytrigger_enrollment') return
+    const id = setInterval(() => fetchOrders(true), 30 * 1000)
+    return () => clearInterval(id)
+  }, [forcedStatus, pagination.page, pagination.limit, globalFilter, columnFilters, sorting, dateRange, startDate, endDate, statusFilter])
 
   useEffect(() => {
     fetchVerifiers()
