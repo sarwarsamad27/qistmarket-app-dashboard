@@ -8,7 +8,7 @@ import { useReactToPrint } from "react-to-print";
 import toast from "react-hot-toast";
 import {
   Banknote, ClipboardCheck, BarChart3, Users, FileSpreadsheet, Wallet, Receipt, HandCoins,
-  ArrowRight, FileText, Printer, CalendarClock, Plus, Trash2, Clock,
+  ArrowRight, FileText, Printer, CalendarClock, Plus, Trash2, Clock, Undo2,
 } from "lucide-react";
 import Breadcrumb from "@/components/Breadcrumbs/Breadcrumb";
 import PageHeader from "@/components/Accounts/PageHeader";
@@ -23,15 +23,17 @@ const globalReports = [
   { title: "Global Sales Report", description: "Orders, gross amounts, and collections nationwide.", icon: ClipboardCheck, href: "/reports/sales", color: "text-blue-600", bg: "bg-blue-50 dark:bg-blue-500/10" },
   { title: "P&L (Global)", description: "Net earnings after COGS and operational expenses.", icon: BarChart3, href: "/reports/profit-loss", color: "text-red-600", bg: "bg-red-50 dark:bg-red-500/10" },
   { title: "Customer Ledger", description: "Customer transaction history across outlets.", icon: Users, href: "/reports/ledger", color: "text-purple-600", bg: "bg-purple-50 dark:bg-purple-500/10" },
+  { title: "Return Items Report", description: "Customer returns, verified status, and refund audit log.", icon: Undo2, href: "/accounts/stock-summary?tab=returns", color: "text-[#ff3d3d]", bg: "bg-rose-50 dark:bg-rose-500/10" },
 ];
 
 const exports = [
   { key: "cash-in-hand", label: "Cash In Hand", icon: Wallet, color: "text-emerald-600", bg: "bg-emerald-50 dark:bg-emerald-500/10", endpoint: "/api/accounts/cash-in-hand", pluck: (d: any) => d.entries, reportType: null as string | null },
   { key: "expenses", label: "Expense Summary", icon: Receipt, color: "text-rose-600", bg: "bg-rose-50 dark:bg-rose-500/10", endpoint: "/api/accounts/expenses/summary", pluck: (d: any) => d.topCategories, reportType: "expenses" },
   { key: "vendor-payables", label: "Vendor Payables", icon: HandCoins, color: "text-orange-600", bg: "bg-orange-50 dark:bg-orange-500/10", endpoint: "/api/accounts/vendors/payables", pluck: (d: any) => d.vendorWise, reportType: "vendor_payables" },
+  { key: "returns", label: "Return Items", icon: Undo2, color: "text-purple-600", bg: "bg-purple-50 dark:bg-purple-500/10", endpoint: "/api/accounts/stock/returns", pluck: (d: any) => d.items, reportType: "returns" },
 ];
 
-const REPORT_TYPES = ["daybook", "expenses", "vendor_payables", "recovery", "aging"];
+const REPORT_TYPES = ["daybook", "expenses", "vendor_payables", "recovery", "aging", "returns"];
 
 interface ScheduledReport { id: number; report_type: string; frequency: string; recipients: string; is_active: boolean; last_sent_at: string | null }
 

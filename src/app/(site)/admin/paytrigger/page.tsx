@@ -111,7 +111,7 @@ export default function PayTriggerAdminPage() {
           imei: local.imei || q,
           order_ref: local.order_ref || "",
           product_model: local.product_model || "",
-          enrollment_status: local.enrollment_status || local.lock_status || "",
+          enrollment_status: local.enrollment_status || "",
           server_state: local.server_state ?? remote.serverState,
           mobile_state: local.mobile_status ?? remote.mobileStatus,
           lock_status: local.lock_status || "",
@@ -164,6 +164,8 @@ export default function PayTriggerAdminPage() {
       
       if (data.success && (!ptResult || ptResult.code === 200 || !ptResult.code)) {
         toast.success(`${action} command sent successfully`);
+        if (action === "sync-device-status" && data.completion?.completed) toast.success("Device is active — order marked as delivered.", { duration: 6000 });
+        if (action === "sync-device-status" && data.completion?.error) toast.error(`Device active but delivery completion failed: ${data.completion.error}`, { duration: 8000 });
         if (action === "get-device-tag" && ptResult?.data?.deviceTag) toast.success(`Tag retrieved: ${ptResult.data.deviceTag}`, { duration: 5000 });
         if (action === "offline-pin" && ptResult?.data?.verifyCode) toast.success(`Unlock PIN: ${ptResult.data.verifyCode}`, { duration: 10000 });
         if (action === "find-status" && ptResult?.data?.operationStatus) toast.success(`Find Phone Status: ${ptResult.data.operationStatus}`, { duration: 5000 });
@@ -239,7 +241,17 @@ export default function PayTriggerAdminPage() {
   };
 
   const getLockBadge = () => {
-    const s = device?.lock_status || device?.enrollment_status;
+    // lock_status only means something once the phone has actually activated —
+    // before that, mobileStatus 2000 ("not locked") would read as "UNLOCKED" and
+    // hide that enrollment is still pending.
+    const e = device?.enrollment_status;
+    if (e === "registered" || e === "ready_to_activate") {
+      return <div className="flex items-center gap-2 bg-amber-100 text-amber-700 px-4 py-2 rounded-xl font-bold border border-amber-300"><Clock className="w-5 h-5" /> NOT ACTIVATED YET ({e.replace(/_/g, " ").toUpperCase()})</div>;
+    }
+    if (e === "removable") {
+      return <div className="flex items-center gap-2 bg-gray-100 text-gray-700 px-4 py-2 rounded-xl font-bold border border-gray-300"><Smartphone className="w-5 h-5" /> REMOVABLE</div>;
+    }
+    const s = e === "pre_enrolled" ? e : (device?.lock_status || e);
     if (s === "locked" || s === "active_lock") {
       return <div className="flex items-center gap-2 bg-red-100 text-red-700 px-4 py-2 rounded-xl font-bold border border-red-300"><Lock className="w-5 h-5" /> DEVICE IS LOCKED</div>;
     }

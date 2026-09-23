@@ -187,7 +187,7 @@ export default function AccountsExpensesPage() {
           ) : (
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
               <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-boxdark">
-                <div className="mb-4 flex items-center gap-2.5"><div className="flex size-8 items-center justify-center rounded-lg bg-rose-50 text-rose-600 dark:bg-rose-500/10"><Tags className="size-4" /></div><h2 className="text-sm font-bold text-dark dark:text-white">Top Expense Categories</h2></div>
+                <div className="mb-4 flex items-center gap-2.5"><div className="flex size-8 items-center justify-center rounded-lg bg-rose-50 text-rose-600 dark:bg-rose-500/10"><Tags className="size-4" /></div><h2 className="text-sm font-bold text-dark dark:text-white">Top Expense Categories (This Month)</h2></div>
                 {summary && summary.topCategories.length > 0 ? (
                   <div className="space-y-4">
                     {summary.topCategories.map((c) => (
@@ -220,8 +220,8 @@ export default function AccountsExpensesPage() {
           <form onSubmit={handleCreateExpense} className="space-y-5">
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
-                <label className="mb-1.5 block text-sm font-medium text-dark dark:text-white">Outlet (leave blank for Head Office)</label>
-                <OutletSelector selectedId={form.outlet_id || "all"} onSelect={(id) => setForm({ ...form, outlet_id: id === "all" ? "" : id })} />
+                <label className="mb-1.5 block text-sm font-medium text-dark dark:text-white">Outlet</label>
+                <OutletSelector selectedId={form.outlet_id || "all"} onSelect={(id) => setForm({ ...form, outlet_id: id === "all" ? "" : id })} allLabel="Head Office (no outlet)" />
               </div>
               <div>
                 <label className="mb-1.5 block text-sm font-medium text-dark dark:text-white">Payment Method</label>

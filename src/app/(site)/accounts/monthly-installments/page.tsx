@@ -22,6 +22,7 @@ interface MonthRow {
   due: number;
   recovered: number;
   target: number;
+  isProjected?: boolean;
   recoveryPercentage: number;
 }
 
@@ -36,7 +37,7 @@ export default function MonthlyInstallmentsPage() {
     const token = Cookies.get("auth_token");
     if (!token) return;
     setLoading(true);
-    fetch(`${BACKEND_URL}/api/accounts/monthly-installments?months=12`, { headers: { Authorization: `Bearer ${token}` } })
+    fetch(`${BACKEND_URL}/api/accounts/monthly-installments?months=12&futureMonths=0`, { headers: { Authorization: `Bearer ${token}` } })
       .then((res) => res.json())
       .then((json) => {
         if (json.success) setMonths(json.data.months);
@@ -74,16 +75,38 @@ export default function MonthlyInstallmentsPage() {
   };
 
   const chartOptions: ApexOptions = {
-    chart: { type: "line", toolbar: { show: false }, fontFamily: "inherit" },
+    chart: { type: "line", toolbar: { show: false }, fontFamily: "inherit", width: "100%" },
     stroke: { curve: "smooth", width: [0, 3, 2], dashArray: [0, 0, 6] },
     plotOptions: { bar: { borderRadius: 5, borderRadiusApplication: "end", columnWidth: "40%" } },
     colors: ["#2a78d6", "#1baf7a", "#898781"],
     grid: { strokeDashArray: 4, borderColor: "#e1e0d9" },
     legend: { position: "top", horizontalAlign: "left", fontSize: "12px", markers: { size: 5 } },
-    xaxis: { categories: months.map((m) => m.label), axisBorder: { show: false }, axisTicks: { show: false }, labels: { style: { colors: "#898781", fontSize: "11px" } } },
+    xaxis: {
+      type: "category",
+      tickPlacement: "on",
+      categories: months.map((m) => m.label),
+      axisBorder: { show: false },
+      axisTicks: { show: false },
+      labels: {
+        style: { colors: "#898781", fontSize: "11px" },
+        rotate: -45,
+        rotateAlways: true,
+        trim: false,
+        hideOverlappingLabels: false,
+      },
+    },
     yaxis: { labels: { formatter: (v) => PKR(v), style: { colors: "#898781", fontSize: "11px" } } },
     tooltip: { shared: true, y: { formatter: (v) => PKR(v) } },
     dataLabels: { enabled: false },
+    responsive: [
+      {
+        breakpoint: 768,
+        options: {
+          xaxis: { labels: { style: { fontSize: "9px" }, rotate: -60 } },
+          legend: { fontSize: "10px" },
+        },
+      },
+    ],
   };
 
   const series = [
@@ -92,18 +115,20 @@ export default function MonthlyInstallmentsPage() {
     { name: "Target", type: "line", data: months.map((m) => m.target) },
   ];
 
-  const latest = months[months.length - 1];
+  const now = new Date();
+  const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  const currentMonth = months.find((m) => m.month === currentMonthKey) || months.find((m) => !m.isProjected) || months[months.length - 1];
 
   return (
     <>
       <Breadcrumb pageName="Monthly Installments" />
       <PageHeader icon={CalendarRange} title="Monthly Installment Analytics" subtitle="Expected vs. recovered installments per month, tracked against targets." />
 
-      {latest && (
+      {currentMonth && (
         <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
-          <MiniStat label="This Month Due" value={PKR(latest.due)} color="text-blue-600" bg="bg-blue-50 dark:bg-blue-500/10" />
-          <MiniStat label="This Month Recovered" value={PKR(latest.recovered)} color="text-emerald-600" bg="bg-emerald-50 dark:bg-emerald-500/10" />
-          <MiniStat label="Recovery Rate" value={`${latest.recoveryPercentage}%`} color="text-indigo-600" bg="bg-indigo-50 dark:bg-indigo-500/10" />
+          <MiniStat label="This Month Due" value={PKR(currentMonth.due)} color="text-blue-600" bg="bg-blue-50 dark:bg-blue-500/10" />
+          <MiniStat label="This Month Recovered" value={PKR(currentMonth.recovered)} color="text-emerald-600" bg="bg-emerald-50 dark:bg-emerald-500/10" />
+          <MiniStat label="Recovery Rate" value={`${currentMonth.recoveryPercentage}%`} color="text-indigo-600" bg="bg-indigo-50 dark:bg-indigo-500/10" />
         </div>
       )}
 
@@ -112,7 +137,9 @@ export default function MonthlyInstallmentsPage() {
       ) : (
         <div className="mb-6 rounded-2xl border border-slate-100 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-boxdark">
           <h2 className="mb-4 text-sm font-bold text-dark dark:text-white">12-Month Trend</h2>
-          <Chart options={chartOptions} series={series} type="line" height={340} />
+          <div className="overflow-x-auto">
+            <Chart options={chartOptions} series={series} type="line" height={380} width="100%" />
+          </div>
         </div>
       )}
 

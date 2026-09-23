@@ -2,12 +2,16 @@
 
 import { useEffect, useState } from "react";
 import Cookies from "js-cookie";
-import { Wifi, QrCode, Receipt, CheckCircle2, XCircle, Copy } from "lucide-react";
+import dynamic from "next/dynamic";
+import type { ApexOptions } from "apexcharts";
+import { Wifi, QrCode, Receipt, CheckCircle2, XCircle, Copy, Wallet } from "lucide-react";
 import Breadcrumb from "@/components/Breadcrumbs/Breadcrumb";
 import PageHeader from "@/components/Accounts/PageHeader";
 import EmptyState from "@/components/Accounts/EmptyState";
-import { StatCardSkeleton, TableSkeleton } from "@/components/Accounts/Skeleton";
+import { StatCardSkeleton, TableSkeleton, ChartSkeleton } from "@/components/Accounts/Skeleton";
 import { PKR } from "@/components/Accounts/StatCard";
+
+const Chart = dynamic(() => import("react-apexcharts"), { ssr: false });
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
 
@@ -35,6 +39,10 @@ interface OnlinePaymentsData {
   recent: RecentTxn[];
 }
 
+interface ChannelRecoveryData {
+  byChannel: { channel: string; amount: number; percentageOfDue: number }[];
+}
+
 const RANGES = ["Day", "Week", "Month", "Quarter", "Year"] as const;
 
 const STATUS_STYLE: Record<string, string> = {
@@ -48,6 +56,9 @@ export default function OnlinePaymentsPage() {
   const [loading, setLoading] = useState(true);
   const [range, setRange] = useState<(typeof RANGES)[number]>("Month");
 
+  const [channelData, setChannelData] = useState<ChannelRecoveryData | null>(null);
+  const [channelLoading, setChannelLoading] = useState(true);
+
   useEffect(() => {
     const token = Cookies.get("auth_token");
     if (!token) return;
@@ -60,7 +71,35 @@ export default function OnlinePaymentsPage() {
       })
       .catch((err) => console.error("Failed to load online payments:", err))
       .finally(() => setLoading(false));
+
+    // Same data Recovery Analytics' "Recovery By Payment Channel" section shows — kept
+    // here too so the whole "Online Payments Flow" checklist (tracking, reconciliation,
+    // AND channel-wise recovery) lives on this one page instead of sending the client
+    // to a different section for the last item.
+    setChannelLoading(true);
+    fetch(`${BACKEND_URL}/api/accounts/recovery-analytics/channel-wise?range=${range}`, { headers: { Authorization: `Bearer ${token}` } })
+      .then((res) => res.json())
+      .then((json) => {
+        if (json.success) setChannelData(json.data);
+      })
+      .catch((err) => console.error("Failed to load channel-wise recovery:", err))
+      .finally(() => setChannelLoading(false));
   }, [range]);
+
+  const gridColor = "#e1e0d9";
+  const axisLabelStyle = { colors: "#898781", fontSize: "11px", fontWeight: 600 };
+  const horizontalBarOptions = (categories: string[], color: string): ApexOptions => ({
+    chart: { type: "bar", toolbar: { show: false }, fontFamily: "inherit" },
+    plotOptions: { bar: { borderRadius: 5, borderRadiusApplication: "end", barHeight: "55%", horizontal: true } },
+    dataLabels: { enabled: true, formatter: (v) => `${v}%`, style: { fontSize: "11px", fontWeight: 700, colors: ["#52514e"] }, offsetX: 18 },
+    colors: [color],
+    grid: { strokeDashArray: 4, borderColor: gridColor, xaxis: { lines: { show: true } }, yaxis: { lines: { show: false } } },
+    xaxis: { categories, min: 0, max: 100, labels: { formatter: (v) => `${v}%`, style: axisLabelStyle }, axisBorder: { show: false } },
+    yaxis: { labels: { style: axisLabelStyle } },
+    tooltip: { x: { formatter: (v) => `${v}%` } },
+    states: { hover: { filter: { type: "darken" } } },
+  });
+  const chartHeight = (count: number) => Math.max(180, count * 46);
 
   return (
     <>
@@ -145,6 +184,35 @@ export default function OnlinePaymentsPage() {
           <EmptyState icon={Wifi} title="No online payment activity" description="No 1Bill or SmartPay transactions recorded for this period." />
         </div>
       )}
+
+      <div className="mt-6 rounded-2xl border border-slate-100 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-boxdark">
+        <div className="mb-4 flex items-center gap-2.5">
+          <div className="flex size-8 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10"><Wallet className="size-4" /></div>
+          <h2 className="text-sm font-bold text-dark dark:text-white">Channel-Wise Recovery</h2>
+        </div>
+        {channelLoading ? (
+          <ChartSkeleton />
+        ) : channelData && channelData.byChannel.some((c) => c.amount > 0) ? (
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_auto]">
+            <Chart
+              options={horizontalBarOptions(channelData.byChannel.map((c) => c.channel), "#2f9e6f")}
+              series={[{ name: "% of Due Recovered", data: channelData.byChannel.map((c) => c.percentageOfDue) }]}
+              type="bar"
+              height={chartHeight(channelData.byChannel.length)}
+            />
+            <div className="flex flex-col justify-center gap-3 lg:min-w-[220px]">
+              {channelData.byChannel.map((c) => (
+                <div key={c.channel} className="flex items-center justify-between gap-4 rounded-xl bg-gray-50 px-3.5 py-2.5 dark:bg-dark-2">
+                  <span className="text-xs font-bold text-gray-600 dark:text-gray-300">{c.channel}</span>
+                  <span className="text-sm font-black text-dark dark:text-white">{PKR(c.amount)}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <EmptyState icon={Wallet} title="No recovered payments this period" description="Nothing was collected via any channel in the selected range yet." />
+        )}
+      </div>
     </>
   );
 }

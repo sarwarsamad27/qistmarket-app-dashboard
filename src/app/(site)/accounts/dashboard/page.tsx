@@ -54,6 +54,70 @@ const RANGE_LABEL: Record<(typeof RANGES)[number], string> = {
   Day: "today", Week: "this week", Month: "this month", Quarter: "this quarter", Year: "this year",
 };
 
+type Range = (typeof RANGES)[number];
+interface TrendBucket { key: string; tick: string; label: string; cash: number; online: number }
+
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const ymd = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+const parseYmd = (s: string) => { const [y, m, d] = s.split("-").map(Number); return new Date(y, m - 1, d); };
+const dayLabel = (d: Date) => `${d.getDate()} ${MONTHS[d.getMonth()]}`;
+const mondayOf = (d: Date) => { const r = new Date(d); r.setDate(r.getDate() - ((r.getDay() + 6) % 7)); return r; };
+
+// The API only returns days that had collections, which leaves an uneven,
+// gappy axis. Spread the period into evenly spaced, zero-filled buckets
+// (days for short ranges, weeks for a quarter, months for a year).
+const bucketTrend = (trend: FlowTrend[], range: Range): TrendBucket[] => {
+  const now = new Date();
+  const buckets: TrendBucket[] = [];
+  let keyOf: (d: Date) => string;
+
+  if (range === "Year") {
+    keyOf = (d) => `${d.getFullYear()}-${d.getMonth()}`;
+    for (let m = 0; m < 12; m++) {
+      buckets.push({ key: `${now.getFullYear()}-${m}`, tick: MONTHS[m], label: `${MONTHS[m]} ${now.getFullYear()}`, cash: 0, online: 0 });
+    }
+  } else if (range === "Quarter") {
+    keyOf = (d) => ymd(mondayOf(d));
+    const qStart = new Date(now.getFullYear(), Math.floor(now.getMonth() / 3) * 3, 1);
+    const qEnd = new Date(qStart.getFullYear(), qStart.getMonth() + 3, 1);
+    for (let d = mondayOf(qStart); d < qEnd; d.setDate(d.getDate() + 7)) {
+      const end = new Date(d); end.setDate(end.getDate() + 6);
+      buckets.push({ key: ymd(d), tick: dayLabel(d), label: `Week of ${dayLabel(d)} – ${dayLabel(end)}`, cash: 0, online: 0 });
+    }
+  } else {
+    keyOf = ymd;
+    let start: Date, end: Date;
+    if (range === "Month") {
+      start = new Date(now.getFullYear(), now.getMonth(), 1);
+      end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    } else if (range === "Week") {
+      start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 7);
+      end = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    } else {
+      start = end = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    }
+    const everyNth = range === "Month" ? 3 : 1;
+    let i = 0;
+    for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1), i++) {
+      const isFirstOrLast = d.getTime() === start.getTime() || d.getTime() === end.getTime();
+      buckets.push({ key: ymd(d), tick: i % everyNth === 0 || isFirstOrLast ? dayLabel(d) : "", label: dayLabel(d) + ` ${d.getFullYear()}`, cash: 0, online: 0 });
+    }
+  }
+
+  const byKey = new Map(buckets.map((b) => [b.key, b]));
+  for (const t of trend) {
+    const b = byKey.get(keyOf(parseYmd(t.date)));
+    if (b) { b.cash += t.cash; b.online += t.online; }
+  }
+  return buckets;
+};
+
+const compactPKR = (v: number) => {
+  if (v >= 1_000_000) return `${+(v / 1_000_000).toFixed(1)}M`;
+  if (v >= 1_000) return `${+(v / 1_000).toFixed(0)}K`;
+  return `${Math.round(v)}`;
+};
+
 export default function AccountsDashboardPage() {
   const router = useRouter();
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
@@ -122,16 +186,31 @@ export default function AccountsDashboardPage() {
     states: { hover: { filter: { type: "darken" } } },
   });
 
+  const buckets = bucketTrend(trend, range);
+  const trendCash = buckets.reduce((s, b) => s + b.cash, 0);
+  const trendOnline = buckets.reduce((s, b) => s + b.online, 0);
+  const hasTrend = trendCash + trendOnline > 0;
+
   const trendOptions: ApexOptions = {
-    chart: { type: "area", toolbar: { show: false }, fontFamily: "inherit" },
-    stroke: { curve: "smooth", width: 2 },
-    fill: { type: "gradient", gradient: { opacityFrom: 0.4, opacityTo: 0 } },
+    chart: { type: "bar", stacked: true, toolbar: { show: false }, fontFamily: "inherit", animations: { speed: 300 } },
+    plotOptions: { bar: { columnWidth: buckets.length > 20 ? "70%" : "50%", borderRadius: 4, borderRadiusApplication: "end", borderRadiusWhenStacked: "last" } },
     colors: ["#1baf7a", "#2a78d6"],
-    legend: { position: "top", horizontalAlign: "left", fontSize: "12px" },
-    grid: { strokeDashArray: 4, borderColor: "#e1e0d9" },
-    xaxis: { categories: trend.map((t) => t.date), labels: { style: { colors: "#898781", fontSize: "10px" } } },
-    yaxis: { labels: { formatter: (v) => PKR(v), style: { colors: "#898781", fontSize: "11px" } } },
-    tooltip: { shared: true, y: { formatter: (v) => PKR(v) } },
+    legend: { show: false },
+    grid: { strokeDashArray: 4, borderColor: "#e1e0d9", xaxis: { lines: { show: false } } },
+    xaxis: {
+      categories: buckets.map((b) => b.tick),
+      axisBorder: { show: false },
+      axisTicks: { show: false },
+      labels: { rotate: 0, hideOverlappingLabels: false, style: { colors: "#898781", fontSize: "11px" } },
+    },
+    yaxis: { labels: { formatter: (v) => compactPKR(v), style: { colors: "#898781", fontSize: "11px" } } },
+    tooltip: {
+      shared: true,
+      intersect: false,
+      x: { formatter: (_v, opts) => buckets[opts?.dataPointIndex ?? 0]?.label ?? "" },
+      y: { formatter: (v) => PKR(v) },
+    },
+    states: { hover: { filter: { type: "darken" } } },
     dataLabels: { enabled: false },
   };
 
@@ -197,15 +276,32 @@ export default function AccountsDashboardPage() {
         <div className="mb-6"><ChartSkeleton /></div>
       ) : (
         <div className="mb-6 rounded-2xl border border-slate-100 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-boxdark">
-          <div className="mb-4 flex items-center gap-3">
-            <div className="flex size-9 items-center justify-center rounded-xl bg-blue-50 text-blue-600 dark:bg-blue-500/10"><CalendarRange className="size-4" strokeWidth={2.25} /></div>
-            <div>
-              <h2 className="text-base font-bold text-dark dark:text-white">Installment Collection Trend</h2>
-              <p className="text-xs text-gray-500 dark:text-gray-400">Daily cash vs. online collections, {RANGE_LABEL[range]}</p>
+          <div className="mb-4 flex flex-wrap items-start justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="flex size-9 items-center justify-center rounded-xl bg-blue-50 text-blue-600 dark:bg-blue-500/10"><CalendarRange className="size-4" strokeWidth={2.25} /></div>
+              <div>
+                <h2 className="text-base font-bold text-dark dark:text-white">Installment Collection Trend</h2>
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  {range === "Year" ? "Monthly" : range === "Quarter" ? "Weekly" : "Daily"} cash vs. online collections, {RANGE_LABEL[range]}
+                </p>
+              </div>
             </div>
+            {hasTrend && (
+              <div className="flex gap-5">
+                {[
+                  { name: "Cash", value: trendCash, dot: "bg-[#1baf7a]" },
+                  { name: "Online", value: trendOnline, dot: "bg-[#2a78d6]" },
+                ].map((s) => (
+                  <div key={s.name}>
+                    <p className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400"><span className={`size-2 rounded-full ${s.dot}`} />{s.name}</p>
+                    <p className="text-sm font-bold text-dark dark:text-white">{PKR(s.value)}</p>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
-          {trend.length > 0 ? (
-            <Chart options={trendOptions} series={[{ name: "Cash", data: trend.map((t) => t.cash) }, { name: "Online", data: trend.map((t) => t.online) }]} type="area" height={280} />
+          {hasTrend ? (
+            <Chart options={trendOptions} series={[{ name: "Cash", data: buckets.map((b) => b.cash) }, { name: "Online", data: buckets.map((b) => b.online) }]} type="bar" height={280} />
           ) : (
             <EmptyState icon={CalendarRange} title={`No collections recorded ${RANGE_LABEL[range]}`} />
           )}

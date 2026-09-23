@@ -7,6 +7,7 @@ import Breadcrumb from "@/components/Breadcrumbs/Breadcrumb";
 import PageHeader from "@/components/Accounts/PageHeader";
 import EmptyState from "@/components/Accounts/EmptyState";
 import { TableSkeleton } from "@/components/Accounts/Skeleton";
+import { formatExactDate } from "@/utils/dateUtils";
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
 const authHeaders = () => ({ Authorization: `Bearer ${Cookies.get("auth_token")}` });
@@ -155,12 +156,13 @@ export default function ActivityLogPage() {
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-sm">
                   <thead className="bg-gray-50 text-[11px] uppercase tracking-wide text-gray-500 dark:bg-dark-2 dark:text-gray-400">
-                    <tr><th className="px-4 py-3 font-bold">Date</th><th className="px-4 py-3 font-bold">Action</th><th className="px-4 py-3 font-bold">Details</th><th className="px-4 py-3 font-bold">User</th><th className="px-4 py-3 font-bold">Outlet</th></tr>
+                    <tr><th className="px-4 py-3 font-bold">#</th><th className="px-4 py-3 font-bold">Date</th><th className="px-4 py-3 font-bold">Action</th><th className="px-4 py-3 font-bold">Details</th><th className="px-4 py-3 font-bold">User</th><th className="px-4 py-3 font-bold">Outlet</th></tr>
                   </thead>
                   <tbody>
-                    {logs.map((log) => (
+                    {logs.map((log, i) => (
                       <tr key={log.id} className="border-t border-slate-50 transition hover:bg-slate-50/70 dark:border-white/5 dark:hover:bg-white/5">
-                        <td className="px-4 py-3.5 whitespace-nowrap text-gray-500">{new Date(log.created_at).toLocaleString()}</td>
+                        <td className="px-4 py-3.5 text-gray-400">{(page - 1) * 25 + i + 1}</td>
+                        <td className="px-4 py-3.5 whitespace-nowrap text-gray-500">{formatExactDate(log.created_at, 'DD MMM YYYY, hh:mm A')}</td>
                         <td className="px-4 py-3.5"><span className={`rounded-full px-2.5 py-1 text-xs font-bold ${ACTION_COLORS[log.action] || defaultActionColor}`}>{log.action}</span></td>
                         <td className="px-4 py-3.5 max-w-md truncate text-gray-600 dark:text-gray-300" title={log.details}>{log.details}</td>
                         <td className="px-4 py-3.5 text-gray-600 dark:text-gray-300">{log.user?.full_name || "—"}</td>
@@ -192,11 +194,12 @@ export default function ActivityLogPage() {
           {loginsLoading ? <TableSkeleton /> : logins.length > 0 ? (
             <div className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm dark:border-white/10 dark:bg-boxdark">
               <table className="w-full text-left text-sm">
-                <thead className="bg-gray-50 text-[11px] uppercase tracking-wide text-gray-500 dark:bg-dark-2 dark:text-gray-400"><tr><th className="px-4 py-3 font-bold">Date</th><th className="px-4 py-3 font-bold">User</th><th className="px-4 py-3 font-bold">Status</th><th className="px-4 py-3 font-bold">IP Address</th><th className="px-4 py-3 font-bold">Device</th></tr></thead>
+                <thead className="bg-gray-50 text-[11px] uppercase tracking-wide text-gray-500 dark:bg-dark-2 dark:text-gray-400"><tr><th className="px-4 py-3 font-bold">#</th><th className="px-4 py-3 font-bold">Date</th><th className="px-4 py-3 font-bold">User</th><th className="px-4 py-3 font-bold">Status</th><th className="px-4 py-3 font-bold">IP Address</th><th className="px-4 py-3 font-bold">Device</th></tr></thead>
                 <tbody>
-                  {logins.map((log) => (
+                  {logins.map((log, i) => (
                     <tr key={log.id} className="border-t border-slate-50 dark:border-white/5">
-                      <td className="px-4 py-3.5 whitespace-nowrap text-gray-500">{new Date(log.created_at).toLocaleString()}</td>
+                      <td className="px-4 py-3.5 text-gray-400">{i + 1}</td>
+                      <td className="px-4 py-3.5 whitespace-nowrap text-gray-500">{formatExactDate(log.created_at, 'DD MMM YYYY, hh:mm A')}</td>
                       <td className="px-4 py-3.5 font-medium text-dark dark:text-white">{log.user?.full_name || "—"}</td>
                       <td className="px-4 py-3.5">
                         {log.action === "LOGIN_SUCCESS" ? (
@@ -206,7 +209,7 @@ export default function ActivityLogPage() {
                         )}
                       </td>
                       <td className="px-4 py-3.5 font-mono text-xs text-gray-500">{log.ip_address || "—"}</td>
-                      <td className="px-4 py-3.5 max-w-xs truncate text-xs text-gray-400" title={log.device_info || ""}>{log.device_info || "—"}</td>
+                      <td className="px-4 py-3.5 max-w-xs whitespace-normal break-words text-xs text-gray-400">{log.device_info || "—"}</td>
                     </tr>
                   ))}
                 </tbody>

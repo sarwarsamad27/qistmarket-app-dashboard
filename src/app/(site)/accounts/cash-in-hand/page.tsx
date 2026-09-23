@@ -14,7 +14,8 @@ const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
 const authHeaders = () => ({ Authorization: `Bearer ${Cookies.get("auth_token")}`, "Content-Type": "application/json" });
 
 interface CashEntry {
-  id: number;
+  id: number | string;
+  source?: string;
   transaction_id: string;
   submission_ref: string | null;
   order_ref: string | null;
@@ -30,7 +31,10 @@ interface CashEntry {
 }
 interface CashInHandData {
   totalPending: number;
+  outletCash: number;
+  totalCashInHand: number;
   entries: CashEntry[];
+  outletEntries: CashEntry[];
   outletWise: { outlet_id: number | null; outlet_name: string; pending: number; count: number }[];
   officerWise: { officer_id: number | null; officer_name: string; role: string; pending: number; count: number }[];
 }
@@ -52,6 +56,8 @@ export default function CashInHandPage() {
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<(typeof TABS)[number]["key"]>("entries");
   const [search, setSearch] = useState("");
+  // Which headline card drives the "All Entries" list: every rupee in hand, or only what officers still hold.
+  const [scope, setScope] = useState<"total" | "pending">("total");
   const [historySearch, setHistorySearch] = useState("");
 
   const [reportPeriod, setReportPeriod] = useState<"daily" | "weekly" | "monthly">("daily");
@@ -142,7 +148,14 @@ export default function CashInHandPage() {
     }
   };
 
-  const filteredEntries = (data?.entries || []).filter((e) => {
+  const scopedEntries: CashEntry[] = scope === "pending"
+    ? (data?.entries || [])
+    : [
+        ...(data?.entries || []).map((e) => ({ ...e, id: `officer-${e.id}` })),
+        ...(data?.outletEntries || []),
+      ].sort((a, b) => new Date(b.transaction_date).getTime() - new Date(a.transaction_date).getTime());
+
+  const filteredEntries = scopedEntries.filter((e) => {
     if (!search.trim()) return true;
     const q = search.trim().toLowerCase();
     return (
@@ -151,7 +164,8 @@ export default function CashInHandPage() {
       e.order_ref?.toLowerCase().includes(q) ||
       e.officer?.full_name?.toLowerCase().includes(q) ||
       e.outlet?.name?.toLowerCase().includes(q) ||
-      e.payment_method?.toLowerCase().includes(q)
+      e.payment_method?.toLowerCase().includes(q) ||
+      e.description?.toLowerCase().includes(q)
     );
   });
 
@@ -181,14 +195,39 @@ export default function CashInHandPage() {
       <Breadcrumb pageName="Cash In Hand" />
       <PageHeader icon={Wallet} title="Cash In Hand" subtitle="Pending cash sitting with officers, awaiting submission to outlets." />
 
-      <div className="mb-6 flex items-center gap-3 rounded-2xl border border-emerald-100 bg-gradient-to-br from-emerald-50 to-white p-5 dark:border-emerald-500/20 dark:from-emerald-500/10 dark:to-transparent">
-        <div className="flex size-12 items-center justify-center rounded-2xl bg-emerald-500/15 text-emerald-600">
-          <Banknote className="size-6" strokeWidth={2.25} />
-        </div>
-        <div>
-          <p className="text-xs font-black uppercase tracking-widest text-emerald-600/80">Total Pending Cash In Hand</p>
-          <p className="text-3xl font-black leading-tight text-emerald-700 dark:text-emerald-400">{PKR(data?.totalPending || 0)}</p>
-        </div>
+      <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-2">
+        <button
+          type="button"
+          onClick={() => { setScope("total"); setView("entries"); }}
+          className={`flex items-center gap-3 rounded-2xl border bg-gradient-to-br from-emerald-50 to-white p-5 text-left transition dark:from-emerald-500/10 dark:to-transparent ${
+            scope === "total" ? "border-emerald-400 ring-2 ring-emerald-400/30 dark:border-emerald-500/60" : "border-emerald-100 hover:border-emerald-300 dark:border-emerald-500/20"
+          }`}
+        >
+          <div className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-emerald-500/15 text-emerald-600">
+            <Wallet className="size-6" strokeWidth={2.25} />
+          </div>
+          <div>
+            <p className="text-xs font-black uppercase tracking-widest text-emerald-600/80">Total Cash In Hand</p>
+            <p className="text-3xl font-black leading-tight text-emerald-700 dark:text-emerald-400">{PKR(data?.totalCashInHand || 0)}</p>
+            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">At outlets {PKR(data?.outletCash || 0)} + with officers {PKR(data?.totalPending || 0)}</p>
+          </div>
+        </button>
+        <button
+          type="button"
+          onClick={() => { setScope("pending"); setView("entries"); }}
+          className={`flex items-center gap-3 rounded-2xl border bg-gradient-to-br from-amber-50 to-white p-5 text-left transition dark:from-amber-500/10 dark:to-transparent ${
+            scope === "pending" ? "border-amber-400 ring-2 ring-amber-400/30 dark:border-amber-500/60" : "border-amber-100 hover:border-amber-300 dark:border-amber-500/20"
+          }`}
+        >
+          <div className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-amber-500/15 text-amber-600">
+            <Banknote className="size-6" strokeWidth={2.25} />
+          </div>
+          <div>
+            <p className="text-xs font-black uppercase tracking-widest text-amber-600/80">Total Pending Cash In Hand</p>
+            <p className="text-3xl font-black leading-tight text-amber-700 dark:text-amber-400">{PKR(data?.totalPending || 0)}</p>
+            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">With officers, not yet submitted to outlets</p>
+          </div>
+        </button>
       </div>
 
       <div className="mb-4 flex flex-wrap gap-1 rounded-xl bg-gray-100 p-1 dark:bg-dark-3 w-fit">
@@ -200,7 +239,7 @@ export default function CashInHandPage() {
               view === tab.key ? "bg-white text-[#ff3d3d] shadow-sm dark:bg-boxdark" : "text-gray-500 hover:text-gray-700 dark:text-gray-400"
             }`}
           >
-            <tab.icon className="size-3.5" /> {tab.label}
+            <tab.icon className="size-3.5" /> {tab.key === "entries" ? (scope === "total" ? "All Entries — Total" : "All Entries — Pending") : tab.label}
           </button>
         ))}
       </div>
@@ -234,18 +273,23 @@ export default function CashInHandPage() {
                             <p className="font-mono text-xs font-semibold text-[#ff3d3d]">{entry.transaction_id}</p>
                             {entry.submission_ref && <p className="font-mono text-[10px] text-gray-400"># {entry.submission_ref}</p>}
                           </td>
-                          <td className="px-4 py-3.5 font-medium text-dark dark:text-white">{entry.officer?.full_name || "—"} <span className="font-normal text-xs text-gray-400">({entry.officer?.role})</span></td>
+                          <td className="px-4 py-3.5 font-medium text-dark dark:text-white">
+                            {entry.officer ? <>{entry.officer.full_name} <span className="font-normal text-xs text-gray-400">({entry.officer.role})</span></> : "—"}
+                            {scope === "total" && (
+                              <p className={`mt-0.5 text-[10px] font-bold uppercase tracking-wide ${entry.source ? "text-emerald-600" : "text-amber-600"}`}>{entry.source ? "At outlet" : "With officer"}</p>
+                            )}
+                          </td>
                           <td className="px-4 py-3.5 text-gray-600 dark:text-gray-300">{entry.outlet?.name || "—"}</td>
                           <td className="px-4 py-3.5 text-gray-600 dark:text-gray-300">{entry.description}{entry.order_ref ? ` — ${entry.order_ref}` : ""}</td>
                           <td className="px-4 py-3.5 capitalize text-gray-600 dark:text-gray-300">{entry.payment_method}</td>
                           <td className="px-4 py-3.5 text-gray-500">{new Date(entry.transaction_date).toLocaleString()}</td>
-                          <td className="px-4 py-3.5 text-right tabular-nums font-bold text-emerald-600">{PKR(entry.amount)}</td>
+                          <td className={`px-4 py-3.5 text-right tabular-nums font-bold ${entry.amount < 0 ? "text-rose-600" : "text-emerald-600"}`}>{entry.amount < 0 ? `− ${PKR(-entry.amount)}` : PKR(entry.amount)}</td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
                 </div>
-              ) : <EmptyState icon={Wallet} title={search ? "No matching entries" : "No pending cash-in-hand entries"} description={search ? "Try a different search term." : "All collected cash has been submitted."} />
+              ) : <EmptyState icon={Wallet} title={search ? "No matching entries" : scope === "total" ? "No cash-in-hand entries" : "No pending cash-in-hand entries"} description={search ? "Try a different search term." : scope === "total" ? "No cash is currently held at outlets or with officers." : "All collected cash has been submitted."} />
             )}
 
             {view === "outlet" && (

@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Cookies from "js-cookie";
 import toast from "react-hot-toast";
-import { Lock, Unlock, CalendarClock, Smartphone, Search, Settings, ShieldCheck, Save, Loader2 } from "lucide-react";
+import { Lock, Unlock, CalendarClock, Smartphone, Search, Settings, ShieldCheck, Save, Loader2, Phone, AlertTriangle, CheckCircle2 } from "lucide-react";
 import Breadcrumb from "@/components/Breadcrumbs/Breadcrumb";
 import PageHeader from "@/components/Accounts/PageHeader";
 import EmptyState from "@/components/Accounts/EmptyState";
@@ -12,6 +12,19 @@ import { PKR } from "@/components/Accounts/StatCard";
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
 const authHeaders = () => ({ Authorization: `Bearer ${Cookies.get("auth_token")}` });
+
+function parseLockMessage(raw: any): string {
+  if (!raw) return "This device has been locked due to overdue installment payment. Please contact customer service.";
+  if (typeof raw === "string") {
+    try {
+      const parsed = JSON.parse(raw);
+      return parsed.execontent || parsed.message || raw;
+    } catch {
+      return raw;
+    }
+  }
+  return raw.execontent || raw.message || String(raw);
+}
 
 interface Device {
   imei: string;
@@ -219,23 +232,148 @@ export default function PayTriggerPage() {
       )}
 
       {tab === "settings" ? (
-        configLoading ? <TableSkeleton rows={3} cols={2} /> : (
+        configLoading ? (
+          <TableSkeleton rows={3} cols={2} />
+        ) : (
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-            <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-boxdark">
-              <div className="mb-4 flex items-center gap-2.5"><div className="flex size-8 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10"><ShieldCheck className="size-4" /></div><h2 className="text-sm font-bold text-dark dark:text-white">License Status</h2></div>
-              <pre className="max-h-64 overflow-auto rounded-xl bg-slate-50 p-3 text-xs text-gray-600 dark:bg-white/5 dark:text-gray-300">{JSON.stringify(license, null, 2)}</pre>
-            </div>
-            <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-boxdark">
-              <div className="mb-4 flex items-center gap-2.5"><div className="flex size-8 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600 dark:bg-indigo-500/10"><Settings className="size-4" /></div><h2 className="text-sm font-bold text-dark dark:text-white">Company Lock Rule</h2></div>
-              <pre className="mb-4 max-h-40 overflow-auto rounded-xl bg-slate-50 p-3 text-xs text-gray-600 dark:bg-white/5 dark:text-gray-300">{JSON.stringify(config, null, 2)}</pre>
-              <div className="flex items-end gap-2">
-                <div className="flex-1">
-                  <label className="mb-1.5 block text-xs font-medium text-gray-500">Rule Number</label>
-                  <input type="number" value={ruleNum} onChange={(e) => setRuleNum(e.target.value)} className="w-full rounded-xl border border-stroke bg-white px-4 py-2 text-sm outline-none dark:border-dark-3 dark:bg-gray-dark dark:text-white" />
+            {/* License Status Card */}
+            {(() => {
+              const licObj = license?.data || license || {};
+              const totalLic = licObj.totalAmountOfLicense ?? licObj.totalNum ?? 0;
+              const usedLic = licObj.amountUsedOfLicense ?? licObj.usedNum ?? 0;
+              const remainLic = licObj.remainingAmountOfLicense ?? licObj.availableLicenses ?? licObj.unusedNum ?? Math.max(0, totalLic - usedLic);
+              const pctUsed = totalLic > 0 ? Math.round((usedLic / totalLic) * 100) : 0;
+
+              return (
+                <div className="flex flex-col justify-between rounded-2xl border border-slate-100 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-boxdark">
+                  <div>
+                    <div className="mb-4 flex items-center justify-between">
+                      <div className="flex items-center gap-2.5">
+                        <div className="flex size-8 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10">
+                          <ShieldCheck className="size-4" />
+                        </div>
+                        <h2 className="text-sm font-bold text-dark dark:text-white">License Status</h2>
+                      </div>
+                      <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-600 dark:bg-emerald-500/10">
+                        <CheckCircle2 className="size-3.5" /> License Active
+                      </span>
+                    </div>
+
+                    <div className="mb-5 grid grid-cols-3 gap-3">
+                      <div className="rounded-xl border border-slate-100 bg-slate-50 p-3 dark:border-white/5 dark:bg-white/5">
+                        <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Total Quota</p>
+                        <p className="mt-1 text-xl font-black text-slate-700 dark:text-white">{totalLic}</p>
+                      </div>
+                      <div className="rounded-xl border border-blue-100 bg-blue-50/50 p-3 dark:border-blue-500/20 dark:bg-blue-500/10">
+                        <p className="text-[10px] font-black uppercase tracking-wider text-blue-500">Activated</p>
+                        <p className="mt-1 text-xl font-black text-blue-600 dark:text-blue-400">{usedLic}</p>
+                      </div>
+                      <div className="rounded-xl border border-emerald-100 bg-emerald-50/50 p-3 dark:border-emerald-500/20 dark:bg-emerald-500/10">
+                        <p className="text-[10px] font-black uppercase tracking-wider text-emerald-600">Available</p>
+                        <p className="mt-1 text-xl font-black text-emerald-700 dark:text-emerald-400">{remainLic}</p>
+                      </div>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <div className="flex justify-between text-xs font-bold">
+                        <span className="text-slate-500">Quota Allocation</span>
+                        <span className="text-slate-700 dark:text-slate-200">{pctUsed}% Utilized</span>
+                      </div>
+                      <div className="h-2.5 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-dark-3">
+                        <div
+                          className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-blue-500 transition-all duration-500"
+                          style={{ width: `${Math.min(100, pctUsed)}%` }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mt-5 rounded-xl border border-slate-100 bg-slate-50 p-3 text-xs text-slate-500 dark:border-white/5 dark:bg-white/5">
+                    <strong>Note:</strong> Each newly activated/enrolled device consumes 1 license from the available pool.
+                  </div>
                 </div>
-                <button onClick={handleSaveRule} disabled={savingRule} className="flex items-center gap-1.5 rounded-xl bg-[#ff3d3d] px-4 py-2 text-sm font-semibold text-white hover:bg-opacity-90 disabled:opacity-50"><Save className="size-4" /> Save</button>
-              </div>
-            </div>
+              );
+            })()}
+
+            {/* Company Lock Rule Card */}
+            {(() => {
+              const cfgObj = config?.data || config || {};
+              const helpline = cfgObj.customerServiceNum || "3041111144";
+              const whitelistPhone = cfgObj.whitelistPhoneNum || "None";
+              const lockMsg = parseLockMessage(cfgObj.screenBlockedContent);
+              const simMsg = cfgObj.watermarkOfSimRemovedContent || "This device is under a financial installment plan. To avoid lock, please make payments on time.";
+
+              return (
+                <div className="flex flex-col justify-between rounded-2xl border border-slate-100 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-boxdark">
+                  <div>
+                    <div className="mb-4 flex items-center justify-between">
+                      <div className="flex items-center gap-2.5">
+                        <div className="flex size-8 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600 dark:bg-indigo-500/10">
+                          <Settings className="size-4" />
+                        </div>
+                        <h2 className="text-sm font-bold text-dark dark:text-white">Company Lock Rule</h2>
+                      </div>
+                      <span className="rounded-full bg-indigo-50 px-2.5 py-1 text-xs font-bold text-indigo-600 dark:bg-indigo-500/10">
+                        Rule #{ruleNum} Active
+                      </span>
+                    </div>
+
+                    <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                      <div className="rounded-xl border border-slate-100 bg-slate-50 p-3 dark:border-white/5 dark:bg-white/5">
+                        <p className="flex items-center gap-1 text-[10px] font-black uppercase tracking-wider text-slate-400">
+                          <Phone className="size-3" /> Customer Helpline
+                        </p>
+                        <p className="mt-1 font-mono text-sm font-bold text-dark dark:text-white">{helpline}</p>
+                      </div>
+                      <div className="rounded-xl border border-slate-100 bg-slate-50 p-3 dark:border-white/5 dark:bg-white/5">
+                        <p className="flex items-center gap-1 text-[10px] font-black uppercase tracking-wider text-slate-400">
+                          <Phone className="size-3" /> Whitelisted Numbers
+                        </p>
+                        <p className="mt-1 text-xs font-semibold text-slate-600 dark:text-slate-300">
+                          {whitelistPhone !== "None" && whitelistPhone !== "" ? whitelistPhone : "Standard Emergency Calls Only"}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="mb-4 space-y-3">
+                      <div className="rounded-xl border border-rose-100 bg-rose-50/60 p-3.5 dark:border-rose-500/20 dark:bg-rose-500/10">
+                        <p className="mb-1 flex items-center gap-1.5 text-xs font-bold text-rose-700 dark:text-rose-400">
+                          <Lock className="size-3.5" /> Screen Lock Display Message
+                        </p>
+                        <p className="text-xs text-slate-700 dark:text-slate-300 italic">"{lockMsg}"</p>
+                      </div>
+
+                      <div className="rounded-xl border border-amber-100 bg-amber-50/60 p-3.5 dark:border-amber-500/20 dark:bg-amber-500/10">
+                        <p className="mb-1 flex items-center gap-1.5 text-xs font-bold text-amber-700 dark:text-amber-400">
+                          <AlertTriangle className="size-3.5" /> SIM Removal Warning Message
+                        </p>
+                        <p className="text-xs text-slate-700 dark:text-slate-300 italic">"{simMsg}"</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-end gap-2 border-t border-slate-100 pt-3 dark:border-white/5">
+                    <div className="flex-1">
+                      <label className="mb-1.5 block text-xs font-medium text-gray-500">Rule Profile Number</label>
+                      <input
+                        type="number"
+                        value={ruleNum}
+                        onChange={(e) => setRuleNum(e.target.value)}
+                        className="w-full rounded-xl border border-stroke bg-white px-4 py-2 text-sm outline-none transition focus:border-[#ff3d3d] dark:border-dark-3 dark:bg-gray-dark dark:text-white"
+                      />
+                    </div>
+                    <button
+                      onClick={handleSaveRule}
+                      disabled={savingRule}
+                      className="flex items-center gap-1.5 rounded-xl bg-[#ff3d3d] px-5 py-2 text-sm font-semibold text-white transition hover:bg-opacity-90 disabled:opacity-50"
+                    >
+                      {savingRule ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
+                      Save Rule
+                    </button>
+                  </div>
+                </div>
+              );
+            })()}
           </div>
         )
       ) : loadingList ? (

@@ -11,13 +11,15 @@ type StatCardProps = {
   bar: string;
   glow?: string;
   onClick?: () => void;
+  /** Highlights this card as the currently-selected filter (see onClick). */
+  active?: boolean;
 };
 
-export default function StatCard({ icon: Icon, label, value, accent, bg, bar, glow, onClick }: StatCardProps) {
+export default function StatCard({ icon: Icon, label, value, accent, bg, bar, glow, onClick, active }: StatCardProps) {
   return (
     <div
       onClick={onClick}
-      className={`group relative flex flex-col overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg dark:border-white/10 dark:bg-boxdark ${onClick ? "cursor-pointer" : ""}`}
+      className={`group relative flex flex-col overflow-hidden rounded-2xl border bg-white shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg dark:bg-boxdark ${onClick ? "cursor-pointer" : ""} ${active ? `ring-2 ring-offset-1 ${bar.replace("bg-", "ring-")} border-transparent` : "border-slate-100 dark:border-white/10"}`}
     >
       {/* Decorative glow blob */}
       <div className={`pointer-events-none absolute -right-6 -top-6 size-24 rounded-full opacity-[0.07] blur-2xl transition-opacity duration-300 group-hover:opacity-[0.14] ${glow || bar}`} />

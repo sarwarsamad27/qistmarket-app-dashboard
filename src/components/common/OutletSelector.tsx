@@ -8,15 +8,20 @@ const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
 interface Outlet {
   id: number;
   name: string;
-  city: string;
+  address: string | null;
 }
 
 interface OutletSelectorProps {
   onSelect: (outletId: string) => void;
   selectedId: string;
+  /** Label for the value:"all" option. Most callers use this selector to FILTER a report
+   * across every outlet at once, where "All Outlets (Aggregated)" is accurate. A caller
+   * using it to pick the single target of a NEW record (e.g. "Create Expense", where
+   * leaving it blank means Head Office, not "every outlet combined") should override this. */
+  allLabel?: string;
 }
 
-export default function OutletSelector({ onSelect, selectedId }: OutletSelectorProps) {
+export default function OutletSelector({ onSelect, selectedId, allLabel = "All Outlets (Aggregated)" }: OutletSelectorProps) {
   const [outlets, setOutlets] = useState<Outlet[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -53,10 +58,10 @@ export default function OutletSelector({ onSelect, selectedId }: OutletSelectorP
         disabled={loading}
         className="rounded-lg border border-stroke bg-white px-3 py-1.5 text-sm font-medium text-dark outline-none transition focus:border-[#ff3d3d] dark:border-dark-3 dark:bg-gray-dark dark:text-white"
       >
-        <option value="all">All Outlets (Aggregated)</option>
+        <option value="all">{allLabel}</option>
         {outlets.map((outlet) => (
           <option key={outlet.id} value={outlet.id.toString()}>
-            {outlet.name} ({outlet.city})
+            {outlet.address ? `${outlet.name} (${outlet.address})` : outlet.name}
           </option>
         ))}
       </select>

@@ -64,6 +64,10 @@ export default function AccountsVendorsPage() {
       .then((json) => { if (json.success) setData(json.data); })
       .catch((err) => console.error("Failed to load vendor payables:", err))
       .finally(() => setLoading(false));
+    // Loaded once up front (not gated to the "Manage Vendors" tab) so the vendor picker on
+    // "Schedule a Payment" and "Vendor Cash-In-Hand Transaction" always has real names to
+    // choose from, instead of asking the admin to type a numeric Vendor ID from memory.
+    fetchVendorList();
   }, []);
 
   useEffect(() => {
@@ -76,7 +80,6 @@ export default function AccountsVendorsPage() {
       fetch(`${BACKEND_URL}/api/accounts/vendors/due-alerts`, { headers: authHeaders() }).then((res) => res.json()).then((json) => { if (json.success) setAlerts(json.data); }).finally(() => setAlertsLoading(false));
     }
     if (tab === "scheduled") fetchScheduled();
-    if (tab === "manage") fetchVendorList();
   }, [tab]);
 
   const fetchVendorList = () => {
@@ -295,7 +298,19 @@ export default function AccountsVendorsPage() {
           <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-boxdark">
             <h2 className="mb-4 text-sm font-bold text-dark dark:text-white">Schedule a Payment</h2>
             <form onSubmit={handleSchedulePayment} className="flex flex-wrap items-end gap-3">
-              <Field label="Vendor ID" value={scheduleForm.vendor_id} onChange={(v) => setScheduleForm({ ...scheduleForm, vendor_id: v })} type="number" />
+              <div>
+                <label className="mb-1.5 block text-xs font-medium text-gray-500">Vendor</label>
+                <select
+                  value={scheduleForm.vendor_id}
+                  onChange={(e) => setScheduleForm({ ...scheduleForm, vendor_id: e.target.value })}
+                  className="w-56 rounded-xl border border-stroke bg-white px-4 py-2.5 text-sm outline-none transition focus:border-[#ff3d3d] dark:border-dark-3 dark:bg-gray-dark dark:text-white"
+                >
+                  <option value="">Select vendor...</option>
+                  {vendorList.map((v) => (
+                    <option key={v.id} value={v.id}>{v.name}{v.outlet ? ` (${v.outlet.name})` : ""}</option>
+                  ))}
+                </select>
+              </div>
               <Field label="Amount" value={scheduleForm.amount} onChange={(v) => setScheduleForm({ ...scheduleForm, amount: v })} type="number" />
               <Field label="Date" value={scheduleForm.scheduled_date} onChange={(v) => setScheduleForm({ ...scheduleForm, scheduled_date: v })} type="date" />
               <Field label="Notes" value={scheduleForm.notes} onChange={(v) => setScheduleForm({ ...scheduleForm, notes: v })} />
@@ -408,7 +423,19 @@ export default function AccountsVendorsPage() {
           <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-boxdark">
             <div className="mb-4 flex items-center gap-2.5"><div className="flex size-8 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10"><Wallet className="size-4" /></div><h2 className="text-sm font-bold text-dark dark:text-white">Vendor Cash-In-Hand Transaction</h2></div>
             <form onSubmit={handleCashTransaction} className="space-y-3">
-              <Field label="Vendor ID *" value={cashForm.vendor_id} onChange={(v) => setCashForm({ ...cashForm, vendor_id: v })} type="number" />
+              <div>
+                <label className="mb-1.5 block text-xs font-medium text-gray-500">Vendor *</label>
+                <select
+                  value={cashForm.vendor_id}
+                  onChange={(e) => setCashForm({ ...cashForm, vendor_id: e.target.value })}
+                  className="w-full rounded-xl border border-stroke bg-white px-4 py-2.5 text-sm outline-none transition focus:border-[#ff3d3d] dark:border-dark-3 dark:bg-gray-dark dark:text-white"
+                >
+                  <option value="">Select vendor...</option>
+                  {vendorList.map((v) => (
+                    <option key={v.id} value={v.id}>{v.name}{v.outlet ? ` (${v.outlet.name})` : ""}</option>
+                  ))}
+                </select>
+              </div>
               <div className="flex gap-2">
                 <button type="button" onClick={() => setCashForm({ ...cashForm, type: "credit" })} className={`flex-1 rounded-xl py-2 text-sm font-semibold ${cashForm.type === "credit" ? "bg-emerald-500 text-white" : "bg-slate-100 text-slate-500 dark:bg-white/10"}`}>Credit</button>
                 <button type="button" onClick={() => setCashForm({ ...cashForm, type: "debit" })} className={`flex-1 rounded-xl py-2 text-sm font-semibold ${cashForm.type === "debit" ? "bg-rose-500 text-white" : "bg-slate-100 text-slate-500 dark:bg-white/10"}`}>Debit</button>
