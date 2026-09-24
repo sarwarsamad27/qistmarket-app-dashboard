@@ -2261,6 +2261,7 @@ export default function OrderDetailsPage() {
                                         verificationId={verification.id}
                                         grantorNumber={grantorNumber}
                                         onSaved={fetchVerification}
+                                        onUploadDocument={(file, documentType) => handleNewDocumentUpload(file, documentType, `grantor${grantorNumber}` as `grantor${number}`)}
                                     />
                                 ) : null;
                             }
