@@ -145,12 +145,26 @@ type ImportResult = { row: number; success: boolean; order_id?: number; error?: 
 function excelValueToIso(v: any): string | null {
   if (!v) return null;
   if (v instanceof Date) return v.toISOString();
+  // A date typed as TEXT in the sheet ("10/01/2026") is day-first, the way
+  // the paper ledgers (and Pakistan generally) write it. new Date() would read
+  // it US-style as month-first — 10 Jan became 1 Oct, landing imported sales
+  // in the future and at the top of the Delivered list.
+  const m = String(v).trim().match(/^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{2}|\d{4})$/);
+  if (m) {
+    const day = Number(m[1]);
+    const month = Number(m[2]);
+    const year = m[3].length === 2 ? 2000 + Number(m[3]) : Number(m[3]);
+    const d = new Date(year, month - 1, day);
+    const valid = d.getFullYear() === year && d.getMonth() === month - 1 && d.getDate() === day;
+    return valid ? d.toISOString() : null;
+  }
   const d = new Date(v);
   return isNaN(d.getTime()) ? null : d.toISOString();
 }
 
 function validateRow(row: LegacyRow): string[] {
   const issues: string[] = [];
+  if (row.order_date && new Date(row.order_date).getTime() > Date.now()) issues.push('Date is in the future — check DD/MM order');
   if (!row.purchaser_name) issues.push('Missing name');
   if (!row.purchaser_cnic) issues.push('Missing CNIC');
   if (!row.purchaser_phone) issues.push('Missing contact number');
