@@ -621,10 +621,10 @@ export const PaymentDetailsSection = ({
                                                         </span>
                                                     </td>
                                                     <td className="px-4 py-2 text-sm text-gray-600 dark:text-gray-400">
-                                                        {inst.paid_at ? formatExactDate(inst.paid_at, 'DD MMM YYYY, hh:mm A') : '-'}
+                                                        {inst.paid_at && inst.paid_amount > 0 ? formatExactDate(inst.paid_at, 'DD MMM YYYY, hh:mm A') : '-'}
                                                     </td>
                                                     <td className="px-4 py-2 text-sm text-gray-600 dark:text-gray-400">
-                                                        {inst.payment_method || '-'}
+                                                        {inst.paid_amount > 0 ? (inst.payment_method || '-') : '-'}
                                                     </td>
                                                 </tr>
                                             )) : editedRows.map((row) => (
