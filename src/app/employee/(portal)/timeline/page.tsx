@@ -1,7 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { employeeFetch } from "@/lib/employee-api";
+import { employeeFetch, viewAuthedFile } from "@/lib/employee-api";
+import toast from "react-hot-toast";
+
+const API = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
 
 interface Event {
   id: number;
@@ -20,15 +23,48 @@ const TYPE_COLORS: Record<string, string> = {
   increment: "bg-primary",
   warning: "bg-red",
   suspension: "bg-dark-4",
-  review: "bg-green-dark",
+  performance_review: "bg-green-dark",
+  department_change: "bg-yellow-dark",
+  designation_change: "bg-blue-DEFAULT",
+  salary_revision: "bg-primary",
+  status_change: "bg-dark-4",
+  training: "bg-green",
+};
+
+const TYPE_LABELS: Record<string, string> = {
+  joining: "Joining",
+  department_change: "Department Change",
+  transfer: "Outlet Transfer",
+  designation_change: "Designation Change",
+  promotion: "Promotion",
+  demotion: "Demotion",
+  increment: "Salary Increment",
+  salary_revision: "Salary Revision",
+  warning: "Warning",
+  suspension: "Suspension",
+  status_change: "Status Change",
+  performance_review: "Performance Review",
+  training: "Training",
+  other: "HR Update",
 };
 
 export default function EmployeeTimelinePage() {
   const [events, setEvents] = useState<Event[]>([]);
 
+  const [docs, setDocs] = useState<{ id: number; file_url?: string }[]>([]);
+
   useEffect(() => {
     employeeFetch("/employee/timeline").then((r) => setEvents(r.events));
+    employeeFetch("/employee/documents").then((r) => setDocs(r.documents || [])).catch(() => {});
   }, []);
+
+  // Letters open through the authenticated API — direct PDF links get hijacked
+  // by download-manager extensions such as IDM.
+  const openLetter = (url: string) => {
+    const doc = docs.find((d) => d.file_url === url);
+    if (doc) viewAuthedFile(`/employee/documents/${doc.id}/file`).catch((e) => toast.error((e as Error).message));
+    else window.open(url.startsWith("http") ? url : `${API}${url}`, "_blank");
+  };
 
   return (
     <div>
@@ -51,12 +87,12 @@ export default function EmployeeTimelinePage() {
                   {new Date(event.event_date).toLocaleDateString()}
                 </span>
               </div>
-              <p className="mt-1 text-xs capitalize text-primary">{event.event_type.replace("_", " ")}</p>
+              <p className="mt-1 text-xs text-primary">{TYPE_LABELS[event.event_type] || event.event_type.replace(/_/g, " ")}</p>
               {event.description && <p className="mt-2 text-sm text-gray-600 dark:text-gray-6">{event.description}</p>}
               {event.document_url && (
-                <a href={event.document_url} target="_blank" rel="noreferrer" className="mt-2 inline-block text-sm text-primary hover:underline">
+                <button type="button" onClick={() => openLetter(event.document_url as string)} className="mt-2 inline-block text-sm text-primary hover:underline">
                   View Letter PDF
-                </a>
+                </button>
               )}
             </div>
           </div>

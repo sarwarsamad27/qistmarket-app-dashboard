@@ -7,6 +7,7 @@ import {
   Download, Trash2, Eye, Mail, SendHorizontal, Plus, X,
 } from "lucide-react";
 import toast from "react-hot-toast";
+import Cookies from "js-cookie";
 import { IssueDocumentModal } from "@/components/Modals/IssueDocumentModal";
 import { BulkIssueModal } from "@/components/Modals/BulkIssueModal";
 import { ConfirmModal } from "@/components/Modals/ConfirmModal";
@@ -100,11 +101,12 @@ export default function HrDocumentsPage() {
     if (!selectedEmp) { toast.error("Select an employee"); return; }
     const form = e.target as HTMLFormElement;
     const fd = new FormData(form);
-    await fetch(`${API}/api/hr/employees/${selectedEmp}/documents`, {
+    const res = await fetch(`${API}/api/hr/employees/${selectedEmp}/documents`, {
       method: "POST",
-      headers: { Authorization: `Bearer ${localStorage.getItem("auth_token") || sessionStorage.getItem("auth_token")}` },
+      headers: { Authorization: `Bearer ${Cookies.get("auth_token")}` },
       body: fd,
     });
+    if (!res.ok) { toast.error((await res.json().catch(() => ({}))).message || "Upload failed"); return; }
     toast.success("Uploaded");
     setUploadModal(false);
     loadData();
@@ -304,14 +306,19 @@ export default function HrDocumentsPage() {
               </select>
               <input name="title" placeholder="Document title" required className="w-full rounded-lg border border-stroke px-3 py-2 text-sm dark:border-stroke-dark dark:bg-dark-2" />
               <select name="doc_type" className="w-full rounded-lg border border-stroke px-3 py-2 text-sm dark:border-stroke-dark dark:bg-dark-2">
-                <option value="offer_letter">Offer Letter</option>
-                <option value="appointment_letter">Appointment</option>
-                <option value="warning_letter">Warning</option>
-                <option value="experience_letter">Experience</option>
-                <option value="certificate">Certificate</option>
+                <option value="cnic_copy">CNIC Copy</option>
+                <option value="cv">CV / Resume</option>
+                <option value="education">Educational Certificate</option>
+                <option value="previous_experience">Previous Experience Letter</option>
+                <option value="photo">Photograph</option>
+                <option value="offer_letter">Offer Letter (signed)</option>
+                <option value="appointment_letter">Appointment Letter</option>
+                <option value="warning_letter">Warning Letter</option>
+                <option value="experience_letter">Experience Letter</option>
+                <option value="certificate">Training Certificate</option>
                 <option value="other">Other</option>
               </select>
-              <input name="file" type="file" required className="w-full rounded-lg border border-stroke px-3 py-2 text-sm dark:border-stroke-dark dark:bg-dark-2" />
+              <input name="file" type="file" required accept=".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx" className="w-full rounded-lg border border-stroke px-3 py-2 text-sm dark:border-stroke-dark dark:bg-dark-2" />
             </div>
             <div className="mt-4 flex gap-2">
               <button type="submit" className="rounded-lg bg-primary px-4 py-2 text-sm text-white">Upload</button>

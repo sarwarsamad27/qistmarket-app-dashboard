@@ -18,6 +18,10 @@ const TYPE_ICON: Record<string, string> = {
   announcement: "📢",
   approval: "✅",
   promotion: "🏆",
+  meeting: "📅",
+  training: "🎓",
+  document: "📄",
+  general: "📌",
 };
 
 export default function EmployeeNotificationsPage() {
@@ -48,6 +52,10 @@ export default function EmployeeNotificationsPage() {
             <option value="announcement">Announcement</option>
             <option value="approval">Approval</option>
             <option value="promotion">Promotion</option>
+            <option value="meeting">Meeting</option>
+            <option value="training">Training</option>
+            <option value="document">Document</option>
+            <option value="general">General</option>
           </select>
           <button onClick={markAllRead} className="rounded-lg bg-primary px-4 py-2 text-sm text-white">Mark all read</button>
         </div>
@@ -64,7 +72,7 @@ export default function EmployeeNotificationsPage() {
                   <h3 className="font-semibold text-dark dark:text-white">{n.title}</h3>
                   <span className="text-xs text-gray-500">{new Date(n.created_at).toLocaleString()}</span>
                 </div>
-                <p className="mt-1 text-sm text-gray-600 dark:text-gray-6">{n.message}</p>
+                <p className="mt-1 whitespace-pre-line text-sm text-gray-600 dark:text-gray-6">{n.message}</p>
               </div>
             </div>
           </div>

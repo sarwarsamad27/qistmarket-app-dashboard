@@ -99,13 +99,13 @@ export default function HrPerformancePage() {
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                 <input name="month" type="number" min="1" max="12" value={newMonth} onChange={(e) => setNewMonth(+e.target.value)} className="rounded-lg border border-stroke px-3 py-2 text-sm dark:border-stroke-dark dark:bg-dark-2" placeholder="Month" />
                 <input name="year" type="number" value={newYear} onChange={(e) => setNewYear(+e.target.value)} className="rounded-lg border border-stroke px-3 py-2 text-sm dark:border-stroke-dark dark:bg-dark-2" placeholder="Year" />
-                <input name="kpi_score" type="number" step="0.1" placeholder="KPI Score (0-100)" className="rounded-lg border border-stroke px-3 py-2 text-sm dark:border-stroke-dark dark:bg-dark-2" />
-                <input name="attendance_score" type="number" step="0.1" placeholder="Attendance Score (0-100)" className="rounded-lg border border-stroke px-3 py-2 text-sm dark:border-stroke-dark dark:bg-dark-2" />
+                <input name="kpi_score" type="number" step="0.1" min={0} max={100} placeholder="KPI Score (0-100)" className="rounded-lg border border-stroke px-3 py-2 text-sm dark:border-stroke-dark dark:bg-dark-2" />
+                <input name="attendance_score" type="number" step="0.1" min={0} max={100} placeholder="Attendance Score (0-100)" className="rounded-lg border border-stroke px-3 py-2 text-sm dark:border-stroke-dark dark:bg-dark-2" />
                 <input name="target_sales" type="number" step="0.01" placeholder="Target Sales" className="rounded-lg border border-stroke px-3 py-2 text-sm dark:border-stroke-dark dark:bg-dark-2" />
                 <input name="target_recovery" type="number" step="0.01" placeholder="Target Recovery" className="rounded-lg border border-stroke px-3 py-2 text-sm dark:border-stroke-dark dark:bg-dark-2" />
                 <input name="achieved_sales" type="number" step="0.01" placeholder="Achieved Sales" className="rounded-lg border border-stroke px-3 py-2 text-sm dark:border-stroke-dark dark:bg-dark-2" />
                 <input name="achieved_recovery" type="number" step="0.01" placeholder="Achieved Recovery" className="rounded-lg border border-stroke px-3 py-2 text-sm dark:border-stroke-dark dark:bg-dark-2" />
-                <input name="team_rank" type="number" placeholder="Team Rank" className="rounded-lg border border-stroke px-3 py-2 text-sm dark:border-stroke-dark dark:bg-dark-2" />
+                <input name="team_rank" type="number" min={1} placeholder="Team Rank" className="rounded-lg border border-stroke px-3 py-2 text-sm dark:border-stroke-dark dark:bg-dark-2" />
                 <input name="remarks" placeholder="Remarks" className="rounded-lg border border-stroke px-3 py-2 text-sm dark:border-stroke-dark dark:bg-dark-2" />
               </div>
               <button type="submit" className="mt-4 rounded-lg bg-primary px-4 py-2 text-sm text-white">Save Record</button>
@@ -116,13 +116,13 @@ export default function HrPerformancePage() {
             <form onSubmit={submitPerformance} className="mb-6 rounded-xl border border-stroke bg-white p-4 dark:border-stroke-dark dark:bg-dark-2">
               <h3 className="mb-3 font-semibold">Edit Performance ({editRec.month}/{editRec.year})</h3>
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                <input name="kpi_score" type="number" step="0.1" defaultValue={editRec.kpi_score} className="rounded-lg border border-stroke px-3 py-2 text-sm dark:border-stroke-dark dark:bg-dark-2" />
-                <input name="attendance_score" type="number" step="0.1" defaultValue={editRec.attendance_score} className="rounded-lg border border-stroke px-3 py-2 text-sm dark:border-stroke-dark dark:bg-dark-2" />
+                <input name="kpi_score" type="number" step="0.1" min={0} max={100} defaultValue={editRec.kpi_score} className="rounded-lg border border-stroke px-3 py-2 text-sm dark:border-stroke-dark dark:bg-dark-2" />
+                <input name="attendance_score" type="number" step="0.1" min={0} max={100} defaultValue={editRec.attendance_score} className="rounded-lg border border-stroke px-3 py-2 text-sm dark:border-stroke-dark dark:bg-dark-2" />
                 <input name="target_sales" type="number" step="0.01" defaultValue={editRec.targets?.sales || 0} className="rounded-lg border border-stroke px-3 py-2 text-sm dark:border-stroke-dark dark:bg-dark-2" />
                 <input name="target_recovery" type="number" step="0.01" defaultValue={editRec.targets?.recovery || 0} className="rounded-lg border border-stroke px-3 py-2 text-sm dark:border-stroke-dark dark:bg-dark-2" />
                 <input name="achieved_sales" type="number" step="0.01" defaultValue={editRec.achieved?.sales || 0} className="rounded-lg border border-stroke px-3 py-2 text-sm dark:border-stroke-dark dark:bg-dark-2" />
                 <input name="achieved_recovery" type="number" step="0.01" defaultValue={editRec.achieved?.recovery || 0} className="rounded-lg border border-stroke px-3 py-2 text-sm dark:border-stroke-dark dark:bg-dark-2" />
-                <input name="team_rank" type="number" defaultValue={editRec.team_rank} className="rounded-lg border border-stroke px-3 py-2 text-sm dark:border-stroke-dark dark:bg-dark-2" />
+                <input name="team_rank" type="number" min={1} defaultValue={editRec.team_rank} className="rounded-lg border border-stroke px-3 py-2 text-sm dark:border-stroke-dark dark:bg-dark-2" />
                 <input name="remarks" defaultValue={editRec.remarks || ""} className="rounded-lg border border-stroke px-3 py-2 text-sm dark:border-stroke-dark dark:bg-dark-2" />
               </div>
               <div className="mt-4 flex gap-2">

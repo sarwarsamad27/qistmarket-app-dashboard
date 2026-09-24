@@ -12,7 +12,7 @@ interface Loan {
   monthly_installment: number;
   start_date: string;
   status: string;
-  schedule_json?: { month: string; amount: number; paid: boolean }[];
+  schedule_json?: { month: string; amount: number; paid: boolean; paid_amount?: number }[];
 }
 
 export default function EmployeeLoansPage() {
@@ -46,7 +46,10 @@ export default function EmployeeLoansPage() {
             {loans.map((loan) => (
               <Fragment key={loan.id}>
                 <tr className="border-b border-stroke dark:border-stroke-dark">
-                  <td className="px-4 py-3 capitalize">{loan.loan_type.replace("_", " ")}</td>
+                  <td className="px-4 py-3 capitalize">
+                    {loan.loan_type === "advance" ? "Salary Advance" : `${loan.loan_type.replace("_", " ")} loan`}
+                    <span className={`ml-2 rounded-full px-2 py-0.5 text-[10px] ${loan.status === "active" ? "bg-yellow-dark/20 text-yellow-dark" : "bg-green/20 text-green"}`}>{loan.status === "active" ? "Active" : "Cleared"}</span>
+                  </td>
                   <td className="px-4 py-3 text-right">Rs. {loan.total_amount.toLocaleString()}</td>
                   <td className="px-4 py-3 text-right">Rs. {loan.deducted_amount.toLocaleString()}</td>
                   <td className="px-4 py-3 text-right font-semibold">Rs. {(loan.total_amount - loan.deducted_amount).toLocaleString()}</td>
@@ -62,9 +65,9 @@ export default function EmployeeLoansPage() {
                     <td colSpan={6} className="bg-gray-2 px-4 py-3 dark:bg-dark-3">
                       {loan.schedule_json ? (
                         <div className="flex flex-wrap gap-2">
-                          {(loan.schedule_json as { month: string; amount: number; paid: boolean }[]).map((s, i) => (
+                          {(loan.schedule_json as { month: string; amount: number; paid: boolean; paid_amount?: number }[]).map((s, i) => (
                             <span key={i} className={`rounded px-2 py-1 text-xs ${s.paid ? "bg-green/20 text-green" : "bg-white dark:bg-dark-2"}`}>
-                              {s.month}: Rs.{s.amount} {s.paid ? "✓" : ""}
+                              {new Date(`${s.month}-01T00:00:00`).toLocaleDateString("en-PK", { month: "short", year: "numeric" })}: Rs.{(s.paid_amount ?? s.amount).toLocaleString()} {s.paid ? "✓ deducted" : "due"}
                             </span>
                           ))}
                         </div>

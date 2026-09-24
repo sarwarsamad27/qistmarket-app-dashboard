@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { employeeFetch } from "@/lib/employee-api";
+import { employeeFetch, viewAuthedFile, downloadAuthedFile, printAuthedFile } from "@/lib/employee-api";
+import toast from "react-hot-toast";
 import { Eye, Download, Share2, FileText } from "lucide-react";
 import Link from "next/link";
 
@@ -21,6 +22,12 @@ const DOC_LABELS: Record<string, string> = {
   experience_letter: "Experience Letter",
   certificate: "Training Certificate",
   salary_slip: "Salary Slip",
+  cnic_copy: "CNIC Copy",
+  cv: "CV / Resume",
+  education: "Educational Certificate",
+  previous_experience: "Previous Experience Letter",
+  photo: "Photograph",
+  other: "Other",
 };
 
 export default function EmployeeDocumentsPage() {
@@ -31,24 +38,21 @@ export default function EmployeeDocumentsPage() {
   }, []);
 
   const share = (doc: Doc) => {
-    const text = `QIST Market Document: ${doc.title}`;
+    const text = `QIST Market Document: ${doc.title}${doc.file_url ? `
+${API}${doc.file_url}` : ""}`;
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
   };
 
-  const viewDoc = (doc: Doc) => {
-    if (!doc.file_url) return;
-    window.open(`${API}${doc.file_url}`, "_blank");
-  };
+  // Files come through the authenticated API (as base64 JSON) rather than a
+  // direct /uploads link — download-manager extensions like IDM hijack direct
+  // PDF links and break View / Download / Print.
+  const filePath = (doc: Doc) => `/employee/documents/${doc.id}/file`;
+  const fileName = (doc: Doc) => `${doc.title || "document"}${(doc.file_url || "").match(/\.[a-z0-9]+$/i)?.[0] || ""}`;
+  const run = (fn: () => Promise<void>) => fn().catch((e) => toast.error((e as Error).message));
 
-  const downloadDoc = (doc: Doc) => {
-    if (!doc.file_url) return;
-    const a = document.createElement("a");
-    a.href = `${API}${doc.file_url}`;
-    a.download = doc.title || "document";
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-  };
+  const viewDoc = (doc: Doc) => { if (doc.file_url) run(() => viewAuthedFile(filePath(doc))); };
+  const downloadDoc = (doc: Doc) => { if (doc.file_url) run(() => downloadAuthedFile(filePath(doc), fileName(doc))); };
+  const printDoc = (doc: Doc) => { if (doc.file_url) run(() => printAuthedFile(filePath(doc))); };
 
   const defaultCards = [
     { doc_type: "offer_letter", title: "Offer Letter" },
@@ -59,7 +63,13 @@ export default function EmployeeDocumentsPage() {
     { doc_type: "certificate", title: "Training Certificates" },
   ];
 
-  const docMap = new Map(documents.map((d) => [d.doc_type, d]));
+  // documents arrive newest first — keep the first (latest) of each type and count them all.
+  const docMap = new Map<string, Doc>();
+  const docCount = new Map<string, number>();
+  for (const d of documents) {
+    if (!docMap.has(d.doc_type)) docMap.set(d.doc_type, d);
+    docCount.set(d.doc_type, (docCount.get(d.doc_type) || 0) + 1);
+  }
 
   return (
     <div>
@@ -74,7 +84,7 @@ export default function EmployeeDocumentsPage() {
                 <FileText className="h-6 w-6" />
               </div>
               <h3 className="font-semibold text-dark dark:text-white">{card.title}</h3>
-              <p className="mt-1 text-xs text-gray-500">{doc ? "Available" : "Not uploaded yet"}</p>
+              <p className="mt-1 text-xs text-gray-500">{doc ? ((docCount.get(card.doc_type) || 0) > 1 ? `${docCount.get(card.doc_type)} issued — latest shown` : "Available") : card.link ? "Download from Payroll" : "Not issued yet"}</p>
               {!card.link && (
                 <div className="mt-4 flex gap-2">
                   <button
@@ -91,7 +101,7 @@ export default function EmployeeDocumentsPage() {
                   >
                     <Download className="h-3 w-3" /> PDF
                   </button>
-                  <button onClick={() => doc && share(doc)} className="flex items-center gap-1 rounded-lg bg-gray-2 px-3 py-1.5 text-xs dark:bg-dark-3">
+                  <button disabled={!doc} onClick={() => doc && share(doc)} className="flex items-center gap-1 rounded-lg bg-gray-2 px-3 py-1.5 text-xs disabled:opacity-40 dark:bg-dark-3">
                     <Share2 className="h-3 w-3" /> WhatsApp
                   </button>
                 </div>
@@ -125,6 +135,8 @@ export default function EmployeeDocumentsPage() {
                 <div className="flex gap-2">
                   <button onClick={() => viewDoc(doc)} className="text-xs text-primary hover:underline"><Eye className="mr-1 inline h-3 w-3" />View</button>
                   <button onClick={() => downloadDoc(doc)} className="text-xs text-primary hover:underline"><Download className="mr-1 inline h-3 w-3" />Download</button>
+                  <button onClick={() => printDoc(doc)} className="text-xs text-primary hover:underline">Print</button>
+                  <button onClick={() => share(doc)} className="text-xs text-primary hover:underline"><Share2 className="mr-1 inline h-3 w-3" />WhatsApp</button>
                 </div>
               </div>
             ))}
