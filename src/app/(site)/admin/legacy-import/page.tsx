@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import Breadcrumb from "@/components/Breadcrumbs/Breadcrumb";
 import Cookies from "js-cookie";
 import toast from "react-hot-toast";
@@ -55,6 +55,12 @@ const COLUMNS = [
   // (often blank even when the running balance was accurate), so `remain`
   // is now the sole basis for working out how many months are paid.
   'remain',
+  // Product category — same list a normal order/inventory item picks from
+  // (/api/products category_name). Appended LAST rather than next to the
+  // item columns so sheets already prepared in the older layout still line
+  // up column-for-column; a blank cell falls back to the page's Default
+  // Category dropdown.
+  'category',
 ] as const;
 
 type LegacyRow = Record<(typeof COLUMNS)[number], any> & { _rowNum: number; _issues: string[] };
@@ -76,7 +82,7 @@ const FIELD_LABELS: Record<string, string> = {
   purchaser_years_in_company: 'Years in Company', purchaser_gross_salary: 'Gross Salary',
   purchaser_nearest_location: 'Nearest Location',
   item_price: 'Item Price', item_model: 'Item Model', serial: 'Serial', tenure_months: 'Tenure',
-  advance: 'Advance', installment: 'Installment',
+  advance: 'Advance', installment: 'Installment', category: 'Category',
   next_of_kin_name: 'Name', next_of_kin_cnic: 'CNIC', next_of_kin_relation: 'Relation', next_of_kin_phone: 'Phone Number',
   remain: 'Remain',
 };
@@ -111,7 +117,7 @@ const FIELD_SECTIONS: { title: string; fields: string[] }[] = [
       'purchaser_nearest_location',
     ],
   },
-  { title: 'Item & Installment Plan', fields: ['item_price', 'item_model', 'serial', 'tenure_months', 'advance', 'installment'] },
+  { title: 'Item & Installment Plan', fields: ['item_price', 'item_model', 'category', 'serial', 'tenure_months', 'advance', 'installment'] },
   {
     title: 'Guarantor 1', fields: [
       'grantor1_name', 'grantor1_cnic', 'grantor1_phone', 'grantor1_father_husband_name', 'grantor1_relationship',
@@ -167,6 +173,40 @@ export default function LegacyImportPage() {
   const [parsing, setParsing] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [results, setResults] = useState<ImportResult[] | null>(null);
+  const [categories, setCategories] = useState<string[]>([]);
+  const [defaultCategory, setDefaultCategory] = useState('');
+
+  // Same source CreateOrder / inventory-add use for their Category dropdown.
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const token = Cookies.get('auth_token');
+        const res = await fetch(`${BACKEND_URL}/api/products`, { headers: { Authorization: `Bearer ${token}` } });
+        const json = await res.json();
+        if (json.success) {
+          const unique = Array.from(new Set(json.data.map((p: any) => p.category_name).filter(Boolean))) as string[];
+          setCategories(unique.sort());
+        }
+      } catch (err) {
+        console.error('Failed to load categories', err);
+      }
+    };
+    fetchCategories();
+  }, []);
+
+  // Snap a sheet's free-typed category ("mobiles", " MOBILES ") onto the
+  // exact spelling the system uses, so it matches normal orders' values.
+  const normalizeCategory = useCallback((v: any): string => {
+    const raw = v === undefined || v === null ? '' : String(v).trim();
+    if (!raw) return '';
+    return categories.find((c) => c.toLowerCase() === raw.toLowerCase()) || raw;
+  }, [categories]);
+
+  // Once categories arrive (or change), re-snap anything already parsed.
+  useEffect(() => {
+    if (categories.length === 0) return;
+    setRows((prev) => prev.map((r) => ({ ...r, category: normalizeCategory(r.category) })));
+  }, [categories, normalizeCategory]);
 
   // Update a single cell value in the parsed rows
   const updateCell = (rowNum: number, field: string, value: any) => {
@@ -225,6 +265,7 @@ export default function LegacyImportPage() {
         'Guarantor 2 Full Residential Address', 'Guarantor 2 Nearest Location',
         'Next of Kin Name', 'Next of Kin CNIC', 'Next of Kin Relation', 'Next of Kin Phone',
         'remain',
+        'Category',
       ];
 
       const sampleRows = [
@@ -251,6 +292,7 @@ export default function LegacyImportPage() {
           '', '',
           'MUHAMMAD AHSAN SR', '42101-1111111-1', 'Father', '03001112222',
           46000,
+          categories[0] || 'Mobiles',
         ],
         // Row 2: Fully paid off (completed) — sparser row, showing that most
         // fields are optional and left blank falls back cleanly.
@@ -275,6 +317,7 @@ export default function LegacyImportPage() {
           '', '',
           '', '', '', '',
           0,
+          categories[0] || 'Mobiles',
         ],
       ];
 
@@ -308,6 +351,7 @@ export default function LegacyImportPage() {
             COLUMNS.forEach((col, i) => {
               let v = r[i];
               if (col === 'order_date') v = excelValueToIso(v);
+              if (col === 'category') v = normalizeCategory(v);
               row[col] = v;
             });
             row._issues = validateRow(row);
@@ -339,7 +383,7 @@ export default function LegacyImportPage() {
       toast.error('Failed to read file');
     };
     reader.readAsBinaryString(selectedFile);
-  }, []);
+  }, [normalizeCategory]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selected = e.target.files?.[0];
@@ -369,6 +413,7 @@ export default function LegacyImportPage() {
   };
 
   const includedRows = rows.filter((r) => !excludedRows.has(r._rowNum));
+  const rowsMissingCategory = includedRows.filter((r) => !r.category && !defaultCategory).length;
 
   const handleSubmit = async () => {
     if (includedRows.length === 0) {
@@ -384,7 +429,7 @@ export default function LegacyImportPage() {
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({
           payoffStatus,
-          rows: includedRows.map(({ _rowNum, _issues, ...rest }) => rest),
+          rows: includedRows.map(({ _rowNum, _issues, ...rest }) => ({ ...rest, category: rest.category || defaultCategory || null })),
         }),
       });
       const data = await res.json();
@@ -466,6 +511,33 @@ export default function LegacyImportPage() {
           </p>
         </div>
 
+        {/* ── Default Category ─────────────────────────────────────── */}
+        <div className="mb-6">
+          <label htmlFor="default-category-select" className="block text-sm font-bold text-gray-700 dark:text-gray-200 mb-2">
+            Default Category
+          </label>
+          <div className="relative inline-flex">
+            <select
+              id="default-category-select"
+              value={defaultCategory}
+              onChange={(e) => setDefaultCategory(e.target.value)}
+              className="appearance-none cursor-pointer pr-10 pl-4 py-2.5 rounded-xl border-2 font-semibold text-sm transition focus:outline-none focus:ring-2 focus:ring-red-400
+                bg-white dark:bg-gray-800
+                border-gray-200 dark:border-gray-700
+                text-gray-800 dark:text-gray-100"
+            >
+              <option value="">Select Category</option>
+              {categories.map((c) => (
+                <option key={c} value={c}>{c}</option>
+              ))}
+            </select>
+            <ChevronDown className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          </div>
+          <p className="mt-2 text-xs text-gray-400 max-w-xl">
+            Applied to every row whose Category column is blank. A row&apos;s own category (from the sheet, or picked in the preview below) always wins.
+          </p>
+        </div>
+
         <p className="text-gray-500 dark:text-gray-400 mb-6 font-medium text-sm">
           Each row becomes a full customer profile — order, customer, purchaser + both guarantors&apos; full
           profiles (address, employer/business info, relationship), and installment history — the same shape
@@ -519,6 +591,9 @@ export default function LegacyImportPage() {
                 {payoffStatus === 'completed' ? '✅ Completed — All installments paid' : '📦 Delivered — Installments ongoing'}
               </span>
             </div>
+            {rowsMissingCategory > 0 && (
+              <p className="text-xs text-amber-600 flex items-center gap-1"><AlertCircle className="w-4 h-4" /> {rowsMissingCategory} selected row(s) have no category — pick one per row or set a Default Category above.</p>
+            )}
             {rows.some((r) => r._issues.length > 0) && (
               <p className="text-xs text-amber-600 flex items-center gap-1"><AlertCircle className="w-4 h-4" /> Rows with issues are unchecked by default — review before including them.</p>
             )}
@@ -540,6 +615,7 @@ export default function LegacyImportPage() {
                   <th className="py-2 px-3">CNIC</th>
                   <th className="py-2 px-3">Contact</th>
                   <th className="py-2 px-3">Item</th>
+                  <th className="py-2 px-3">Category</th>
                   <th className="py-2 px-3">Serial</th>
                   <th className="py-2 px-3">Tenure</th>
                   <th className="py-2 px-3">Price</th>
@@ -592,6 +668,21 @@ export default function LegacyImportPage() {
                           <EditableCell rowNum={r._rowNum} field="item_model" value={r.item_model} />
                         </td>
                         <td className="py-2 px-3 text-gray-700 dark:text-gray-200">
+                          <select
+                            value={r.category || ''}
+                            onChange={(e) => updateCell(r._rowNum, 'category', e.target.value)}
+                            className={`min-w-[120px] rounded border px-1 py-0.5 text-xs bg-white dark:bg-gray-900 focus:outline-none focus:ring-1 focus:ring-red-500 ${!r.category && !defaultCategory ? 'border-amber-400' : 'border-gray-200 dark:border-gray-700'}`}
+                          >
+                            <option value="">{defaultCategory ? `Default (${defaultCategory})` : 'Select Category'}</option>
+                            {r.category && !categories.includes(r.category) && (
+                              <option value={r.category}>{r.category} (from sheet)</option>
+                            )}
+                            {categories.map((c) => (
+                              <option key={c} value={c}>{c}</option>
+                            ))}
+                          </select>
+                        </td>
+                        <td className="py-2 px-3 text-gray-700 dark:text-gray-200">
                           <EditableCell rowNum={r._rowNum} field="serial" value={r.serial} />
                         </td>
                         <td className="py-2 px-3 text-gray-700 dark:text-gray-200">
@@ -642,7 +733,7 @@ export default function LegacyImportPage() {
                               the actual content to the left edge of the scroll area
                               and cap its width, otherwise the label/value pairs below
                               end up stretched far apart (values scrolled off-screen). */}
-                          <td colSpan={23} className="bg-gray-50 dark:bg-gray-900/40 p-0">
+                          <td colSpan={24} className="bg-gray-50 dark:bg-gray-900/40 p-0">
                             <div className="sticky left-0 w-[calc(100vw-320px)] max-w-[1100px] p-5">
                               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
                                 {FIELD_SECTIONS.map((section) => (

@@ -15,6 +15,7 @@ import { MediaCard } from '@/components/common/MediaCard';
 import { formatExactDate } from "@/utils/dateUtils";
 import LinkedAccountsBadge from '@/components/common/LinkedAccountsBadge';
 import EditTimelineDatesModal from '@/components/Orders/EditTimelineDatesModal';
+import MissingGrantorForm from '@/components/Orders/MissingGrantorForm';
 import { Ban, AlertTriangle } from 'lucide-react';
 
 const API_BASE = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
@@ -2248,8 +2249,21 @@ export default function OrderDetailsPage() {
                             </div>
                         )}
 
-                        {/* Grantors */}
-                        {verification.grantors && verification.grantors.map((grantor: any) => {
+                        {/* Grantors — always slots 1 and 2, in order. A missing one
+                            (e.g. a legacy import whose sheet left Guarantor 1 blank)
+                            shows a blank form for Super Admin to fill in later. */}
+                        {[1, 2].map((grantorNumber) => {
+                            const grantor = (verification.grantors || []).find((g: any) => g.grantor_number === grantorNumber);
+                            if (!grantor) {
+                                return user?.role === 'Super Admin' ? (
+                                    <MissingGrantorForm
+                                        key={`missing-grantor-${grantorNumber}`}
+                                        verificationId={verification.id}
+                                        grantorNumber={grantorNumber}
+                                        onSaved={fetchVerification}
+                                    />
+                                ) : null;
+                            }
                             const isEditable = user?.role === 'Super Admin';
                             return (
                                 <div key={grantor.id} className="mb-16">

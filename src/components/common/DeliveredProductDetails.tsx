@@ -70,6 +70,13 @@ export default function DeliveredProductDetails({
     const [savingDelivery, setSavingDelivery] = useState(false);
     const [deliveryOfficers, setDeliveryOfficers] = useState<{ id: number; full_name: string; username: string }[]>([]);
 
+    // Category picker for a delivered item that has none (legacy imports, or
+    // an IMEI that never matched a stock unit) — same list CreateOrder uses.
+    const [categoryOptions, setCategoryOptions] = useState<string[]>([]);
+    const [newCategory, setNewCategory] = useState('');
+    const [savingCategory, setSavingCategory] = useState(false);
+    const [editingCategory, setEditingCategory] = useState(false);
+
     const [addPhotoOpen, setAddPhotoOpen] = useState(false);
     const [newPhotoFile, setNewPhotoFile] = useState<File | null>(null);
     const [savingNewPhoto, setSavingNewPhoto] = useState(false);
@@ -236,6 +243,51 @@ export default function DeliveredProductDetails({
             } catch (err) {
                 console.error('Error fetching delivery officers:', err);
             }
+        }
+    };
+
+    const needsCategory = !!deliveredProduct && !deliveredProduct.product_details?.category && !!deliveredProduct.delivery_details?.id;
+    const showCategoryPicker = needsCategory || editingCategory;
+
+    useEffect(() => {
+        if (!showCategoryPicker || user?.role !== 'Super Admin' || categoryOptions.length > 0) return;
+        const loadCategories = async () => {
+            try {
+                const token = Cookies.get('auth_token');
+                const res = await fetch(`${BACKEND_URL}/api/products`, { headers: { Authorization: `Bearer ${token}` } });
+                const json = await res.json();
+                if (json.success) {
+                    const unique = Array.from(new Set(json.data.map((p: any) => p.category_name).filter(Boolean))) as string[];
+                    setCategoryOptions(unique.sort());
+                }
+            } catch (err) {
+                console.error('Failed to load categories', err);
+            }
+        };
+        loadCategories();
+    }, [showCategoryPicker, user?.role, categoryOptions.length]);
+
+    const handleSaveCategory = async () => {
+        if (!newCategory) return;
+        const token = Cookies.get('auth_token');
+        setSavingCategory(true);
+        try {
+            const res = await fetch(`${BACKEND_URL}/api/delivery/${deliveredProduct.delivery_details.id}/details`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                body: JSON.stringify({ category: newCategory }),
+            });
+            const json = await res.json();
+            if (!res.ok || !json.success) throw new Error(json.message || 'Failed to save category');
+            toast.success(needsCategory ? 'Category added' : 'Category updated');
+            setNewCategory('');
+            setEditingCategory(false);
+            await fetchDeliveredProductDetails();
+            if (onRefresh) await onRefresh();
+        } catch (err: any) {
+            toast.error(err.message || 'Failed to save category');
+        } finally {
+            setSavingCategory(false);
         }
     };
 
@@ -530,7 +582,52 @@ export default function DeliveredProductDetails({
                             </div>
                             <div>
                                 <label className="block text-xs font-medium text-gray-500 dark:text-gray-400">Category</label>
-                                <p className="mt-1 text-dark dark:text-white">{deliveredProduct.product_details?.category || 'N/A'}</p>
+                                {showCategoryPicker && user?.role === 'Super Admin' ? (
+                                    <div className="mt-1 flex gap-2">
+                                        <select
+                                            value={newCategory}
+                                            onChange={(e) => setNewCategory(e.target.value)}
+                                            disabled={savingCategory}
+                                            className="min-w-0 flex-1 rounded-lg border border-stroke bg-white px-2 py-1.5 text-sm text-dark dark:border-dark-3 dark:bg-dark-2 dark:text-white focus:border-primary outline-none"
+                                        >
+                                            <option value="">Select Category</option>
+                                            {newCategory && !categoryOptions.includes(newCategory) && (
+                                                <option value={newCategory}>{newCategory}</option>
+                                            )}
+                                            {categoryOptions.map((c) => (
+                                                <option key={c} value={c}>{c}</option>
+                                            ))}
+                                        </select>
+                                        <button
+                                            onClick={handleSaveCategory}
+                                            disabled={!newCategory || savingCategory}
+                                            className="rounded-lg bg-primary px-3 py-1.5 text-xs font-bold text-white disabled:opacity-50"
+                                        >
+                                            {savingCategory ? 'Saving...' : 'Save'}
+                                        </button>
+                                        {editingCategory && (
+                                            <button
+                                                onClick={() => { setEditingCategory(false); setNewCategory(''); }}
+                                                disabled={savingCategory}
+                                                className="rounded-lg border border-stroke px-3 py-1.5 text-xs dark:border-dark-3 dark:text-gray-300"
+                                            >
+                                                Cancel
+                                            </button>
+                                        )}
+                                    </div>
+                                ) : (
+                                    <div className="mt-1 flex items-center gap-2">
+                                        <p className="text-dark dark:text-white">{deliveredProduct.product_details?.category || 'N/A'}</p>
+                                        {user?.role === 'Super Admin' && deliveredProduct.delivery_details?.id && (
+                                            <button
+                                                onClick={() => { setNewCategory(deliveredProduct.product_details?.category || ''); setEditingCategory(true); }}
+                                                className="text-xs font-semibold text-primary hover:underline"
+                                            >
+                                                Change
+                                            </button>
+                                        )}
+                                    </div>
+                                )}
                             </div>
                         </div>
                     )}
