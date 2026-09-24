@@ -17,6 +17,73 @@ const toDatetimeLocal = (iso?: string | null) => {
     return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 };
 
+type CarryIn = { fromMonth: number; amount: number };
+type CarryOut = { toMonth: number | null; amount: number };
+
+// Mirror of the backend's simulateCarryFlow (qistmarket-app-backend
+// src/utils/ledgerUtils.js) — same walk, used ONLY to preview in edit mode
+// what saving will do. Each row's own due absorbs what was collected on it;
+// the excess goes, oldest first, to the next row(s) that still have room
+// (a row whose own payment already covers it is skipped), and only money a
+// row genuinely collected can move on — never credit it just received.
+function previewCarryFlow(rows: { month: number; amount: number; collected: number }[]) {
+    const queue: { sourceIndex: number; fromMonth: number; remaining: number }[] = [];
+    const result = rows.map((r) => ({
+        month: r.month,
+        due: r.amount,
+        collected: Math.max(0, r.collected),
+        ownApplied: 0,
+        received: 0,
+        carriedIn: [] as CarryIn[],
+        carriedOut: [] as CarryOut[],
+    }));
+    rows.forEach((row, i) => {
+        const r = result[i];
+        r.ownApplied = Math.min(r.collected, row.amount);
+        let room = Math.max(0, row.amount - r.ownApplied);
+        while (room > 0.01 && queue.length > 0) {
+            const chunk = queue[0];
+            const take = Math.min(chunk.remaining, room);
+            chunk.remaining -= take;
+            room -= take;
+            r.received += take;
+            r.carriedIn.push({ fromMonth: chunk.fromMonth, amount: take });
+            result[chunk.sourceIndex].carriedOut.push({ toMonth: row.month, amount: take });
+            if (chunk.remaining <= 0.01) queue.shift();
+        }
+        if (r.collected > row.amount + 0.01) {
+            queue.push({ sourceIndex: i, fromMonth: row.month, remaining: r.collected - row.amount });
+        }
+    });
+    queue.forEach((chunk) => result[chunk.sourceIndex].carriedOut.push({ toMonth: null, amount: chunk.remaining }));
+    return result;
+}
+
+const rs = (n: number) => `Rs. ${Math.round(n).toLocaleString()}`;
+
+// "← Rs. 3,500 from Month 1's extra" / "→ Rs. 3,500 moved to Month 4" lines,
+// shared by the view table and the edit-mode preview so both read the same.
+const CarryLines = ({ carriedIn = [], carriedOut = [] }: { carriedIn?: CarryIn[]; carriedOut?: CarryOut[] }) => (
+    <>
+        {carriedIn.map((c, i) => (
+            <div key={`in-${i}`} className="mt-0.5 whitespace-nowrap text-[11px] font-semibold text-purple-600 dark:text-purple-400">
+                ← {rs(c.amount)} from Month {c.fromMonth}&apos;s extra payment
+            </div>
+        ))}
+        {carriedOut.map((c, i) => (
+            c.toMonth ? (
+                <div key={`out-${i}`} className="mt-0.5 whitespace-nowrap text-[11px] font-semibold text-blue-600 dark:text-blue-400">
+                    → {rs(c.amount)} extra moved to Month {c.toMonth}
+                </div>
+            ) : (
+                <div key={`out-${i}`} className="mt-0.5 text-[11px] font-bold text-orange-600 dark:text-orange-400">
+                    {rs(c.amount)} extra — no installment left to apply it to, needs refund/adjustment
+                </div>
+            )
+        ))}
+    </>
+);
+
 type EditableRow = {
     month: number;
     label: string;
@@ -107,6 +174,10 @@ export const PaymentDetailsSection = ({
         })));
         setIsEditMode(true);
     };
+
+    const editPreview = isEditMode
+        ? previewCarryFlow(editedRows.map((r) => ({ month: r.month, amount: parseFloat(r.amount) || 0, collected: parseFloat(r.paid_amount) || 0 })))
+        : [];
 
     const updateRow = (month: number, field: keyof EditableRow, value: string) => {
         setEditedRows((rows) => rows.map((r) => (r.month === month ? { ...r, [field]: value } : r)));
@@ -474,6 +545,15 @@ export const PaymentDetailsSection = ({
                             </button>
 
                             {expandedInstallments && (
+                                <div className="mb-3 flex flex-wrap gap-x-5 gap-y-1 rounded-lg bg-white px-4 py-2 text-[11px] text-gray-500 shadow-sm dark:bg-gray-800 dark:text-gray-400">
+                                    <span><strong className="text-dark dark:text-white">Customer paid</strong> = what the customer actually paid against that month</span>
+                                    <span><strong className="text-green-600">Counted for month</strong> = how much of that month&apos;s installment is covered</span>
+                                    <span className="text-blue-600 dark:text-blue-400">→ extra moved forward to a later unpaid month</span>
+                                    <span className="text-purple-600 dark:text-purple-400">← received from an earlier month&apos;s extra</span>
+                                </div>
+                            )}
+
+                            {expandedInstallments && (
                                 <div className="overflow-x-auto">
                                     <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                                         <thead className="bg-gray-100 dark:bg-gray-700">
@@ -481,7 +561,8 @@ export const PaymentDetailsSection = ({
                                                 <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300">Month</th>
                                                 <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300">Due Date</th>
                                                 <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300">Amount Due</th>
-                                                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300">Paid</th>
+                                                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300">Customer Paid</th>
+                                                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300">{isEditMode ? 'After Save (preview)' : 'Counted for Month'}</th>
                                                 <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300">Remaining</th>
                                                 <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300">Status</th>
                                                 <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300">Payment Date</th>
@@ -493,7 +574,7 @@ export const PaymentDetailsSection = ({
                                                 <tr key={idx} className="hover:bg-gray-50 dark:hover:bg-gray-700">
                                                     <td className="px-4 py-2 text-sm text-dark dark:text-white">{inst.label || `Month ${inst.month}`}</td>
                                                     <td className="px-4 py-2 text-sm text-gray-600 dark:text-gray-400">
-                                                        {inst.due_date ? new Date(inst.due_date).toLocaleDateString() : '-'}
+                                                        {inst.due_date ? formatExactDate(inst.due_date, 'DD MMM YYYY') : '-'}
                                                     </td>
                                                     <td className="px-4 py-2 text-sm font-medium text-dark dark:text-white">
                                                         Rs. {inst.due_amount?.toLocaleString()}
@@ -509,26 +590,22 @@ export const PaymentDetailsSection = ({
                                                             )
                                                         )}
                                                     </td>
-                                                    <td className="px-4 py-2 text-sm font-bold text-green-600 dark:text-green-400">
+                                                    <td className="px-4 py-2 align-top text-sm font-bold text-dark dark:text-white">
+                                                        {/* What the customer actually handed over against THIS month
+                                                            (collected_amount) — can be more than the month's due. */}
+                                                        {(inst.collected_amount || 0) > 0 ? rs(inst.collected_amount) : '-'}
+                                                        <CarryLines carriedOut={inst.carried_out} />
+                                                    </td>
+                                                    <td className="px-4 py-2 align-top text-sm font-bold text-green-600 dark:text-green-400">
+                                                        {/* How much of this month's installment is covered: its own
+                                                            payment (capped at the due) + any earlier month's extra that
+                                                            landed here. Excludes an unallocated leftover — that's not
+                                                            covering anything, it's shown on Customer Paid as needing refund. */}
                                                         {(() => {
-                                                            // The bigger of the two is always what actually changed hands on this
-                                                            // row: collected_amount when the excess moved FORWARD to a later
-                                                            // installment (paid_amount here stays capped at the row's own due),
-                                                            // or paid_amount when this row is the LAST one and had nowhere further
-                                                            // to send its own unallocated excess (see unallocated_excess below).
-                                                            const shown = Math.max(inst.collected_amount || 0, inst.paid_amount || 0);
-                                                            return shown > 0 ? `Rs. ${shown.toLocaleString()}` : '-';
+                                                            const counted = (inst.paid_amount || 0) - (inst.unallocated_excess || 0);
+                                                            return counted > 0 ? rs(counted) : '-';
                                                         })()}
-                                                        {inst.collected_amount > inst.paid_amount + 0.5 && (
-                                                            <div className="text-[10px] font-medium text-blue-500">
-                                                                Rs. {inst.paid_amount.toLocaleString()} applied here — Rs. {(inst.collected_amount - inst.paid_amount).toLocaleString()} credited to a later installment
-                                                            </div>
-                                                        )}
-                                                        {inst.unallocated_excess > 0.5 && (
-                                                            <div className="text-[10px] font-bold text-orange-600 dark:text-orange-400">
-                                                                Rs. {inst.unallocated_excess.toLocaleString()} extra — no installment left to apply it to, needs refund/adjustment
-                                                            </div>
-                                                        )}
+                                                        <CarryLines carriedIn={inst.carried_in} />
                                                     </td>
                                                     <td className="px-4 py-2 text-sm font-bold text-red-500">
                                                         {inst.remaining_amount > 0 ? `Rs. ${inst.remaining_amount.toLocaleString()}` : '-'}
@@ -577,22 +654,35 @@ export const PaymentDetailsSection = ({
                                                             className="w-24 rounded border border-stroke bg-white px-2 py-1 text-xs dark:border-dark-3 dark:bg-dark-2 dark:text-white"
                                                         />
                                                     </td>
-                                                    <td className="px-4 py-2 text-xs text-gray-400">
-                                                        {(() => {
-                                                            // Paid here is pre-filled from collected_amount (the true figure,
-                                                            // which can exceed this row's own due — that's the whole point of
-                                                            // the overpayment cascade), so a naive amount-minus-paid can go
-                                                            // negative. That's not an error — it just means the excess is
-                                                            // about to cascade onto a later installment on save — but showing
-                                                            // a raw negative number here reads as a bug, so say what it means.
-                                                            const due = parseFloat(row.amount) || 0;
-                                                            const paid = parseFloat(row.paid_amount) || 0;
-                                                            const diff = due - paid;
-                                                            if (diff >= 0) return diff.toLocaleString();
-                                                            return <span className="text-blue-500">+{Math.abs(diff).toLocaleString()} will cascade forward</span>;
-                                                        })()}
-                                                    </td>
-                                                    <td className="px-4 py-2 text-xs text-gray-400 italic">auto</td>
+                                                    {(() => {
+                                                        // Live preview of exactly what saving will do across the WHOLE
+                                                        // ledger — the extra typed on one month shows up on whichever
+                                                        // later month(s) it will land on, right as it's typed.
+                                                        const p = editPreview.find((x) => x.month === row.month);
+                                                        if (!p) return <><td /><td /><td /></>;
+                                                        const counted = p.ownApplied + p.received;
+                                                        const remaining = Math.max(0, p.due - counted);
+                                                        const status = counted <= 0 ? 'pending' : (remaining <= 0.01 ? 'paid' : 'partial');
+                                                        return (
+                                                            <>
+                                                                <td className="px-4 py-2 align-top text-xs font-bold text-green-600 dark:text-green-400">
+                                                                    {counted > 0 ? rs(counted) : '-'}
+                                                                    <CarryLines carriedIn={p.carriedIn} carriedOut={p.carriedOut} />
+                                                                </td>
+                                                                <td className="px-4 py-2 align-top text-xs font-bold text-red-500">
+                                                                    {remaining > 0 ? rs(remaining) : '-'}
+                                                                </td>
+                                                                <td className="px-4 py-2 align-top">
+                                                                    <span className={cn(
+                                                                        "inline-block rounded-full px-2 py-0.5 text-[10px] font-black uppercase tracking-widest",
+                                                                        status === 'paid' ? "bg-green-100 text-green-700" : status === 'partial' ? "bg-blue-100 text-blue-700" : "bg-yellow-100 text-yellow-700"
+                                                                    )}>
+                                                                        {status}
+                                                                    </span>
+                                                                </td>
+                                                            </>
+                                                        );
+                                                    })()}
                                                     <td className="px-2 py-2">
                                                         <input
                                                             type="datetime-local"
@@ -634,7 +724,10 @@ export const PaymentDetailsSection = ({
                                     >
                                         Cancel
                                     </button>
-                                    <span className="text-xs text-gray-400">Status is recalculated automatically from Amount Due vs Paid.</span>
+                                    <span className="text-xs text-gray-400">
+                                        Enter in <strong>Customer Paid</strong> only what the customer actually paid for that month. Any extra automatically
+                                        moves to the next month that isn&apos;t already covered — the preview column shows exactly where it will land before you save.
+                                    </span>
                                 </div>
                             )}
                         </div>

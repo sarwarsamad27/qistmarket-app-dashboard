@@ -414,7 +414,7 @@ export default function EditTimelineDatesModal({
                       </div>
                     </div>
                     <div>
-                      <label className="text-[10px] font-bold text-gray-500 uppercase block mb-0.5">Transition Date & Time</label>
+                      <label className="text-[10px] font-bold text-gray-500 uppercase block mb-0.5">Status Change Date & Time</label>
                       <input
                         type="datetime-local"
                         value={h.created_at}
