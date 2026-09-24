@@ -328,10 +328,13 @@ export const PaymentDetailsSection = ({
                             <div>
                                 <h4 className="font-semibold text-orange-800 dark:text-orange-300">Installment ledger missing</h4>
                                 <p className="mt-1 text-sm text-orange-700 dark:text-orange-200">
-                                    This order was delivered but no installment ledger was created, so there is no
-                                    payment schedule, no ledger PDF and no recovery entries for it.
+                                    {paymentDetails.delivery_record_missing
+                                        ? "This order's status is Delivered, but it never went through delivery completion (e.g. it was set to Delivered from the status dropdown) — so there is no delivery record and no installment ledger: no payment schedule, no ledger PDF and no recovery entries."
+                                        : 'This order was delivered but no installment ledger was created, so there is no payment schedule, no ledger PDF and no recovery entries for it.'}
                                     {editable
-                                        ? ' Generate it from the delivery record — the schedule will start from the original delivery date.'
+                                        ? (paymentDetails.delivery_record_missing
+                                            ? " Generate it from the order's own plan (advance, monthly amount, months) — a delivery record is created too, and the schedule starts from the delivered date."
+                                            : ' Generate it from the delivery record — the schedule will start from the original delivery date.')
                                         : ' Please ask a Super Admin to generate it.'}
                                 </p>
                             </div>
