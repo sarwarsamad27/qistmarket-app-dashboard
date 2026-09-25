@@ -124,6 +124,7 @@ export const PaymentDetailsSection = ({
     const [advanceForm, setAdvanceForm] = useState({ amount: '', paid_amount: '', payment_method: '' });
     const [savingAdvance, setSavingAdvance] = useState(false);
     const [rebuildingLedger, setRebuildingLedger] = useState(false);
+    const [syncingIds, setSyncingIds] = useState(false);
 
     if (!paymentDetails) return null;
 
@@ -155,6 +156,37 @@ export const PaymentDetailsSection = ({
             toast.error(err.message || 'Failed to generate ledger');
         } finally {
             setRebuildingLedger(false);
+        }
+    };
+
+    // 1Bill ID / ledger link built from something other than the current unit
+    // (e.g. the returned product's IMEI after a redelivery) — re-derive them.
+    const idsCheck = paymentDetails.installment_plan?.ids_check;
+    const handleSyncIds = async () => {
+        if (!ledgerId) return;
+        const token = Cookies.get('auth_token');
+        if (!token) {
+            toast.error('Authentication required');
+            return;
+        }
+        setSyncingIds(true);
+        try {
+            const res = await fetch(`${BACKEND_URL}/api/ledger/${ledgerId}/sync-ids`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+            });
+            const json = await res.json();
+            if (!res.ok || !json.success) throw new Error(json.message || 'Failed to update 1Bill ID');
+            const changes: string[] = json.data?.changes || [];
+            const notes: string[] = json.data?.notes || [];
+            toast.success(changes.length > 0 ? changes.join(' · ') : json.message, { duration: 6000 });
+            notes.forEach((n) => toast(n, { duration: 8000 }));
+            if (onSaved) await onSaved();
+        } catch (err: any) {
+            console.error(err);
+            toast.error(err.message || 'Failed to update 1Bill ID');
+        } finally {
+            setSyncingIds(false);
         }
     };
 
@@ -507,7 +539,28 @@ export const PaymentDetailsSection = ({
                         </div>
                     </div>
 
-                    {orderId && ledgerId && !returned && <OrderPaymentIds orderId={orderId} />}
+                    {editable && ledgerId && !returned && idsCheck?.stale && (
+                        <div className="mb-4 flex flex-wrap items-start justify-between gap-3 rounded-lg border border-amber-300 bg-amber-50 p-4 dark:border-amber-500/40 dark:bg-amber-500/10">
+                            <div className="text-sm text-amber-800 dark:text-amber-200">
+                                <p className="font-semibold">1Bill ID / ledger link don&apos;t match the current product</p>
+                                <p className="mt-1 text-xs">
+                                    They were built from a different IMEI (e.g. the returned product&apos;s), not the current
+                                    {idsCheck.source === 'imei' ? <> IMEI <span className="font-mono">{idsCheck.current_imei}</span></> : ' purchaser mobile (no IMEI on this delivery)'}.
+                                    Updating re-derives both from it; the old ledger link keeps working.
+                                </p>
+                            </div>
+                            <button
+                                onClick={handleSyncIds}
+                                disabled={syncingIds}
+                                className="shrink-0 rounded-lg bg-amber-500 px-4 py-2 text-sm font-medium text-white transition hover:bg-amber-600 disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                                {syncingIds ? 'Updating…' : 'Update 1Bill ID & Link'}
+                            </button>
+                        </div>
+                    )}
+
+                    {/* Keyed on the link so it re-fetches its 1Bill/SmartPay ids after an update. */}
+                    {orderId && ledgerId && !returned && <OrderPaymentIds key={paymentDetails.installment_plan.token} orderId={orderId} />}
 
                     {/* Progress Bar */}
                     {paymentDetails.installment_plan.summary?.total_installments > 0 && (
