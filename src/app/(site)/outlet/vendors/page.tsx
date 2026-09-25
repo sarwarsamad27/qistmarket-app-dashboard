@@ -20,6 +20,13 @@ export default function VendorManagementPage() {
     const [showModal, setShowModal] = useState(false);
     const [editingVendor, setEditingVendor] = useState<any>(null);
 
+    // Delete confirmation — shows exactly what will be removed and requires the
+    // vendor's name to be typed, since the delete is permanent and cascades.
+    const [deleteTarget, setDeleteTarget] = useState<any>(null);
+    const [deletePreview, setDeletePreview] = useState<any>(null);
+    const [deleteConfirmText, setDeleteConfirmText] = useState("");
+    const [deleting, setDeleting] = useState(false);
+
     const [formData, setFormData] = useState({
         name: "",
         phone: "",
@@ -74,12 +81,50 @@ export default function VendorManagementPage() {
         }
     };
 
-    const deleteVendor = async (id: number) => {
-        if (!confirm("Are you sure? This won't delete their purchases but will un-link them.")) return;
-        // Backend delete not fully implemented in route yet but I'll add logic if needed. 
-        // For now, I'll just skip delete as it's destructive.
-        toast.error("Delete restricted for safety");
+    const openDelete = async (vendor: any) => {
+        setDeleteTarget(vendor);
+        setDeletePreview(null);
+        setDeleteConfirmText("");
+        try {
+            const res = await fetch(`${API_BASE}/api/outlet/vendors/${vendor.id}/delete-preview`, { headers: getAuthHeaders() });
+            const data = await res.json();
+            if (data.success) setDeletePreview(data.data);
+            else toast.error(data.message || "Could not load vendor details");
+        } catch {
+            toast.error("Network error");
+        }
     };
+
+    const closeDelete = () => {
+        if (deleting) return;
+        setDeleteTarget(null);
+        setDeletePreview(null);
+        setDeleteConfirmText("");
+    };
+
+    const confirmDelete = async () => {
+        if (!deleteTarget) return;
+        setDeleting(true);
+        try {
+            const res = await fetch(`${API_BASE}/api/outlet/vendors/${deleteTarget.id}`, {
+                method: "DELETE",
+                headers: getAuthHeaders(),
+            });
+            const data = await res.json();
+            if (!res.ok || !data.success) throw new Error(data.message || "Failed to delete vendor");
+            toast.success(data.message || "Vendor deleted");
+            setVendors((prev) => prev.filter((v) => v.id !== deleteTarget.id));
+            setDeleteTarget(null);
+            setDeletePreview(null);
+            setDeleteConfirmText("");
+        } catch (err: any) {
+            toast.error(err.message || "Failed to delete vendor");
+        } finally {
+            setDeleting(false);
+        }
+    };
+
+    const nameMatches = !!deleteTarget && deleteConfirmText.trim().toLowerCase() === String(deleteTarget.name).trim().toLowerCase();
 
     const filteredVendors = vendors.filter(v => 
         v.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -145,6 +190,13 @@ export default function VendorManagementPage() {
                                         >
                                             <Edit size={16} />
                                         </button>
+                                        <button
+                                            onClick={() => openDelete(vendor)}
+                                            title="Delete vendor"
+                                            className="p-2 text-gray-400 hover:text-red-500 transition-colors"
+                                        >
+                                            <Trash2 size={16} />
+                                        </button>
                                     </div>
                                 </div>
 
@@ -177,6 +229,68 @@ export default function VendorManagementPage() {
                             </div>
                         </div>
                     ))}
+                </div>
+            )}
+
+            {/* DELETE CONFIRMATION */}
+            {deleteTarget && (
+                <div className="fixed inset-0 z-[999] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={closeDelete}>
+                    <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl dark:bg-boxdark" onClick={(e) => e.stopPropagation()}>
+                        <div className="mb-4 flex items-center gap-3">
+                            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-red-50 text-red-600 dark:bg-red-500/10">
+                                <Trash2 size={20} />
+                            </div>
+                            <div>
+                                <h3 className="text-lg font-black text-gray-800 dark:text-white">Delete vendor permanently?</h3>
+                                <p className="text-xs font-bold text-gray-400">{deleteTarget.name}</p>
+                            </div>
+                        </div>
+
+                        {!deletePreview ? (
+                            <p className="text-sm text-gray-500">Loading details…</p>
+                        ) : (
+                            <>
+                                <p className="mb-3 text-sm text-gray-600 dark:text-gray-300">
+                                    This deletes the vendor <strong>and its entire history</strong>. It cannot be undone.
+                                </p>
+                                <ul className="mb-4 space-y-1 rounded-2xl bg-gray-50 p-4 text-sm font-bold text-gray-700 dark:bg-meta-4 dark:text-gray-200">
+                                    <li>Balance owed: <span className="text-red-500">PKR {Number(deletePreview.vendor?.balance || 0).toLocaleString()}</span></li>
+                                    <li>{deletePreview.purchases} purchase(s) with their items</li>
+                                    <li>{deletePreview.payments} payment(s)</li>
+                                    <li>{deletePreview.returns} purchase return(s)</li>
+                                    <li>{deletePreview.cash_transactions} cash transaction(s)</li>
+                                    <li>{deletePreview.scheduled_payments} scheduled payment(s)</li>
+                                </ul>
+                                <p className="mb-4 text-xs text-gray-400">
+                                    Stock items that came in through these purchases stay in inventory (they may already be sold or delivered).
+                                    Past reports and totals that included this vendor will change.
+                                </p>
+                                <label className="mb-1 block text-xs font-black uppercase tracking-widest text-gray-500">
+                                    Type the vendor name to confirm
+                                </label>
+                                <input
+                                    autoFocus
+                                    value={deleteConfirmText}
+                                    onChange={(e) => setDeleteConfirmText(e.target.value)}
+                                    placeholder={deleteTarget.name}
+                                    className="mb-5 w-full rounded-2xl border border-stroke bg-transparent px-4 py-3 text-sm font-bold outline-none focus:border-red-500 dark:border-strokedark"
+                                />
+                            </>
+                        )}
+
+                        <div className="flex gap-3">
+                            <button onClick={closeDelete} disabled={deleting} className="flex-1 rounded-2xl px-6 py-3 text-sm font-black text-gray-500 transition-all hover:bg-gray-100 disabled:opacity-50">
+                                Cancel
+                            </button>
+                            <button
+                                onClick={confirmDelete}
+                                disabled={!deletePreview || !nameMatches || deleting}
+                                className="flex-1 rounded-2xl bg-red-600 px-6 py-3 text-sm font-black text-white shadow-lg transition-all hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-40"
+                            >
+                                {deleting ? "Deleting…" : "Delete Permanently"}
+                            </button>
+                        </div>
+                    </div>
                 </div>
             )}
 

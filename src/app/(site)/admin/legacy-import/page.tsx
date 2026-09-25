@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import Breadcrumb from "@/components/Breadcrumbs/Breadcrumb";
 import Cookies from "js-cookie";
 import toast from "react-hot-toast";
@@ -61,7 +61,15 @@ const COLUMNS = [
   // up column-for-column; a blank cell falls back to the page's Default
   // Category dropdown.
   'category',
+  // Assignment "who & where" + timeline dates — the same fields the order page's
+  // Edit Timeline modal edits. Also appended at the end so older sheets still line
+  // up. Officers: username or full name. Outlet: code (e.g. GB-001) or exact name.
+  // Blank = importing admin / the sale DATE, same as before these columns existed.
+  'verification_officer', 'delivery_officer', 'recovery_officer', 'outlet',
+  'verification_assigned_at', 'delivery_assigned_at', 'recovery_assigned_at', 'delivered_at',
 ] as const;
+
+const DATE_COLUMNS = ['order_date', 'verification_assigned_at', 'delivery_assigned_at', 'recovery_assigned_at', 'delivered_at'];
 
 type LegacyRow = Record<(typeof COLUMNS)[number], any> & { _rowNum: number; _issues: string[] };
 
@@ -83,6 +91,9 @@ const FIELD_LABELS: Record<string, string> = {
   purchaser_nearest_location: 'Nearest Location',
   item_price: 'Item Price', item_model: 'Item Model', serial: 'Serial', tenure_months: 'Tenure',
   advance: 'Advance', installment: 'Installment', category: 'Category',
+  verification_officer: 'Verification Officer', delivery_officer: 'Delivery Officer', recovery_officer: 'Recovery Officer',
+  outlet: 'Outlet', verification_assigned_at: 'Verification Assigned', delivery_assigned_at: 'Delivery Assigned',
+  recovery_assigned_at: 'Recovery Assigned', delivered_at: 'Delivered',
   next_of_kin_name: 'Name', next_of_kin_cnic: 'CNIC', next_of_kin_relation: 'Relation', next_of_kin_phone: 'Phone Number',
   remain: 'Remain',
 };
@@ -138,6 +149,12 @@ const FIELD_SECTIONS: { title: string; fields: string[] }[] = [
   },
   { title: 'Next of Kin', fields: ['next_of_kin_name', 'next_of_kin_cnic', 'next_of_kin_relation', 'next_of_kin_phone'] },
   { title: 'Remaining Balance', fields: ['remain'] },
+  {
+    title: 'Assignment & Timeline', fields: [
+      'verification_officer', 'delivery_officer', 'recovery_officer', 'outlet',
+      'verification_assigned_at', 'delivery_assigned_at', 'recovery_assigned_at', 'delivered_at',
+    ],
+  },
 ];
 
 type ImportResult = { row: number; success: boolean; order_id?: number; error?: string; reconciliation_warning?: string | null };
@@ -162,9 +179,50 @@ function excelValueToIso(v: any): string | null {
   return isNaN(d.getTime()) ? null : d.toISOString();
 }
 
-function validateRow(row: LegacyRow): string[] {
+type Officer = { id: number; username: string; full_name: string };
+type OutletOpt = { id: number; name: string; code: string };
+type AssignLookups = { verification: Officer[]; delivery: Officer[]; recovery: Officer[]; outlets: OutletOpt[] } | null;
+
+const normText = (v: any) => String(v ?? '').trim().toLowerCase().replace(/\s+/g, ' ');
+
+// Mirrors legacyImportController's resolveOfficer / resolveOutlet so a bad name is
+// caught in the preview, not only when the import runs.
+function officerIssue(list: Officer[], value: any, label: string): string | null {
+  const q = normText(value);
+  if (!q) return null;
+  if (list.some((u) => normText(u.username) === q)) return null;
+  const byName = list.filter((u) => normText(u.full_name) === q);
+  if (byName.length === 1) return null;
+  if (byName.length > 1) return `${label} "${value}" matches more than one user — use the username`;
+  return `${label} "${value}" not found`;
+}
+
+function outletIssue(list: OutletOpt[], value: any): string | null {
+  const q = normText(value);
+  if (!q) return null;
+  const ok = list.some((o) => normText(o.code) === q || normText(o.name) === q || normText(`${o.name} (${o.code})`) === q);
+  return ok ? null : `Outlet "${value}" not found`;
+}
+
+function validateRow(row: LegacyRow, lookups: AssignLookups = null): string[] {
   const issues: string[] = [];
   if (row.order_date && new Date(row.order_date).getTime() > Date.now()) issues.push('Date is in the future — check DD/MM order');
+  for (const col of ['verification_assigned_at', 'delivery_assigned_at', 'recovery_assigned_at', 'delivered_at'] as const) {
+    const v = row[col];
+    if (v === undefined || v === null || v === '') continue;
+    const d = new Date(v);
+    if (isNaN(d.getTime())) issues.push(`${FIELD_LABELS[col]} date is invalid`);
+    else if (d.getTime() > Date.now()) issues.push(`${FIELD_LABELS[col]} date is in the future`);
+  }
+  if (lookups) {
+    const found = [
+      officerIssue(lookups.verification, row.verification_officer, 'Verification Officer'),
+      officerIssue(lookups.delivery, row.delivery_officer, 'Delivery Officer'),
+      officerIssue(lookups.recovery, row.recovery_officer, 'Recovery Officer'),
+      outletIssue(lookups.outlets, row.outlet),
+    ].filter(Boolean) as string[];
+    issues.push(...found);
+  }
   if (!row.purchaser_name) issues.push('Missing name');
   if (!row.purchaser_cnic) issues.push('Missing CNIC');
   if (!row.purchaser_phone) issues.push('Missing contact number');
@@ -189,6 +247,50 @@ export default function LegacyImportPage() {
   const [results, setResults] = useState<ImportResult[] | null>(null);
   const [categories, setCategories] = useState<string[]>([]);
   const [defaultCategory, setDefaultCategory] = useState('');
+  const [lookups, setLookups] = useState<AssignLookups>(null);
+  const lookupsRef = useRef<AssignLookups>(null);
+
+  // Officers + outlets the sheet's assignment columns can name — the same lists the
+  // order page's Edit Timeline dropdowns use (admins included).
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const token = Cookies.get('auth_token');
+        const get = async (url: string) => (await fetch(`${BACKEND_URL}${url}`, { headers: { Authorization: `Bearer ${token}` } })).json();
+        const [vo, dOff, ro, out] = await Promise.all([
+          get('/api/assignments/officers?role=verification&all=true&include_admins=true'),
+          get('/api/assignments/officers?role=delivery&all=true&include_admins=true'),
+          get('/api/assignments/officers?role=recovery&all=true&include_admins=true'),
+          get('/api/outlets'),
+        ]);
+        const next: AssignLookups = {
+          verification: vo.success ? vo.data : [],
+          delivery: dOff.success ? dOff.data : [],
+          recovery: ro.success ? ro.data : [],
+          outlets: out.success && Array.isArray(out.outlets) ? out.outlets : [],
+        };
+        lookupsRef.current = next;
+        setLookups(next);
+      } catch (err) {
+        console.error('Failed to load officers/outlets', err);
+      }
+    };
+    load();
+  }, []);
+
+  // Rows parsed before the lists arrived get re-checked once they do; a row that
+  // turns out to name an unknown officer/outlet is unchecked like any other issue.
+  useEffect(() => {
+    if (!lookups) return;
+    const newlyBad: number[] = [];
+    setRows((prev) => prev.map((r) => {
+      const dup = r._issues.filter((i) => i.startsWith('Duplicate'));
+      const issues = [...validateRow(r, lookups), ...dup];
+      if (issues.length > r._issues.length) newlyBad.push(r._rowNum);
+      return { ...r, _issues: issues };
+    }));
+    if (newlyBad.length) setExcludedRows((prev) => new Set([...prev, ...newlyBad]));
+  }, [lookups]);
 
   // Same source CreateOrder / inventory-add use for their Category dropdown.
   useEffect(() => {
@@ -228,7 +330,7 @@ export default function LegacyImportPage() {
       prev.map((r) => {
         if (r._rowNum !== rowNum) return r;
         const updated = { ...r, [field]: value };
-        updated._issues = validateRow(updated as LegacyRow);
+        updated._issues = validateRow(updated as LegacyRow, lookupsRef.current);
         return updated as LegacyRow;
       })
     );
@@ -280,7 +382,15 @@ export default function LegacyImportPage() {
         'Next of Kin Name', 'Next of Kin CNIC', 'Next of Kin Relation', 'Next of Kin Phone',
         'remain',
         'Category',
+        'Verification Officer', 'Delivery Officer', 'Recovery Officer', 'Outlet',
+        'Verification Assigned Date', 'Delivery Assigned Date', 'Recovery Assigned Date', 'Delivered Date',
       ];
+
+      // Real names from this system where available, so the demo imports cleanly.
+      const vo = lookups?.verification.find((u) => u.username) ;
+      const dOff = lookups?.delivery.find((u) => u.username);
+      const ro = lookups?.recovery.find((u) => u.username);
+      const outletCode = lookups?.outlets[0]?.code || '';
 
       const sampleRows = [
         // Row 1: Delivered, ongoing installments (2 of 12 paid) — every
@@ -307,6 +417,8 @@ export default function LegacyImportPage() {
           'MUHAMMAD AHSAN SR', '42101-1111111-1', 'Father', '03001112222',
           46000,
           categories[0] || 'Mobiles',
+          vo?.username || '', dOff?.username || '', ro?.username || '', outletCode,
+          '04/06/2026', '05/06/2026', '06/06/2026', '05/06/2026',
         ],
         // Row 2: Fully paid off (completed) — sparser row, showing that most
         // fields are optional and left blank falls back cleanly.
@@ -332,6 +444,9 @@ export default function LegacyImportPage() {
           '', '', '', '',
           0,
           categories[0] || 'Mobiles',
+          // Blank assignment columns fall back to the importing admin / the sale date.
+          '', '', '', '',
+          '', '', '', '',
         ],
       ];
 
@@ -364,11 +479,11 @@ export default function LegacyImportPage() {
             const row: any = { _rowNum: idx + 2 }; // +2 = 1-indexed + header row
             COLUMNS.forEach((col, i) => {
               let v = r[i];
-              if (col === 'order_date') v = excelValueToIso(v);
+              if (DATE_COLUMNS.includes(col)) v = excelValueToIso(v);
               if (col === 'category') v = normalizeCategory(v);
               row[col] = v;
             });
-            row._issues = validateRow(row);
+            row._issues = validateRow(row, lookupsRef.current);
             return row as LegacyRow;
           });
 
