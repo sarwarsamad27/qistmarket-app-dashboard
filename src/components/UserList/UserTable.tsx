@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState, useRef, useCallback } from "react";
+import SubAdminPagePicker from "@/components/Users/SubAdminPagePicker";
+import { useAuth } from "../../../contexts/AuthContext";
 import Loader from "@/components/common/Loader";
 import {
   ColumnDef,
@@ -47,6 +49,7 @@ interface User {
   image: string;
   coverImage: string;
   permissions: Record<string, any> | null;
+  sub_admin_pages?: string[];
   password?: string;
   outlet_id?: number | null;
   outlet?: { id: number; name: string; code: string } | null;
@@ -590,6 +593,11 @@ const ImageUploadField: React.FC<ImageUploadFieldProps> = ({
 
 const UsersTable = () => {
   const [users, setUsers] = useState<User[]>([]);
+  // A Sub Admin viewing this list can't change Super Admin / Admin / Sub Admin
+  // accounts (or their own) — the backend refuses it; hide the actions to match.
+  const { user: viewer } = useAuth();
+  const isProtectedForViewer = (u: User) =>
+    !!viewer?.is_sub_admin && (u.id === viewer.id || ["Super Admin", "Admin", "Sub Admin"].includes(u.role));
   const [pagination, setPagination] = useState<PaginationInfo>({
     page: 1, limit: 10, total: 0, totalPages: 1, hasNext: false, hasPrev: false,
   });
@@ -605,6 +613,8 @@ const UsersTable = () => {
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [formData, setFormData] = useState<Partial<User>>({});
   const [createOrderPermission, setCreateOrderPermission] = useState(false);
+  const [subAdminPagesEdit, setSubAdminPagesEdit] = useState<string[]>([]);
+  const [subAdminPagesError, setSubAdminPagesError] = useState("");
 
   // Image state
   const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -781,6 +791,10 @@ const UsersTable = () => {
           };
         }, [isOpen]);
 
+        if (isProtectedForViewer(user)) {
+          return <span className="text-xs font-medium text-gray-400" title="Sub Admins can't change admin accounts">Protected</span>;
+        }
+
         return (
           <>
             <button
@@ -921,25 +935,39 @@ const UsersTable = () => {
   const handlePermissions = (user: User) => {
     setSelectedUser(user);
     setCreateOrderPermission(user.permissions?.create_order ?? false);
+    setSubAdminPagesEdit(Array.isArray(user.sub_admin_pages) ? user.sub_admin_pages : []);
+    setSubAdminPagesError("");
     setPermissionsModalOpen(true);
   };
+
+  const isSubAdminTarget = selectedUser?.role === "Sub Admin";
 
   const updatePermissions = async () => {
     if (!selectedUser?.id) return;
     setIsSubmitting(true);
     try {
       const token = Cookies.get("auth_token");
+      if (isSubAdminTarget && subAdminPagesEdit.length === 0) {
+        setSubAdminPagesError("Tick at least one page this Sub Admin can access");
+        return;
+      }
       const res = await fetch(`${BACKEND_URL}/api/users/${selectedUser.id}/permissions`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ permissions_json: { create_order: createOrderPermission } }),
+        body: JSON.stringify(
+          isSubAdminTarget
+            ? { sub_admin_pages: subAdminPagesEdit }
+            : { permissions_json: { create_order: createOrderPermission } }
+        ),
       });
-      if (!res.ok) throw new Error("Permissions update failed");
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error?.message || data?.message || "Permissions update failed");
+      if (isSubAdminTarget) toast.success("Sub Admin access updated — applies on their next action.");
       await fetchUsers();
       setPermissionsModalOpen(false);
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      alert("Failed to update permissions");
+      toast.error(err?.message || "Failed to update permissions");
     } finally {
       setIsSubmitting(false);
     }
@@ -1179,8 +1207,19 @@ const UsersTable = () => {
 
       {/* ── PERMISSIONS MODAL ── */}
       <Modal open={permissionsModalOpen} onClose={() => setPermissionsModalOpen(false)}
-        className="max-w-md rounded-2xl bg-white p-8 shadow-xl dark:bg-gray-800">
-        <h2 className="mb-4 text-xl font-semibold text-dark dark:text-white">User Permissions</h2>
+        className={`${isSubAdminTarget ? "max-h-[90vh] w-full max-w-[900px] overflow-y-auto" : "max-w-md"} rounded-2xl bg-white p-8 shadow-xl dark:bg-gray-800`}>
+        <h2 className="mb-4 text-xl font-semibold text-dark dark:text-white">
+          {isSubAdminTarget ? `Sub Admin Access — ${selectedUser?.full_name || selectedUser?.username}` : "User Permissions"}
+        </h2>
+        {isSubAdminTarget ? (
+          <div className="mb-6">
+            <SubAdminPagePicker
+              value={subAdminPagesEdit}
+              onChange={(pages) => { setSubAdminPagesEdit(pages); setSubAdminPagesError(""); }}
+              error={subAdminPagesError}
+            />
+          </div>
+        ) : (
         <div className="mb-6 space-y-4">
           <div className="flex items-center justify-between">
             <label className="text-dark dark:text-gray-300">Create Order</label>
@@ -1188,6 +1227,7 @@ const UsersTable = () => {
               className="h-5 w-5 rounded border-gray-300 text-[#ff3d3d] focus:ring-[#ff3d3d]" />
           </div>
         </div>
+        )}
         <div className="flex justify-end gap-4">
           <button onClick={() => setPermissionsModalOpen(false)} disabled={isSubmitting}
             className="rounded border border-stroke px-6 py-2.5 text-dark hover:bg-gray-100 disabled:opacity-50 dark:border-dark-3 dark:text-white dark:hover:bg-dark-3">

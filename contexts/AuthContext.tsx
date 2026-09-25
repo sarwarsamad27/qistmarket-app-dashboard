@@ -20,6 +20,10 @@ interface User {
   permissions: any[];
   outlet_id?: number | null;
   outlet_name?: string | null;
+  // Sub Admin: role is "Admin", limited to these dashboard pages (see src/lib/subAdminPermissions.ts).
+  is_sub_admin?: boolean;
+  role_label?: string;
+  sub_admin_pages?: string[];
 }
 
 interface AuthContextType {
@@ -41,6 +45,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       try {
         const decoded: User = jwtDecode(token);
         setUser(decoded);
+        // A Sub Admin's pages can be changed by a Super Admin after login — pick up the
+        // current list (the backend enforces it either way; this keeps the menu in step).
+        if (decoded.is_sub_admin) {
+          fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/user/me`, { headers: { Authorization: `Bearer ${token}` } })
+            .then((r) => (r.ok ? r.json() : null))
+            .then((data) => {
+              if (data?.user && Array.isArray(data.user.sub_admin_pages)) {
+                setUser((prev) => (prev ? { ...prev, sub_admin_pages: data.user.sub_admin_pages } : prev));
+              }
+            })
+            .catch(() => {});
+        }
       } catch (error) {
         console.error("Invalid JWT token", error);
         Cookies.remove("auth_token");

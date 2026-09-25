@@ -1,12 +1,17 @@
 'use client'
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Smartphone, Monitor, Package, Eye, EyeOff } from 'lucide-react';
+import { Smartphone, Monitor, Package, Eye, EyeOff, ShieldCheck } from 'lucide-react';
+import SubAdminPagePicker from '@/components/Users/SubAdminPagePicker';
 import toast from "react-hot-toast";
 import Cookies from "js-cookie";
 import Breadcrumb from '@/components/Breadcrumbs/Breadcrumb';
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
+
+// Sub Admin has no fixed role id (its row is created on first use, so the id differs
+// per database) — the form uses this local sentinel and sends role_name instead.
+const SUB_ADMIN_ROLE_ID = 0;
 
 const CreateUsers: React.FC = () => {
   const [formData, setFormData] = useState({
@@ -28,6 +33,7 @@ const CreateUsers: React.FC = () => {
   const [creatingOutlet, setCreatingOutlet] = useState(false);
 
   const [showPassword, setShowPassword] = useState(false);
+  const [subAdminPages, setSubAdminPages] = useState<string[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const fullNameRef = useRef<HTMLInputElement>(null);
@@ -64,6 +70,13 @@ const CreateUsers: React.FC = () => {
       platform: 'web',
       icon: Monitor,
       description: 'Assign cases, manage officers, approve/reject verifications, live map, reports, export and also Create and manage new orders'
+    },
+    {
+      id: SUB_ADMIN_ROLE_ID,
+      name: 'Sub Admin',
+      platform: 'web',
+      icon: ShieldCheck,
+      description: 'Your own (Super Admin) menu, limited to the pages you tick below — everything unticked stays hidden and blocked. Cannot create users or change admin accounts. Logs in with OTP.'
     },
     {
       id: 8,
@@ -211,6 +224,9 @@ const CreateUsers: React.FC = () => {
       newErrors.cnic = 'CNIC must be in format 42101XXXXXXXXX or 42101-XXXXXXX-X';
     }
     if (!formData.role_id) newErrors.role_id = 'Please select a role';
+    if (formData.role_id !== '' && Number(formData.role_id) === SUB_ADMIN_ROLE_ID && subAdminPages.length === 0) {
+      newErrors.sub_admin_pages = 'Tick at least one page this Sub Admin can access';
+    }
 
     if (formData.email.trim()) {
       if (!/\S+@\S+\.\S+/.test(formData.email.trim())) {
@@ -245,6 +261,7 @@ const CreateUsers: React.FC = () => {
           elementToScroll = cnicRef.current;
           break;
         case 'role_id':
+        case 'sub_admin_pages':
           elementToScroll = roleSectionRef.current;
           break;
         default:
@@ -277,6 +294,13 @@ const CreateUsers: React.FC = () => {
         cnic: formData.cnic.trim().replace(/[-\s]/g, ''),
         outlet_id: formData.outlet_id ? Number(formData.outlet_id) : null,
       };
+
+      if (Number(formData.role_id) === SUB_ADMIN_ROLE_ID) {
+        delete payload.role_id;
+        payload.role_name = 'Sub Admin';
+        payload.sub_admin_pages = subAdminPages;
+        payload.outlet_id = null;
+      }
 
       if (formData.password.trim()) {
         payload.password = formData.password.trim();
@@ -313,6 +337,7 @@ const CreateUsers: React.FC = () => {
         cnic: '',
         outlet_id: '',
       });
+      setSubAdminPages([]);
       setErrors({});
 
     } catch (error: any) {
@@ -323,6 +348,7 @@ const CreateUsers: React.FC = () => {
   };
 
   const handleClear = () => {
+    setSubAdminPages([]);
     setFormData({
       fullName: '',
       email: '',
@@ -336,7 +362,8 @@ const CreateUsers: React.FC = () => {
     setErrors({});
   };
 
-  const selectedRole = roles.find(r => r.id === Number(formData.role_id));
+  const selectedRole = formData.role_id === '' ? undefined : roles.find(r => r.id === Number(formData.role_id));
+  const isSubAdminSelected = selectedRole?.id === SUB_ADMIN_ROLE_ID;
 
   return (
     <div className="min-h-screen">
@@ -475,7 +502,7 @@ const CreateUsers: React.FC = () => {
                     return (
                       <label
                         key={role.id}
-                        className={`relative flex items-start p-4 border-2 rounded-lg cursor-pointer transition-all ${Number(formData.role_id) === role.id
+                        className={`relative flex items-start p-4 border-2 rounded-lg cursor-pointer transition-all ${formData.role_id !== '' && Number(formData.role_id) === role.id
                           ? 'border-[#ff3d3d] bg-red-50'
                           : 'border-gray-200 hover:border-gray-300'
                           }`}
@@ -484,13 +511,13 @@ const CreateUsers: React.FC = () => {
                           type="radio"
                           name="role_id"
                           value={role.id}
-                          checked={Number(formData.role_id) === role.id}
+                          checked={formData.role_id !== '' && Number(formData.role_id) === role.id}
                           onChange={handleChange}
                           className="sr-only"
                         />
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-2">
-                            <Icon className={`w-5 h-5 ${Number(formData.role_id) === role.id ? 'text-[#ff3d3d]' : 'text-gray-500'}`} />
+                            <Icon className={`w-5 h-5 ${formData.role_id !== '' && Number(formData.role_id) === role.id ? 'text-[#ff3d3d]' : 'text-gray-500'}`} />
                             <span className="font-semibold text-gray-900">{role.name}</span>
                           </div>
                           <p className="text-sm text-gray-600 mb-2">{role.description}</p>
@@ -506,6 +533,18 @@ const CreateUsers: React.FC = () => {
                   })}
                 </div>
                 {errors.role_id && <p className="text-red-500 text-sm mt-2">{errors.role_id}</p>}
+
+                {/* Sub Admin: pick exactly which Admin pages they get */}
+                {isSubAdminSelected && (
+                  <SubAdminPagePicker
+                    value={subAdminPages}
+                    onChange={(pages) => {
+                      setSubAdminPages(pages);
+                      if (errors.sub_admin_pages) setErrors((prev) => ({ ...prev, sub_admin_pages: '' }));
+                    }}
+                    error={errors.sub_admin_pages}
+                  />
+                )}
               </div>
             </div>
 
@@ -583,6 +622,11 @@ const CreateUsers: React.FC = () => {
                   <div>
                     <p className="font-medium text-red-900">{selectedRole.name}</p>
                     <p className="text-sm text-red-700 mt-1">{selectedRole.description}</p>
+                    {isSubAdminSelected && (
+                      <p className="text-sm font-semibold text-red-800 mt-2">
+                        {subAdminPages.length} page(s) granted
+                      </p>
+                    )}
                   </div>
                 </div>
               </div>

@@ -10,6 +10,7 @@ import { ArrowLeftIcon, ChevronUp } from "./icons";
 import { MenuItem } from "./menu-item";
 import { useSidebarContext } from "./sidebar-context";
 import { useAuth } from "../../../../contexts/AuthContext"; // Added AuthContext
+import { canSubAdminOpen, isSubAdmin } from "@/lib/subAdminPermissions";
 
 export function Sidebar() {
   const pathname = usePathname();
@@ -114,10 +115,21 @@ export function Sidebar() {
       }
 
       return true;
-    });
+    })
+      // Sub Admin: only the pages a Super Admin granted; a group with none left disappears.
+      .map((item: any) => {
+        if (!isSubAdmin(user)) return item;
+        if (item.items && item.items.length > 0) {
+          const subs = item.items.filter((sub: any) => canSubAdminOpen(user, sub.url));
+          return subs.length > 0 ? { ...item, items: subs } : null;
+        }
+        return canSubAdminOpen(user, item.url) ? item : null;
+      })
+      .filter(Boolean);
 
     return { ...section, items: filteredItems };
-  });
+  })
+    .filter((section) => !isSubAdmin(user) || section.items.length > 0);
 
   return (
     <>
