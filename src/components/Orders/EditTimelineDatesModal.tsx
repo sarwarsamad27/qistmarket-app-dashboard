@@ -1,30 +1,42 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { X, Calendar, Clock, Save, Edit3, RefreshCw, Users } from "lucide-react";
+import React, { useState, useEffect, useRef } from "react";
+import { X, Calendar, Clock, Save, Edit3, RefreshCw, Users, Trash2, Undo2 } from "lucide-react";
 import { toast } from "react-hot-toast";
 import Cookies from "js-cookie";
 
 const API_BASE = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
 
+// Every date in this modal is entered and shown in Pakistan time (UTC+05:00, no
+// DST) — the same clock the order page's timelines display via formatExactDate.
+// Using the browser's own timezone instead made the modal and the page disagree
+// (and shift saved times) whenever the browser wasn't set to PKT.
+const PKT_OFFSET_MS = 5 * 60 * 60 * 1000;
 const toDatetimeLocal = (dateString?: string | Date | null) => {
   if (!dateString) return "";
   const d = new Date(dateString);
   if (isNaN(d.getTime())) return "";
-  const pad = (n: number) => (n < 10 ? "0" + n : n);
-  const year = d.getFullYear();
-  const month = pad(d.getMonth() + 1);
-  const day = pad(d.getDate());
-  const hours = pad(d.getHours());
-  const minutes = pad(d.getMinutes());
-  return `${year}-${month}-${day}T${hours}:${minutes}`;
+  return new Date(d.getTime() + PKT_OFFSET_MS).toISOString().slice(0, 16);
 };
+const fromDatetimeLocal = (value: string) => (value ? new Date(`${value}:00+05:00`).toISOString() : null);
+
+// Statuses offered in the history editor — whatever this order's own history
+// already uses is added on top, so an unusual value is never silently dropped.
+const KNOWN_STATUSES = [
+  "new", "pending", "in_progress", "completed", "approved", "transferred", "picked",
+  "awaiting_paytrigger_enrollment", "delivered", "Returned", "cancelled", "postponed", "expired", "rejected",
+];
+const statusLabel = (s: string) => s.replace(/_/g, " ").toUpperCase();
 
 interface StatusHistoryEdit {
   id: number;
   new_status: string;
   old_status?: string | null;
   created_at: string;
+  remarks: string;
+  user_name: string;
+  role_name?: string | null;
+  deleted: boolean;
 }
 
 interface Officer {
@@ -46,7 +58,7 @@ interface EditTimelineDatesModalProps {
   verificationId?: number;
   verificationOfficers?: Officer[];
   deliveryOfficers?: Officer[];
-  onSaved: () => void;
+  onSaved: () => void | Promise<void>;
 }
 
 export default function EditTimelineDatesModal({
@@ -78,8 +90,18 @@ export default function EditTimelineDatesModal({
   const [deliveryOfficers, setDeliveryOfficers] = useState<Officer[]>(deliveryOfficersProp || []);
   const [outlets, setOutlets] = useState<Outlet[]>([]);
 
+  // Load the form ONCE each time the modal opens. It used to re-load on every change
+  // to the `order` prop, so any refetch of the order page while the modal was open
+  // silently wiped whatever the admin had already typed ("sometimes it saves,
+  // sometimes it doesn't").
+  const loadedForOpen = useRef(false);
   useEffect(() => {
-    if (order && isOpen) {
+    if (!isOpen) {
+      loadedForOpen.current = false;
+      return;
+    }
+    if (order && !loadedForOpen.current) {
+      loadedForOpen.current = true;
       setCreatedAt(toDatetimeLocal(order.created_at));
       setVerificationAssignedAt(toDatetimeLocal(order.verification_assigned_at));
       setDeliveryAssignedAt(toDatetimeLocal(order.delivery_assigned_at));
@@ -91,13 +113,20 @@ export default function EditTimelineDatesModal({
       setOutletId(order.outlet_id != null ? String(order.outlet_id) : "");
 
       if (order.statusHistories && Array.isArray(order.statusHistories)) {
+        // Same order and same details as the Order Status Timeline on the page.
         setStatusHistories(
-          order.statusHistories.map((h: any) => ({
-            id: h.id,
-            new_status: h.new_status,
-            old_status: h.old_status,
-            created_at: toDatetimeLocal(h.created_at),
-          }))
+          [...order.statusHistories]
+            .sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+            .map((h: any) => ({
+              id: h.id,
+              new_status: h.new_status,
+              old_status: h.old_status,
+              created_at: toDatetimeLocal(h.created_at),
+              remarks: h.remarks || "",
+              user_name: h.user?.full_name || "System",
+              role_name: h.role_name,
+              deleted: false,
+            }))
         );
       } else {
         setStatusHistories([]);
@@ -134,7 +163,13 @@ export default function EditTimelineDatesModal({
     try {
       const token = Cookies.get("auth_token") || localStorage.getItem("token");
 
-      if (verificationId) {
+      // Only when the officer/outlet were actually changed here — calling it on every
+      // save used to add a fake "Re-assigned" row to the status timeline each time.
+      const assignmentChanged =
+        verificationOfficerId !== (order.assigned_to_user_id != null ? String(order.assigned_to_user_id) : "") ||
+        deliveryOfficerId !== (order.delivery_officer_id != null ? String(order.delivery_officer_id) : "") ||
+        outletId !== (order.outlet_id != null ? String(order.outlet_id) : "");
+      if (verificationId && assignmentChanged) {
         const assignmentRes = await fetch(`${API_BASE}/api/verification/${verificationId}/assignment`, {
           method: "PUT",
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
@@ -151,17 +186,19 @@ export default function EditTimelineDatesModal({
       }
 
       const payload = {
-        created_at: createdAt ? new Date(createdAt).toISOString() : null,
-        verification_assigned_at: verificationAssignedAt ? new Date(verificationAssignedAt).toISOString() : null,
-        delivery_assigned_at: deliveryAssignedAt ? new Date(deliveryAssignedAt).toISOString() : null,
-        recovery_assigned_at: recoveryAssignedAt ? new Date(recoveryAssignedAt).toISOString() : null,
-        delivered_at: deliveredAt ? new Date(deliveredAt).toISOString() : null,
-        status_histories: statusHistories.map((h) => ({
+        created_at: fromDatetimeLocal(createdAt),
+        verification_assigned_at: fromDatetimeLocal(verificationAssignedAt),
+        delivery_assigned_at: fromDatetimeLocal(deliveryAssignedAt),
+        recovery_assigned_at: fromDatetimeLocal(recoveryAssignedAt),
+        delivered_at: fromDatetimeLocal(deliveredAt),
+        status_histories: statusHistories.filter((h) => !h.deleted).map((h) => ({
           id: h.id,
-          created_at: h.created_at ? new Date(h.created_at).toISOString() : null,
+          created_at: fromDatetimeLocal(h.created_at),
           new_status: h.new_status,
-          old_status: h.old_status,
+          old_status: h.old_status || null,
+          remarks: h.remarks,
         })),
+        deleted_history_ids: statusHistories.filter((h) => h.deleted).map((h) => h.id),
       };
 
       const res = await fetch(`${API_BASE}/api/orders/${order.id}/update-timeline-dates`, {
@@ -174,9 +211,9 @@ export default function EditTimelineDatesModal({
       });
 
       const json = await res.json();
-      if (json.success) {
+      if (res.ok && json.success) {
         toast.success("Assignment, timeline dates & status history updated successfully!");
-        onSaved();
+        await onSaved();
         onClose();
       } else {
         toast.error(json.message || "Failed to update timeline dates");
@@ -194,7 +231,16 @@ export default function EditTimelineDatesModal({
     );
   };
 
-  const handleStatusHistoryFieldChange = (id: number, field: "new_status" | "old_status", val: string) => {
+  const toggleDeleted = (id: number) => {
+    setStatusHistories((prev) => prev.map((h) => (h.id === id ? { ...h, deleted: !h.deleted } : h)));
+  };
+
+  const statusOptions = Array.from(new Set([
+    ...KNOWN_STATUSES,
+    ...statusHistories.flatMap((h) => [h.new_status, h.old_status || ""]).filter(Boolean),
+  ]));
+
+  const handleStatusHistoryFieldChange = (id: number, field: "new_status" | "old_status" | "remarks", val: string) => {
     setStatusHistories((prev) =>
       prev.map((h) => (h.id === id ? { ...h, [field]: val } : h))
     );
@@ -315,7 +361,7 @@ export default function EditTimelineDatesModal({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="rounded-xl border border-gray-100 dark:border-gray-800 p-4 bg-blue-50/30 dark:bg-blue-900/10">
                 <label className="text-xs font-bold text-blue-800 dark:text-blue-300 block mb-1">
-                  Order Created Date & Time
+                  Order Created Date & Time (PKT)
                 </label>
                 <input
                   type="datetime-local"
@@ -327,7 +373,7 @@ export default function EditTimelineDatesModal({
 
               <div className="rounded-xl border border-gray-100 dark:border-gray-800 p-4 bg-indigo-50/30 dark:bg-indigo-900/10">
                 <label className="text-xs font-bold text-indigo-800 dark:text-indigo-300 block mb-1">
-                  Verification Assigned Date & Time
+                  Verification Assigned Date & Time (PKT)
                 </label>
                 <input
                   type="datetime-local"
@@ -339,7 +385,7 @@ export default function EditTimelineDatesModal({
 
               <div className="rounded-xl border border-gray-100 dark:border-gray-800 p-4 bg-green-50/30 dark:bg-green-900/10">
                 <label className="text-xs font-bold text-green-800 dark:text-green-300 block mb-1">
-                  Delivery Assigned Date & Time
+                  Delivery Assigned Date & Time (PKT)
                 </label>
                 <input
                   type="datetime-local"
@@ -351,7 +397,7 @@ export default function EditTimelineDatesModal({
 
               <div className="rounded-xl border border-gray-100 dark:border-gray-800 p-4 bg-orange-50/30 dark:bg-orange-900/10">
                 <label className="text-xs font-bold text-orange-800 dark:text-orange-300 block mb-1">
-                  Recovery Assigned Date & Time
+                  Recovery Assigned Date & Time (PKT)
                 </label>
                 <input
                   type="datetime-local"
@@ -363,7 +409,7 @@ export default function EditTimelineDatesModal({
 
               <div className="rounded-xl border border-gray-100 dark:border-gray-800 p-4 bg-emerald-50/30 dark:bg-emerald-900/10 md:col-span-2">
                 <label className="text-xs font-bold text-emerald-800 dark:text-emerald-300 block mb-1">
-                  Order Delivered Date & Time
+                  Order Delivered Date & Time (PKT)
                 </label>
                 <input
                   type="datetime-local"
@@ -389,39 +435,77 @@ export default function EditTimelineDatesModal({
                 {statusHistories.map((h) => (
                   <div
                     key={h.id}
-                    className="flex flex-col md:flex-row md:items-center justify-between gap-3 p-3.5 rounded-xl border border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-meta-4/20"
+                    className={`p-3.5 rounded-xl border transition-colors ${h.deleted
+                      ? "border-red-200 bg-red-50/60 dark:border-red-900/40 dark:bg-red-900/10"
+                      : "border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-meta-4/20"}`}
                   >
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 flex-1">
-                      <div>
-                        <label className="text-[10px] font-bold text-gray-500 uppercase block mb-0.5">Status</label>
+                    {/* Who logged it — same as the timeline card, read-only */}
+                    <div className="flex items-center justify-between gap-2 mb-2">
+                      <div className="flex flex-wrap items-center gap-2 text-xs">
+                        <span className="font-semibold text-gray-700 dark:text-gray-300">{h.user_name}</span>
+                        {h.role_name && (
+                          <span className="text-[10px] font-bold bg-primary/10 text-primary px-2 py-0.5 rounded-full tracking-wider uppercase">
+                            {h.role_name}
+                          </span>
+                        )}
+                        {h.deleted && <span className="text-[10px] font-bold text-red-600 uppercase">Will be deleted on save</span>}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => toggleDeleted(h.id)}
+                        title={h.deleted ? "Keep this entry" : "Delete this entry"}
+                        className={`flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-semibold transition-colors ${h.deleted
+                          ? "text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-meta-4"
+                          : "text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"}`}
+                      >
+                        {h.deleted ? <><Undo2 className="size-3.5" /> Undo</> : <><Trash2 className="size-3.5" /> Delete</>}
+                      </button>
+                    </div>
+
+                    <fieldset disabled={h.deleted} className={h.deleted ? "opacity-50" : ""}>
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                        <div>
+                          <label className="text-[10px] font-bold text-gray-500 uppercase block mb-0.5">Status</label>
+                          <select
+                            value={h.new_status || ""}
+                            onChange={(e) => handleStatusHistoryFieldChange(h.id, "new_status", e.target.value)}
+                            className="w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-boxdark px-2.5 py-1.5 text-xs font-semibold focus:outline-none focus:border-primary"
+                          >
+                            {statusOptions.map((st) => <option key={st} value={st}>{statusLabel(st)}</option>)}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-bold text-gray-500 uppercase block mb-0.5">Previous Status</label>
+                          <select
+                            value={h.old_status || ""}
+                            onChange={(e) => handleStatusHistoryFieldChange(h.id, "old_status", e.target.value)}
+                            className="w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-boxdark px-2.5 py-1.5 text-xs font-semibold focus:outline-none focus:border-primary"
+                          >
+                            <option value="">— None —</option>
+                            {statusOptions.map((st) => <option key={st} value={st}>{statusLabel(st)}</option>)}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-bold text-gray-500 uppercase block mb-0.5">Status Change Date & Time (PKT)</label>
+                          <input
+                            type="datetime-local"
+                            value={h.created_at}
+                            onChange={(e) => handleStatusHistoryDateChange(h.id, e.target.value)}
+                            className="w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-boxdark px-2.5 py-1.5 text-xs font-semibold focus:outline-none focus:border-primary"
+                          />
+                        </div>
+                      </div>
+                      <div className="mt-2">
+                        <label className="text-[10px] font-bold text-gray-500 uppercase block mb-0.5">Remarks</label>
                         <input
                           type="text"
-                          value={h.new_status || ""}
-                          onChange={(e) => handleStatusHistoryFieldChange(h.id, "new_status", e.target.value)}
-                          className="w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-boxdark px-2.5 py-1.5 text-xs font-semibold focus:outline-none focus:border-primary uppercase"
-                          placeholder="e.g. DELIVERED"
+                          value={h.remarks}
+                          onChange={(e) => handleStatusHistoryFieldChange(h.id, "remarks", e.target.value)}
+                          placeholder="Optional note shown on the timeline"
+                          className="w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-boxdark px-2.5 py-1.5 text-xs focus:outline-none focus:border-primary"
                         />
                       </div>
-                      <div>
-                        <label className="text-[10px] font-bold text-gray-500 uppercase block mb-0.5">Previous Status (Optional)</label>
-                        <input
-                          type="text"
-                          value={h.old_status || ""}
-                          onChange={(e) => handleStatusHistoryFieldChange(h.id, "old_status", e.target.value)}
-                          className="w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-boxdark px-2.5 py-1.5 text-xs font-semibold focus:outline-none focus:border-primary uppercase"
-                          placeholder="e.g. IN_TRANSIT"
-                        />
-                      </div>
-                    </div>
-                    <div>
-                      <label className="text-[10px] font-bold text-gray-500 uppercase block mb-0.5">Status Change Date & Time</label>
-                      <input
-                        type="datetime-local"
-                        value={h.created_at}
-                        onChange={(e) => handleStatusHistoryDateChange(h.id, e.target.value)}
-                        className="w-full md:w-56 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-boxdark px-2.5 py-1.5 text-xs font-semibold focus:outline-none focus:border-primary"
-                      />
-                    </div>
+                    </fieldset>
                   </div>
                 ))}
               </div>

@@ -2908,7 +2908,7 @@ export default function OrderDetailsPage() {
                 verificationId={verification?.id}
                 verificationOfficers={verificationOfficers}
                 deliveryOfficers={orderDeliveryOfficers}
-                onSaved={() => { fetchOrder(); fetchVerification(); }}
+                onSaved={async () => { await Promise.all([fetchOrder(), fetchVerification()]); }}
             />
         </div>
     );
