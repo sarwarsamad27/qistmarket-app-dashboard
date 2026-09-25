@@ -29,6 +29,74 @@ export default function PendingLegacyProfilesPage() {
   const [orders, setOrders] = useState<PendingOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [selected, setSelected] = useState<Set<number>>(new Set());
+  const [bulkBusy, setBulkBusy] = useState<'complete' | 'delete' | null>(null);
+
+  const toggleOne = (id: number) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  // Rows that leave the list (completed / deleted) must leave the selection too.
+  const dropFromList = (ids: number[]) => {
+    const gone = new Set(ids);
+    setOrders((prev) => prev.filter((o) => !gone.has(o.id)));
+    setSelected((prev) => new Set([...prev].filter((id) => !gone.has(id))));
+  };
+
+  const bulkMarkComplete = async () => {
+    const ids = [...selected];
+    if (ids.length === 0) return;
+    if (!confirm(`Mark ${ids.length} profile(s) complete?\n\nThey will leave this list and start showing everywhere (orders, reports, recovery, dashboards) right away.`)) return;
+    setBulkBusy('complete');
+    try {
+      const token = Cookies.get('auth_token');
+      const res = await fetch(`${BACKEND_URL}/api/admin-panel/legacy-import/mark-complete-bulk`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ order_ids: ids }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) throw new Error(data.message || 'Failed to mark complete');
+      dropFromList(data.data?.completed_ids || []);
+      toast.success(data.message);
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err.message || 'Failed to mark complete');
+    } finally {
+      setBulkBusy(null);
+    }
+  };
+
+  const bulkDelete = async () => {
+    const ids = [...selected];
+    if (ids.length === 0) return;
+    if (!confirm(`DELETE ${ids.length} selected order(s)?\n\nThey will be moved to the Recycle Bin (restore or permanently delete them from there), and any product unit still marked Sold will be returned to stock.`)) return;
+    setBulkBusy('delete');
+    try {
+      const token = Cookies.get('auth_token');
+      const res = await fetch(`${BACKEND_URL}/api/admin-panel/orders/bulk-delete`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ order_ids: ids }),
+      });
+      const data = await res.json();
+      const results: { id: number; success: boolean; message?: string }[] = data.data?.results || [];
+      dropFromList(results.filter((r) => r.success).map((r) => r.id));
+      if (!res.ok || !data.success) throw new Error(data.message || 'Failed to delete orders');
+      toast.success(data.message);
+      const failed = results.filter((r) => !r.success);
+      if (failed.length) toast.error(`${failed.length} could not be deleted — ${failed[0].message}`);
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err.message || 'Failed to delete orders');
+    } finally {
+      setBulkBusy(null);
+    }
+  };
 
   useEffect(() => {
     if (!isSuperAdmin) return;
@@ -61,7 +129,7 @@ export default function PendingLegacyProfilesPage() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || 'Failed to update');
-      setOrders((prev) => prev.filter((o) => o.id !== orderId));
+      dropFromList([orderId]);
       toast.success('Profile marked complete');
     } catch (err: any) {
       console.error(err);
@@ -82,7 +150,7 @@ export default function PendingLegacyProfilesPage() {
       });
       const data = await res.json();
       if (!res.ok || !data.success) throw new Error(data.message || 'Failed to delete order');
-      setOrders((prev) => prev.filter((o) => o.id !== orderId));
+      dropFromList([orderId]);
       toast.success(data.message || 'Order deleted permanently');
     } catch (err: any) {
       console.error(err);
@@ -104,6 +172,16 @@ export default function PendingLegacyProfilesPage() {
     if (!q) return true;
     return o.customer_name?.toLowerCase().includes(q) || o.order_ref?.toLowerCase().includes(q) || o.whatsapp_number?.includes(q);
   });
+  // "Select all" works on what's currently visible (i.e. after the search filter).
+  const allVisibleSelected = filtered.length > 0 && filtered.every((o) => selected.has(o.id));
+  const toggleAllVisible = () => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (allVisibleSelected) filtered.forEach((o) => next.delete(o.id));
+      else filtered.forEach((o) => next.add(o.id));
+      return next;
+    });
+  };
 
   return (
     <div className="mx-auto max-w-7xl">
@@ -127,6 +205,35 @@ export default function PendingLegacyProfilesPage() {
           />
         </div>
 
+        {selected.size > 0 && (
+          <div className="sticky top-0 z-10 mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 dark:border-blue-500/30 dark:bg-blue-500/10">
+            <div className="flex items-center gap-3 text-sm font-semibold text-blue-800 dark:text-blue-200">
+              {selected.size} selected
+              <button onClick={() => setSelected(new Set())} className="text-xs font-medium text-blue-600 hover:underline">
+                Clear
+              </button>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={bulkMarkComplete}
+                disabled={!!bulkBusy}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-green-600 px-4 py-2 text-sm font-bold text-white hover:bg-green-700 disabled:opacity-50"
+              >
+                {bulkBusy === 'complete' && <Loader2 className="w-4 h-4 animate-spin" />}
+                Mark Complete ({selected.size})
+              </button>
+              <button
+                onClick={bulkDelete}
+                disabled={!!bulkBusy}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-red-600 px-4 py-2 text-sm font-bold text-white hover:bg-red-700 disabled:opacity-50"
+              >
+                {bulkBusy === 'delete' && <Loader2 className="w-4 h-4 animate-spin" />}
+                Delete Permanently ({selected.size})
+              </button>
+            </div>
+          </div>
+        )}
+
         {loading ? (
           <p className="text-sm text-gray-500 flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin" /> Loading…</p>
         ) : filtered.length === 0 ? (
@@ -136,6 +243,15 @@ export default function PendingLegacyProfilesPage() {
             <table className="w-full text-left text-sm">
               <thead className="bg-gray-50 dark:bg-gray-900/40">
                 <tr className="border-b border-gray-100 dark:border-gray-800 text-gray-400 uppercase tracking-wider font-bold text-xs">
+                  <th className="py-3 px-3 w-10">
+                    <input
+                      type="checkbox"
+                      aria-label="Select all"
+                      checked={allVisibleSelected}
+                      onChange={toggleAllVisible}
+                      className="h-4 w-4 cursor-pointer accent-red-600"
+                    />
+                  </th>
                   <th className="py-3 px-3">Order Ref</th>
                   <th className="py-3 px-3">Name</th>
                   <th className="py-3 px-3">Phone</th>
@@ -147,7 +263,16 @@ export default function PendingLegacyProfilesPage() {
               </thead>
               <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
                 {filtered.map((o) => (
-                  <tr key={o.id}>
+                  <tr key={o.id} className={selected.has(o.id) ? 'bg-blue-50/60 dark:bg-blue-500/5' : ''}>
+                    <td className="py-2 px-3">
+                      <input
+                        type="checkbox"
+                        aria-label={`Select ${o.order_ref}`}
+                        checked={selected.has(o.id)}
+                        onChange={() => toggleOne(o.id)}
+                        className="h-4 w-4 cursor-pointer accent-red-600"
+                      />
+                    </td>
                     <td className="py-2 px-3 font-medium text-gray-700 dark:text-gray-200">{o.order_ref}</td>
                     <td className="py-2 px-3 text-gray-700 dark:text-gray-200">{o.customer_name}</td>
                     <td className="py-2 px-3 text-gray-700 dark:text-gray-200">{o.whatsapp_number}</td>
