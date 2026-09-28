@@ -587,6 +587,20 @@ const ImageUploadField: React.FC<ImageUploadFieldProps> = ({
   );
 };
 
+const ROLE_BADGE: Record<string, string> = {
+  "Super Admin": "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300",
+  "Admin": "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300",
+  "Sub Admin": "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300",
+  "Verification Officer": "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300",
+  "Delivery Agent": "bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-300",
+  "Recovery Officer": "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300",
+  "Branch User": "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300",
+  "Sales Officer": "bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-300",
+  "Accountant": "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300",
+  "HR": "bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-300",
+};
+const PROTECTED_ROLES = ["Super Admin", "Admin", "Sub Admin"];
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Main Component
 // ─────────────────────────────────────────────────────────────────────────────
@@ -597,7 +611,12 @@ const UsersTable = () => {
   // accounts (or their own) — the backend refuses it; hide the actions to match.
   const { user: viewer } = useAuth();
   const isProtectedForViewer = (u: User) =>
-    !!viewer?.is_sub_admin && (u.id === viewer.id || ["Super Admin", "Admin", "Sub Admin"].includes(u.role));
+    !!viewer?.is_sub_admin && PROTECTED_ROLES.includes(u.role);
+  const isSelf = (u: User) => viewer?.id != null && Number(viewer.id) === u.id;
+  const [roleTab, setRoleTab] = useState("");
+  const [roleCounts, setRoleCounts] = useState<{ role: string; count: number }[]>([]);
+  const [roles, setRoles] = useState<{ id: number; name: string }[]>([]);
+  const [deleteBlocked, setDeleteBlocked] = useState<string | null>(null);
   const [pagination, setPagination] = useState<PaginationInfo>({
     page: 1, limit: 10, total: 0, totalPages: 1, hasNext: false, hasPrev: false,
   });
@@ -667,6 +686,7 @@ const UsersTable = () => {
         sortBy: sorting[0]?.id || "id",
         sortDir: sorting[0]?.desc ? "desc" : "asc",
       });
+      if (roleTab) params.append("role", roleTab);
       columnFilters.forEach((f) => { if (f.id && f.value) params.append(f.id, String(f.value)); });
       const res = await fetch(`${BACKEND_URL}/api/users?${params}`, {
         headers: { Authorization: `Bearer ${token}` },
@@ -676,12 +696,14 @@ const UsersTable = () => {
       if (json.success && json.data?.users) {
         setUsers(json.data.users);
         setPagination(json.data.pagination);
+        setRoleCounts(json.data.role_counts || []);
+        setRoles(json.data.roles || []);
       }
     } catch (err) { console.error(err); }
     finally { setLoading(false); }
   };
 
-  useEffect(() => { fetchUsers(); }, [pagination.page, pagination.limit, globalFilter, columnFilters, sorting]);
+  useEffect(() => { fetchUsers(); }, [pagination.page, pagination.limit, globalFilter, columnFilters, sorting, roleTab]);
 
   // ── Image handlers ──────────────────────────────────────────────────────────
 
@@ -737,7 +759,14 @@ const UsersTable = () => {
     { accessorKey: "email", header: "Email", enableColumnFilter: true },
     { accessorKey: "phone", header: "Phone", enableColumnFilter: true },
     { accessorKey: "cnic", header: "CNIC", enableColumnFilter: true },
-    { accessorKey: "role", header: "Role", enableColumnFilter: true },
+    {
+      accessorKey: "role", header: "Role", enableColumnFilter: false,
+      cell: ({ row }) => (
+        <span className={cn("inline-block rounded-full px-2.5 py-0.5 text-xs font-semibold", ROLE_BADGE[row.original.role] || "bg-gray-100 text-gray-700 dark:bg-dark-3 dark:text-gray-300")}>
+          {row.original.role}
+        </span>
+      ),
+    },
     {
       accessorKey: "outlet", header: "Outlet", enableColumnFilter: true,
       cell: ({ row }) => row.original.outlet?.name || "N/A",
@@ -791,6 +820,9 @@ const UsersTable = () => {
           };
         }, [isOpen]);
 
+        if (isSelf(user)) {
+          return <span className="text-xs font-medium text-gray-400" title="Your own account — change it from your Profile page">You</span>;
+        }
         if (isProtectedForViewer(user)) {
           return <span className="text-xs font-medium text-gray-400" title="Sub Admins can't change admin accounts">Protected</span>;
         }
@@ -817,7 +849,10 @@ const UsersTable = () => {
                     <button onClick={() => { handleEdit(user); setIsOpen(false); }} className="block w-full px-4 py-2.5 text-left hover:bg-[#F5F7FD] hover:text-[#ff3d3d] dark:hover:bg-dark-3 dark:hover:text-neutral-50">Edit</button>
                   </li>
                   <li>
-                    <button onClick={() => { handleDelete(user.id); setIsOpen(false); }} className="block w-full px-4 py-2.5 text-left hover:bg-[#F5F7FD] hover:text-[#ff3d3d] dark:hover:bg-dark-3 dark:hover:text-neutral-50">Delete</button>
+                    <button onClick={() => { handleDelete(user); setIsOpen(false); }} className="block w-full px-4 py-2.5 text-left hover:bg-[#F5F7FD] hover:text-[#ff3d3d] dark:hover:bg-dark-3 dark:hover:text-neutral-50">Delete</button>
+                  </li>
+                  <li>
+                    <button onClick={() => { toggleStatus(user); setIsOpen(false); }} className="block w-full px-4 py-2.5 text-left hover:bg-[#F5F7FD] hover:text-[#ff3d3d] dark:hover:bg-dark-3 dark:hover:text-neutral-50">{user.status === "active" ? "Deactivate" : "Activate"}</button>
                   </li>
                   <li>
                     <button onClick={() => { handlePermissions(user); setIsOpen(false); }} className="block w-full px-4 py-2.5 text-left hover:bg-[#F5F7FD] hover:text-[#ff3d3d] dark:hover:bg-dark-3 dark:hover:text-neutral-50">Permissions</button>
@@ -907,9 +942,32 @@ const UsersTable = () => {
     }
   };
 
-  const handleDelete = (id: number) => {
-    setSelectedUser({ id } as User);
+  const handleDelete = (user: User) => {
+    setSelectedUser(user);
+    setDeleteBlocked(null);
     setDeleteModalOpen(true);
+  };
+
+  const toggleStatus = async (user: User, closeDeleteModal = false) => {
+    const status = user.status === "active" ? "inactive" : "active";
+    setIsSubmitting(true);
+    try {
+      const token = Cookies.get("auth_token");
+      const res = await fetch(`${BACKEND_URL}/api/users/${user.id}/status`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ status }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error?.message || "Status update failed");
+      toast.success(`${user.full_name} ${status === "active" ? "activated" : "deactivated"}`);
+      if (closeDeleteModal) setDeleteModalOpen(false);
+      await fetchUsers();
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to update status");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const confirmDelete = async () => {
@@ -921,12 +979,18 @@ const UsersTable = () => {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (!res.ok) throw new Error("Delete failed");
+      const data = await res.json().catch(() => ({}));
+      if (res.status === 409 && data?.error?.reason === "HAS_LINKED_RECORDS") {
+        setDeleteBlocked(data.error.message);
+        return;
+      }
+      if (!res.ok) throw new Error(data?.error?.message || "Delete failed");
+      toast.success("User deleted");
       await fetchUsers();
       setDeleteModalOpen(false);
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      toast.error("Failed to delete user");
+      toast.error(err?.message || "Failed to delete user");
     } finally {
       setIsSubmitting(false);
     }
@@ -1013,6 +1077,24 @@ const UsersTable = () => {
             {[5, 10, 15, 20, 50].map((size) => <option key={size} value={size}>{size}</option>)}
           </select>
         </div>
+      </div>
+
+      {/* Role tabs — every account, grouped by role */}
+      <div className="flex flex-wrap gap-2 px-7.5 pb-4">
+        {[{ role: "", count: roleCounts.reduce((a, r) => a + r.count, 0) }, ...roleCounts].map((r) => (
+          <button
+            key={r.role || "all"}
+            onClick={() => { setRoleTab(r.role); setPagination((p) => ({ ...p, page: 1 })); }}
+            className={cn(
+              "rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors",
+              roleTab === r.role
+                ? "border-transparent bg-[#ff3d3d] text-white"
+                : "border-stroke text-dark hover:border-[#ff3d3d] hover:text-[#ff3d3d] dark:border-dark-3 dark:text-gray-300"
+            )}
+          >
+            {r.role || "All Users"} <span className="ml-1 opacity-75">({r.count})</span>
+          </button>
+        ))}
       </div>
 
       {/* Table */}
@@ -1111,6 +1193,19 @@ const UsersTable = () => {
               className="w-full rounded-lg border border-stroke bg-transparent px-4 py-2.5 outline-none focus:border-[#ff3d3d] dark:border-dark-3 dark:bg-dark-2" />
           </div>
           <div>
+            <label htmlFor="role_id" className="mb-1.5 block text-sm font-medium text-dark dark:text-gray-300">Role</label>
+            <select id="role_id" name="role_id"
+              value={String((formData as any).role_id ?? roles.find((r) => r.name === formData.role)?.id ?? "")}
+              onChange={handleInputChange}
+              className="w-full rounded-lg border border-stroke bg-transparent px-4 py-2.5 outline-none focus:border-[#ff3d3d] dark:border-dark-3 dark:bg-dark-2">
+              {roles
+                // Sub Admin needs its page list, so those are made from Create Users.
+                // A Sub Admin viewer can't hand out admin roles at all.
+                .filter((r) => r.name === selectedUser?.role || (r.name !== "Sub Admin" && !(viewer?.is_sub_admin && PROTECTED_ROLES.includes(r.name))))
+                .map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
+            </select>
+          </div>
+          <div>
             <label htmlFor="status" className="mb-1.5 block text-sm font-medium text-dark dark:text-gray-300">Status</label>
             <select id="status" name="status" value={formData.status || "active"} onChange={handleInputChange}
               className="w-full rounded-lg border border-stroke bg-transparent px-4 py-2.5 outline-none focus:border-[#ff3d3d] dark:border-dark-3 dark:bg-dark-2">
@@ -1119,7 +1214,7 @@ const UsersTable = () => {
             </select>
           </div>
 
-          {["Verification Officer", "Delivery Agent", "Recovery Officer", "Branch User"].includes(formData.role || "") && (
+          {["Verification Officer", "Delivery Agent", "Recovery Officer", "Branch User"].includes(roles.find((r) => String(r.id) === String((formData as any).role_id))?.name || formData.role || "") && (
             <div>
               <label htmlFor="outlet_id" className="mb-1.5 block text-sm font-medium text-dark dark:text-gray-300">Assigned Outlet</label>
               <select id="outlet_id" name="outlet_id" value={formData.outlet_id || ""} onChange={handleInputChange}
@@ -1192,16 +1287,31 @@ const UsersTable = () => {
       <Modal open={deleteModalOpen} onClose={() => setDeleteModalOpen(false)}
         className="max-w-md rounded-2xl bg-white p-8 shadow-xl dark:bg-gray-800">
         <h2 className="mb-4 text-xl font-semibold text-dark dark:text-white">Confirm Deletion</h2>
-        <p className="mb-6 text-gray-600 dark:text-gray-300">Are you sure you want to delete this user? This action cannot be undone.</p>
+        {deleteBlocked ? (
+          <p className="mb-6 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-200">{deleteBlocked}</p>
+        ) : (
+          <p className="mb-6 text-gray-600 dark:text-gray-300">
+            Are you sure you want to delete <b>{selectedUser?.full_name}</b> ({selectedUser?.role})? This action cannot be undone.
+          </p>
+        )}
         <div className="flex justify-end gap-4">
           <button onClick={() => setDeleteModalOpen(false)} disabled={isSubmitting}
             className="rounded border border-stroke px-6 py-2.5 text-dark hover:bg-gray-100 disabled:opacity-50 dark:border-dark-3 dark:text-white dark:hover:bg-dark-3">
             Cancel
           </button>
-          <button onClick={confirmDelete} disabled={isSubmitting}
-            className="rounded bg-[#ff3d3d] px-6 py-2.5 text-white hover:bg-[#ff3d3d]/90 disabled:opacity-50">
-            {isSubmitting ? "Deleting..." : "Delete"}
-          </button>
+          {deleteBlocked ? (
+            selectedUser?.status === "active" && (
+              <button onClick={() => selectedUser && toggleStatus(selectedUser, true)} disabled={isSubmitting}
+                className="rounded bg-[#ff3d3d] px-6 py-2.5 text-white hover:bg-[#ff3d3d]/90 disabled:opacity-50">
+                {isSubmitting ? "Saving..." : "Deactivate instead"}
+              </button>
+            )
+          ) : (
+            <button onClick={confirmDelete} disabled={isSubmitting}
+              className="rounded bg-[#ff3d3d] px-6 py-2.5 text-white hover:bg-[#ff3d3d]/90 disabled:opacity-50">
+              {isSubmitting ? "Deleting..." : "Delete"}
+            </button>
+          )}
         </div>
       </Modal>
 
