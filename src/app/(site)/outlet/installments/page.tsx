@@ -9,6 +9,7 @@ import SmartPayQrModal from "@/components/Installments/SmartPayQrModal";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { formatExactDate } from "@/utils/dateUtils";
+import { findCurrentInstallmentIndex } from "@/lib/currentInstallment";
 
 const API_BASE = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
 
@@ -236,26 +237,9 @@ function GlobalInstallmentSearch({ onPay, onGenerateQR }: { onPay: (order: any, 
                                             )}
                                             {(() => {
                                                 const ledger = order.installmentLedger || [];
-                                                let activePayableIndex = ledger.findIndex((r: any) => {
-                                                    if (r.status === 'paid' || r.status === 'Paid') return false;
-                                                    const m = r.monthNumber ?? r.month ?? 0;
-                                                    if (m <= 0) return false;
-                                                    const dueDate = r.dueDate || r.due_date;
-                                                    if (!dueDate) return true;
-                                                    const d = new Date(dueDate);
-                                                    if (isNaN(d.getTime())) return true;
-                                                    d.setHours(0, 0, 0, 0);
-                                                    return d >= today;
-                                                });
-                                                const unpaidIndices = ledger
-                                                    .map((r: any, i: number) => ((r.monthNumber ?? r.month ?? 0) > 0 && r.status !== 'paid' && r.status !== 'Paid') ? i : -1)
-                                                    .filter((i: number) => i !== -1);
-                                                if (activePayableIndex === -1 && unpaidIndices.length > 0) {
-                                                    activePayableIndex = unpaidIndices[unpaidIndices.length - 1];
-                                                }
-                                                // The final unpaid installment must never stay locked once it's due -
-                                                // otherwise the customer has no way left to finish paying off the loan.
-                                                const lastUnpaidIndex = unpaidIndices.length > 0 ? unpaidIndices[unpaidIndices.length - 1] : -1;
+                                                // Only the running month is payable (the last one once the schedule has
+                                                // ended); earlier unpaid months are locked and carried into it as arrears.
+                                                const activePayableIndex = findCurrentInstallmentIndex(ledger);
 
                                                 return ledger.map((inst: any, idx: number) => {
                                                 const isPaid = inst.status === 'paid' || inst.status === 'Paid';
@@ -263,8 +247,7 @@ function GlobalInstallmentSearch({ onPay, onGenerateQR }: { onPay: (order: any, 
                                                 const instDueDate = inst.dueDate ? new Date(inst.dueDate) : null;
                                                 instDueDate?.setHours(0, 0, 0, 0);
                                                 const isOverdue = !isPaid && instDueDate && instDueDate < today;
-                                                const isFinalDueUnlock = idx === lastUnpaidIndex && !isPaid && instDueDate !== null && instDueDate <= today;
-                                                const isPayable = idx === activePayableIndex || isFinalDueUnlock;
+                                                const isPayable = idx === activePayableIndex;
                                                 const hasArrears = (inst.arrears || 0) > 0;
 
                                                 return (
@@ -347,7 +330,7 @@ function GlobalInstallmentSearch({ onPay, onGenerateQR }: { onPay: (order: any, 
                                                                 </>
                                                             )}
                                                             {!isPaid && !isPayable && (
-                                                                <span className="text-[8px] font-black text-gray-300 dark:text-gray-600 uppercase tracking-widest cursor-not-allowed" title="Collect the earlier month(s) first">
+                                                                <span className="text-[8px] font-black text-gray-300 dark:text-gray-600 uppercase tracking-widest cursor-not-allowed" title={isOverdue ? "Overdue — its remainder is carried into the current month as arrears" : "Opens in its due month"}>
                                                                     Locked
                                                                 </span>
                                                             )}
@@ -362,21 +345,7 @@ function GlobalInstallmentSearch({ onPay, onGenerateQR }: { onPay: (order: any, 
                                         {/* ─── Quick Pay Next Due Button ─── */}
                                         {(() => {
                                             const ledger = order.installmentLedger || [];
-                                            let actIdx = ledger.findIndex((r: any) => {
-                                                if (r.status === 'paid' || r.status === 'Paid') return false;
-                                                const m = r.monthNumber ?? r.month ?? 0;
-                                                if (m <= 0) return false;
-                                                const dueDate = r.dueDate || r.due_date;
-                                                if (!dueDate) return true;
-                                                const d = new Date(dueDate);
-                                                if (isNaN(d.getTime())) return true;
-                                                d.setHours(0, 0, 0, 0);
-                                                return d >= today;
-                                            });
-                                            if (actIdx === -1) {
-                                                const unpaid = ledger.map((r: any, i: number) => ((r.monthNumber ?? r.month ?? 0) > 0 && r.status !== 'paid' && r.status !== 'Paid') ? i : -1).filter((i: number) => i !== -1);
-                                                if (unpaid.length > 0) actIdx = unpaid[unpaid.length - 1];
-                                            }
+                                            const actIdx = findCurrentInstallmentIndex(ledger);
                                             const nextPending = actIdx !== -1 ? ledger[actIdx] : null;
                                             if (!nextPending) return null;
 
