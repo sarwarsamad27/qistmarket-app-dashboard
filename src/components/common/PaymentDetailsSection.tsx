@@ -37,9 +37,18 @@ function previewCarryFlow(rows: { month: number; amount: number; collected: numb
         carriedIn: [] as CarryIn[],
         carriedOut: [] as CarryOut[],
     }));
+    // Pass 1: own collection covers own due; the rest is excess.
     rows.forEach((row, i) => {
         const r = result[i];
         r.ownApplied = Math.min(r.collected, row.amount);
+        if (r.collected > row.amount + 0.01) {
+            queue.push({ sourceIndex: i, fromMonth: row.month, remaining: r.collected - row.amount });
+        }
+    });
+    // Pass 2: excess settles the OLDEST outstanding installment first — an earlier
+    // month's shortfall included — then moves on to later months.
+    rows.forEach((row, i) => {
+        const r = result[i];
         let room = Math.max(0, row.amount - r.ownApplied);
         while (room > 0.01 && queue.length > 0) {
             const chunk = queue[0];
@@ -50,9 +59,6 @@ function previewCarryFlow(rows: { month: number; amount: number; collected: numb
             r.carriedIn.push({ fromMonth: chunk.fromMonth, amount: take });
             result[chunk.sourceIndex].carriedOut.push({ toMonth: row.month, amount: take });
             if (chunk.remaining <= 0.01) queue.shift();
-        }
-        if (r.collected > row.amount + 0.01) {
-            queue.push({ sourceIndex: i, fromMonth: row.month, remaining: r.collected - row.amount });
         }
     });
     queue.forEach((chunk) => result[chunk.sourceIndex].carriedOut.push({ toMonth: null, amount: chunk.remaining }));
@@ -604,7 +610,7 @@ export const PaymentDetailsSection = ({
                                 <div className="mb-3 flex flex-wrap gap-x-5 gap-y-1 rounded-lg bg-white px-4 py-2 text-[11px] text-gray-500 shadow-sm dark:bg-gray-800 dark:text-gray-400">
                                     <span><strong className="text-dark dark:text-white">Customer paid</strong> = what the customer actually paid against that month</span>
                                     <span><strong className="text-green-600">Counted for month</strong> = how much of that month&apos;s installment is covered</span>
-                                    <span className="text-blue-600 dark:text-blue-400">→ extra moved forward to a later unpaid month</span>
+                                    <span className="text-blue-600 dark:text-blue-400">→ extra moved to another unpaid month (oldest first)</span>
                                     <span className="text-purple-600 dark:text-purple-400">← received from an earlier month&apos;s extra</span>
                                 </div>
                             )}
