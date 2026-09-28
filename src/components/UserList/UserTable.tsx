@@ -1115,6 +1115,21 @@ const UsersTable = () => {
                           </div>
                         )}
                       </div>
+                      {header.column.id === "role" && (
+                        // Same filter as the role tabs above — exact role, not "contains".
+                        <div className="mt-2">
+                          <select
+                            value={roleTab}
+                            onChange={(e) => { setRoleTab(e.target.value); setPagination((p) => ({ ...p, page: 1 })); }}
+                            className="w-full rounded-md border border-stroke bg-transparent px-2 py-2 text-sm font-normal outline-none focus:border-[#ff3d3d] dark:border-dark-3 dark:bg-dark-2"
+                          >
+                            <option value="">All Roles</option>
+                            {roleCounts.map((r) => (
+                              <option key={r.role} value={r.role}>{r.role} ({r.count})</option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
                       {header.column.getCanFilter() && header.column.id !== "actions" && (
                         <div className="mt-2">
                           <ColumnFilter column={{ filterValue: header.column.getFilterValue() as string, setFilter: header.column.setFilterValue }} />
