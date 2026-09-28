@@ -7,6 +7,7 @@ import toast from "react-hot-toast";
 import Link from "next/link";
 import Cookies from "js-cookie";
 import DepartmentSelect from "@/components/EmployeePortal/DepartmentSelect";
+import { roleLabel } from "@/lib/roleLabels";
 
 const API = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
 
@@ -223,7 +224,7 @@ export default function CreateEmployeePage() {
             <select value={form.user_id} onChange={(e) => setForm({ ...form, user_id: e.target.value })}
               className="w-full rounded-lg border border-stroke px-3 py-2 text-sm dark:border-stroke-dark dark:bg-dark-3">
               <option value="">— Not linked —</option>
-              {appUsers.map((u) => <option key={u.id} value={u.id}>{u.full_name} (@{u.username}{u.role ? `, ${u.role}` : ""})</option>)}
+              {appUsers.map((u) => <option key={u.id} value={u.id}>{u.full_name} (@{u.username}{u.role ? `, ${roleLabel(u.role)}` : ""})</option>)}
             </select>
           </div>
           <div className="sm:col-span-2">{field("address", "Address")}</div>

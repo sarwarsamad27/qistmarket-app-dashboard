@@ -9,6 +9,7 @@ import PageHeader from "@/components/Accounts/PageHeader";
 import EmptyState from "@/components/Accounts/EmptyState";
 import { TableSkeleton } from "@/components/Accounts/Skeleton";
 import StatCard, { PKR } from "@/components/Accounts/StatCard";
+import { roleLabel } from "@/lib/roleLabels";
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
 const authHeaders = () => ({ Authorization: `Bearer ${Cookies.get("auth_token")}`, "Content-Type": "application/json" });
@@ -281,7 +282,7 @@ export default function AdminOutletsPage() {
                   <div key={s.id} className="flex items-center justify-between rounded-xl border border-slate-100 p-3 text-sm dark:border-white/10">
                     <div>
                       <p className="font-semibold text-dark dark:text-white">{s.full_name}</p>
-                      <p className="text-xs text-gray-400">@{s.username} · {s.role}{s.phone ? ` · ${s.phone}` : ""}</p>
+                      <p className="text-xs text-gray-400">@{s.username} · {roleLabel(s.role)}{s.phone ? ` · ${s.phone}` : ""}</p>
                       {!s.has_employee_record && <p className="mt-0.5 text-[10px] font-bold text-amber-600">⚠ No HR employee record — missing from Attendance</p>}
                     </div>
                     <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${s.is_online ? "bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10" : "bg-gray-100 text-gray-500 dark:bg-white/10"}`}>{s.is_online ? "Online" : "Offline"}</span>

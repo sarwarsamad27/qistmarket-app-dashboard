@@ -6,6 +6,7 @@ import SubAdminPagePicker from '@/components/Users/SubAdminPagePicker';
 import toast from "react-hot-toast";
 import Cookies from "js-cookie";
 import Breadcrumb from '@/components/Breadcrumbs/Breadcrumb';
+import { roleLabel } from "@/lib/roleLabels";
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
 
@@ -66,14 +67,14 @@ const CreateUsers: React.FC = () => {
     },
     {
       id: 4,
-      name: 'Admin',
+      name: 'Sub Admin',
       platform: 'web',
       icon: Monitor,
       description: 'Assign cases, manage officers, approve/reject verifications, live map, reports, export and also Create and manage new orders'
     },
     {
       id: SUB_ADMIN_ROLE_ID,
-      name: 'Sub Admin',
+      name: 'Sub Admin (Selected Pages)',
       platform: 'web',
       icon: ShieldCheck,
       description: 'Your own (Super Admin) menu, limited to the pages you tick below — everything unticked stays hidden and blocked. Cannot create users or change admin accounts. Logs in with OTP.'

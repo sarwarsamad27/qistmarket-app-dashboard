@@ -9,6 +9,7 @@ import DepartmentSelect from "@/components/EmployeePortal/DepartmentSelect";
 import toast from "react-hot-toast";
 import Image from "next/image";
 import { User, FileText, DollarSign, Activity, Star, ClipboardList, Calendar, Upload, Search, Trash2, Download } from "lucide-react";
+import { roleLabel } from "@/lib/roleLabels";
 
 interface Employee {
   id: number; employee_id: string; full_name: string; username: string; portal_active: boolean;
@@ -559,7 +560,7 @@ export default function HrEmployeeDetailPage() {
                 <select name="user_id" defaultValue={employee.user_id ?? ""} className="mt-1 w-full rounded-lg border border-stroke px-3 py-2 text-sm text-dark dark:border-stroke-dark dark:bg-dark-3 dark:text-white">
                   <option value="">— Not linked —</option>
                   {employee.user_id && !appUsers.some((u) => u.id === employee.user_id) && <option value={employee.user_id}>User #{employee.user_id}</option>}
-                  {appUsers.map((u) => <option key={u.id} value={u.id}>{u.full_name} (@{u.username}{u.role ? `, ${u.role}` : ""})</option>)}
+                  {appUsers.map((u) => <option key={u.id} value={u.id}>{u.full_name} (@{u.username}{u.role ? `, ${roleLabel(u.role)}` : ""})</option>)}
                 </select>
               </label>
               <label className="text-xs text-gray-500 sm:col-span-2">Address

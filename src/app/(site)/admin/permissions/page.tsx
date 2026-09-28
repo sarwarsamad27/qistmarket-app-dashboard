@@ -6,6 +6,7 @@ import toast from "react-hot-toast";
 import { KeyRound, Search } from "lucide-react";
 import Breadcrumb from "@/components/Breadcrumbs/Breadcrumb";
 import PageHeader from "@/components/Accounts/PageHeader";
+import { roleLabel } from "@/lib/roleLabels";
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
 const authHeaders = () => ({ Authorization: `Bearer ${Cookies.get("auth_token")}`, "Content-Type": "application/json" });
@@ -96,7 +97,7 @@ export default function AdminPermissionsPage() {
               users.map((u) => (
                 <button key={u.id} onClick={() => setSelected(u)} className={`block w-full border-b border-slate-50 p-3 text-left text-sm transition last:border-0 dark:border-white/5 ${selected?.id === u.id ? "bg-[#ff3d3d]/5" : "hover:bg-slate-50 dark:hover:bg-white/5"}`}>
                   <p className="font-semibold text-dark dark:text-white">{u.full_name}</p>
-                  <p className="text-xs text-gray-400">@{u.username} · {u.role}</p>
+                  <p className="text-xs text-gray-400">@{u.username} · {roleLabel(u.role)}</p>
                 </button>
               ))
             )}
@@ -111,7 +112,7 @@ export default function AdminPermissionsPage() {
           ) : (
             <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-boxdark">
               <h2 className="mb-1 text-sm font-bold text-dark dark:text-white">{selected.full_name}</h2>
-              <p className="mb-4 text-xs text-gray-400">@{selected.username} · {selected.role}</p>
+              <p className="mb-4 text-xs text-gray-400">@{selected.username} · {roleLabel(selected.role)}</p>
               <div className="space-y-3">
                 {CURATED_KEYS.map((k) => {
                   const allowed = isAllowed(selected, k.key);

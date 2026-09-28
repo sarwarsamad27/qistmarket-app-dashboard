@@ -8,6 +8,7 @@ import {
   Building2, User, ChevronDown, AlertCircle, CheckCircle2
 } from "lucide-react";
 import Breadcrumb from "@/components/Breadcrumbs/Breadcrumb";
+import { roleLabel } from "@/lib/roleLabels";
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
 const authHeaders = () => ({ Authorization: `Bearer ${Cookies.get("auth_token")}`, "Content-Type": "application/json" });
@@ -193,7 +194,7 @@ export default function CashLimitsPage() {
                       <option value="">Select {scopeType === "delivery" ? "Delivery Officer" : "Recovery Officer"}</option>
                       {(scopeType === "delivery" ? deliveryOptions : recoveryOptions).map((item: any) => (
                         <option key={item.id} value={item.id}>
-                          {item.full_name || item.username}{item.role ? ` (${item.role.name || item.role})` : ""}
+                          {item.full_name || item.username}{item.role ? ` (${roleLabel(item.role.name || item.role)})` : ""}
                         </option>
                       ))}
                     </select>

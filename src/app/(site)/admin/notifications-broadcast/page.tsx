@@ -6,6 +6,7 @@ import toast from "react-hot-toast";
 import { Megaphone, Send } from "lucide-react";
 import Breadcrumb from "@/components/Breadcrumbs/Breadcrumb";
 import PageHeader from "@/components/Accounts/PageHeader";
+import { roleLabel } from "@/lib/roleLabels";
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
 const authHeaders = () => ({ Authorization: `Bearer ${Cookies.get("auth_token")}`, "Content-Type": "application/json" });
@@ -78,7 +79,7 @@ export default function AdminNotificationsBroadcastPage() {
               <label className="mb-1.5 block text-xs font-medium text-gray-500">Role</label>
               <select value={targetId} onChange={(e) => setTargetId(e.target.value)} className="w-full rounded-xl border border-stroke bg-white px-4 py-2.5 text-sm outline-none focus:border-[#ff3d3d] dark:border-dark-3 dark:bg-gray-dark dark:text-white">
                 <option value="">Select a role...</option>
-                {roles.map((r) => <option key={r.id} value={r.name}>{r.name}</option>)}
+                {roles.map((r) => <option key={r.id} value={r.name}>{roleLabel(r.name)}</option>)}
               </select>
             </div>
           )}

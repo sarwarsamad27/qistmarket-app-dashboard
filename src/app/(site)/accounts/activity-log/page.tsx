@@ -8,6 +8,7 @@ import PageHeader from "@/components/Accounts/PageHeader";
 import EmptyState from "@/components/Accounts/EmptyState";
 import { TableSkeleton } from "@/components/Accounts/Skeleton";
 import { formatExactDate } from "@/utils/dateUtils";
+import { roleLabel } from "@/lib/roleLabels";
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
 const authHeaders = () => ({ Authorization: `Bearer ${Cookies.get("auth_token")}` });
@@ -266,7 +267,7 @@ export default function ActivityLogPage() {
                           {a.orders.map((o, j) => (
                             <tr key={j} className="border-t border-slate-50 dark:border-white/5">
                               <td className="px-4 py-2.5 font-medium text-dark dark:text-white">{o.order_ref}</td>
-                              <td className="px-4 py-2.5 text-gray-600 dark:text-gray-300">{o.role}</td>
+                              <td className="px-4 py-2.5 text-gray-600 dark:text-gray-300">{roleLabel(o.role)}</td>
                               <td className="px-4 py-2.5 text-gray-600 dark:text-gray-300">{o.customer_name || "—"}</td>
                               <td className="px-4 py-2.5 text-gray-500">{o.status}</td>
                             </tr>

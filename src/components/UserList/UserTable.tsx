@@ -29,6 +29,7 @@ import { cn } from "@/lib/utils";
 import { createPortal } from "react-dom";
 import Pagination from "../common/Pagination";
 import { toast } from "react-hot-toast";
+import { roleLabel } from "@/lib/roleLabels";
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
 
@@ -763,7 +764,7 @@ const UsersTable = () => {
       accessorKey: "role", header: "Role", enableColumnFilter: false,
       cell: ({ row }) => (
         <span className={cn("inline-block rounded-full px-2.5 py-0.5 text-xs font-semibold", ROLE_BADGE[row.original.role] || "bg-gray-100 text-gray-700 dark:bg-dark-3 dark:text-gray-300")}>
-          {row.original.role}
+          {roleLabel(row.original.role)}
         </span>
       ),
     },
@@ -824,7 +825,7 @@ const UsersTable = () => {
           return <span className="text-xs font-medium text-gray-400" title="Your own account — change it from your Profile page">You</span>;
         }
         if (isProtectedForViewer(user)) {
-          return <span className="text-xs font-medium text-gray-400" title="Sub Admins can't change admin accounts">Protected</span>;
+          return <span className="text-xs font-medium text-gray-400" title="Sub Admins can't change Super Admin / Sub Admin accounts">Protected</span>;
         }
 
         return (
@@ -1092,7 +1093,7 @@ const UsersTable = () => {
                 : "border-stroke text-dark hover:border-[#ff3d3d] hover:text-[#ff3d3d] dark:border-dark-3 dark:text-gray-300"
             )}
           >
-            {r.role || "All Users"} <span className="ml-1 opacity-75">({r.count})</span>
+            {r.role ? roleLabel(r.role) : "All Users"} <span className="ml-1 opacity-75">({r.count})</span>
           </button>
         ))}
       </div>
@@ -1125,7 +1126,7 @@ const UsersTable = () => {
                           >
                             <option value="">All Roles</option>
                             {roleCounts.map((r) => (
-                              <option key={r.role} value={r.role}>{r.role} ({r.count})</option>
+                              <option key={r.role} value={r.role}>{roleLabel(r.role)} ({r.count})</option>
                             ))}
                           </select>
                         </div>
@@ -1217,7 +1218,7 @@ const UsersTable = () => {
                 // Sub Admin needs its page list, so those are made from Create Users.
                 // A Sub Admin viewer can't hand out admin roles at all.
                 .filter((r) => r.name === selectedUser?.role || (r.name !== "Sub Admin" && !(viewer?.is_sub_admin && PROTECTED_ROLES.includes(r.name))))
-                .map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
+                .map((r) => <option key={r.id} value={r.id}>{roleLabel(r.name)}</option>)}
             </select>
           </div>
           <div>
@@ -1306,7 +1307,7 @@ const UsersTable = () => {
           <p className="mb-6 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-200">{deleteBlocked}</p>
         ) : (
           <p className="mb-6 text-gray-600 dark:text-gray-300">
-            Are you sure you want to delete <b>{selectedUser?.full_name}</b> ({selectedUser?.role})? This action cannot be undone.
+            Are you sure you want to delete <b>{selectedUser?.full_name}</b> ({roleLabel(selectedUser?.role)})? This action cannot be undone.
           </p>
         )}
         <div className="flex justify-end gap-4">
