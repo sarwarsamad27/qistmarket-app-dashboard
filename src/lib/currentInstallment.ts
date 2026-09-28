@@ -1,10 +1,14 @@
 // Which installment is open for payment — same rule as the backend's
-// normalizeLedger (ledgerUtils.js), which also puts the arrears on this row:
-//   - the running month = the first unpaid row whose due date hasn't passed;
-//   - if every unpaid row is already past due, the LAST unpaid row, so the
-//     final installment is never locked while money is still owed.
-// Every unpaid month due before it is locked; its remainder is carried onto
-// this row as arrears. Returns -1 when everything is paid.
+// findCurrentInstallmentIndex (ledgerUtils.js), which also puts the arrears on
+// this row:
+//   - the running cycle belongs to the month whose due date passed most
+//     recently (due today counts) and stays open until the next due date;
+//   - if that month is already paid, the next unpaid month opens (paying ahead);
+//   - before the first due date, the first unpaid month;
+//   - if nothing from the running month onward is unpaid, the LAST unpaid
+//     month, so the final installment never stays locked while money is owed.
+// Unpaid months before it are locked; their remainder is carried onto this
+// row as arrears. Returns -1 when everything is paid.
 type LedgerRowLike = {
   monthNumber?: number;
   month?: number;
@@ -14,19 +18,22 @@ type LedgerRowLike = {
 };
 
 export function findCurrentInstallmentIndex(rows: LedgerRowLike[], now: Date = new Date()): number {
-  const today = new Date(now);
-  today.setHours(0, 0, 0, 0);
+  const todayEnd = new Date(now);
+  todayEnd.setHours(23, 59, 59, 999);
+  const isInstallment = (r: LedgerRowLike) => (r.monthNumber ?? r.month ?? 0) > 0;
+  const isUnpaid = (r: LedgerRowLike) => (r.status || "").toLowerCase() !== "paid";
+
+  let runningIdx = -1;
   let lastUnpaid = -1;
-  for (let i = 0; i < rows.length; i++) {
-    const r = rows[i];
-    if ((r.monthNumber ?? r.month ?? 0) <= 0) continue;
-    if ((r.status || "").toLowerCase() === "paid") continue;
-    lastUnpaid = i;
+  rows.forEach((r, i) => {
+    if (!isInstallment(r)) return;
+    if (isUnpaid(r)) lastUnpaid = i;
     const raw = r.dueDate || r.due_date;
     const d = raw ? new Date(raw) : null;
-    if (!d || isNaN(d.getTime())) return i;
-    d.setHours(0, 0, 0, 0);
-    if (d >= today) return i;
+    if (d && !isNaN(d.getTime()) && d <= todayEnd) runningIdx = i;
+  });
+  for (let i = Math.max(0, runningIdx); i < rows.length; i++) {
+    if (isInstallment(rows[i]) && isUnpaid(rows[i])) return i;
   }
   return lastUnpaid;
 }
