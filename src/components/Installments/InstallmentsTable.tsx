@@ -784,23 +784,9 @@ export default function InstallmentsTable({ data, onPay, selectedIds = [], onSel
                                                         >
                                                             Lock
                                                         </button>
-                                                        <button
-                                                            onClick={async () => {
-                                                                try {
-                                                                    const res = await fetch(`${API_BASE}/api/paytrigger/device/${encodeURIComponent(order.imei_serial)}/unlock`, {
-                                                                        method: 'POST',
-                                                                        headers: getAuthHeaders(),
-                                                                        body: JSON.stringify({ order_ref: order.order_ref }),
-                                                                    });
-                                                                    const d = await res.json();
-                                                                    alert(d.message || (d.success ? 'Unlock sent' : 'Failed'));
-                                                                } catch (e) { console.error(e); alert('Error communicating with PayTrigger'); }
-                                                            }}
-                                                            className="text-[9px] font-black px-2.5 py-1.5 rounded-lg bg-emerald-500 text-white hover:bg-emerald-600 transition-colors disabled:opacity-40"
-                                                            disabled={!order.imei_serial}
-                                                        >
-                                                            Unlock
-                                                        </button>
+                                                        {/* No Unlock here: it permanently removes the PayTrigger lock
+                                                            (the phone would never auto-lock again). To open a locked
+                                                            phone for a few days use PTP; payments unlock it automatically. */}
                                                         <button
                                                             onClick={() => openPtpModal(order)}
                                                             className="text-[9px] font-black px-2.5 py-1.5 rounded-lg bg-amber-500 text-white hover:bg-amber-600 transition-colors disabled:opacity-40"
