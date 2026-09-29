@@ -343,7 +343,11 @@ function InstallmentsViewContent() {
 
   const displayedMonthsCollectedTotal = displayedMonthsCollected + displayedMonthsCollectedAdvance;
 
-  const displayedMonthsRemaining = displayedMonthsDue - displayedMonthsCollected;
+  // Unpaid balance of the selected month's installments — not due minus
+  // collected, since collected also counts arrears/prepaid months and went negative.
+  const displayedMonthsRemaining = hasColFilters
+    ? filteredInstallments.reduce((sum, i) => sum + (i.monthRemainingAmount || 0), 0)
+    : (stats.monthsRemainingAmount || 0);
 
   const displayedSystemPaid = hasColFilters
     ? filteredInstallments.reduce((sum, i) => sum + (i.orderPaidTotal || 0), 0)
