@@ -133,6 +133,7 @@ export default function SalesReportTab({ token, startDate, endDate, searchQuery 
                                 <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Total Amount Received</p>
                                 {/* All money actually received in the range: down payments + installments (by payment date) + cash sales */}
                                 <p className="text-2xl font-bold text-green-600">Rs {(totalCollected + cashSalesReceived).toLocaleString()}</p>
+                                <p className="text-xs text-gray-400 mt-1">Down payment + installments + cash sale</p>
                             </div>
                             <div className="rounded-xl border border-gray-100 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-800">
                                 <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Installment Recovery</p>
