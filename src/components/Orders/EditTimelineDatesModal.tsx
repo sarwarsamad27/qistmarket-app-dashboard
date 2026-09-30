@@ -85,9 +85,11 @@ export default function EditTimelineDatesModal({
   // here rather than sending them somewhere else for it.
   const [verificationOfficerId, setVerificationOfficerId] = useState("");
   const [deliveryOfficerId, setDeliveryOfficerId] = useState("");
+  const [recoveryOfficerId, setRecoveryOfficerId] = useState("");
   const [outletId, setOutletId] = useState("");
   const [verificationOfficers, setVerificationOfficers] = useState<Officer[]>(verificationOfficersProp || []);
   const [deliveryOfficers, setDeliveryOfficers] = useState<Officer[]>(deliveryOfficersProp || []);
+  const [recoveryOfficers, setRecoveryOfficers] = useState<Officer[]>([]);
   const [outlets, setOutlets] = useState<Outlet[]>([]);
 
   // Load the form ONCE each time the modal opens. It used to re-load on every change
@@ -110,6 +112,7 @@ export default function EditTimelineDatesModal({
 
       setVerificationOfficerId(order.assigned_to_user_id != null ? String(order.assigned_to_user_id) : "");
       setDeliveryOfficerId(order.delivery_officer_id != null ? String(order.delivery_officer_id) : "");
+      setRecoveryOfficerId(order.recovery_officer_id != null ? String(order.recovery_officer_id) : "");
       setOutletId(order.outlet_id != null ? String(order.outlet_id) : "");
 
       if (order.statusHistories && Array.isArray(order.statusHistories)) {
@@ -137,15 +140,23 @@ export default function EditTimelineDatesModal({
         Promise.all([
           fetch(`${API_BASE}/api/assignments/officers?role=verification&all=true`, { headers: { Authorization: `Bearer ${token}` } }),
           fetch(`${API_BASE}/api/assignments/officers?role=delivery&all=true&include_admins=true`, { headers: { Authorization: `Bearer ${token}` } }),
-        ]).then(async ([voRes, doRes]) => {
+          fetch(`${API_BASE}/api/assignments/officers?role=recovery&all=true&include_admins=true`, { headers: { Authorization: `Bearer ${token}` } }),
+        ]).then(async ([voRes, doRes, roRes]) => {
           const voJson = await voRes.json();
           const doJson = await doRes.json();
+          const roJson = await roRes.json();
           if (voJson.success && Array.isArray(voJson.data)) setVerificationOfficers(voJson.data);
           if (doJson.success && Array.isArray(doJson.data)) setDeliveryOfficers(doJson.data);
+          if (roJson.success && Array.isArray(roJson.data)) setRecoveryOfficers(roJson.data);
         }).catch((err) => console.error("Error fetching officers:", err));
       } else {
         setVerificationOfficers(verificationOfficersProp || []);
         setDeliveryOfficers(deliveryOfficersProp || []);
+        // Recovery officers always fetched fresh (no prop for them)
+        const token2 = Cookies.get("auth_token") || localStorage.getItem("token");
+        fetch(`${API_BASE}/api/assignments/officers?role=recovery&all=true&include_admins=true`, { headers: { Authorization: `Bearer ${token2}` } })
+          .then(r => r.json()).then(j => { if (j.success && Array.isArray(j.data)) setRecoveryOfficers(j.data); })
+          .catch(() => {});
       }
 
       fetch(`${API_BASE}/api/outlets`, { headers: { Authorization: `Bearer ${token}` } })
@@ -168,6 +179,7 @@ export default function EditTimelineDatesModal({
       const assignmentChanged =
         verificationOfficerId !== (order.assigned_to_user_id != null ? String(order.assigned_to_user_id) : "") ||
         deliveryOfficerId !== (order.delivery_officer_id != null ? String(order.delivery_officer_id) : "") ||
+        recoveryOfficerId !== (order.recovery_officer_id != null ? String(order.recovery_officer_id) : "") ||
         outletId !== (order.outlet_id != null ? String(order.outlet_id) : "");
       if (verificationId && assignmentChanged) {
         const assignmentRes = await fetch(`${API_BASE}/api/verification/${verificationId}/assignment`, {
@@ -176,6 +188,7 @@ export default function EditTimelineDatesModal({
           body: JSON.stringify({
             verification_officer_id: verificationOfficerId || null,
             delivery_officer_id: deliveryOfficerId || null,
+            recovery_officer_id: recoveryOfficerId || null,
             outlet_id: outletId || null,
           }),
         });
@@ -288,7 +301,7 @@ export default function EditTimelineDatesModal({
                 Assignment — Who &amp; Where
               </h4>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="rounded-xl border border-gray-100 dark:border-gray-800 p-4 bg-indigo-50/30 dark:bg-indigo-900/10">
                 <label className="text-xs font-bold text-indigo-800 dark:text-indigo-300 block mb-1">
                   Verification Officer
@@ -322,6 +335,25 @@ export default function EditTimelineDatesModal({
                     <option value={order.delivery_officer_id}>{order.delivery_officer?.full_name} (@{order.delivery_officer?.username})</option>
                   )}
                   {deliveryOfficers.map((o) => (
+                    <option key={o.id} value={o.id}>{o.full_name} (@{o.username})</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="rounded-xl border border-gray-100 dark:border-gray-800 p-4 bg-orange-50/30 dark:bg-orange-900/10">
+                <label className="text-xs font-bold text-orange-800 dark:text-orange-300 block mb-1">
+                  Recovery Officer
+                </label>
+                <select
+                  value={recoveryOfficerId}
+                  onChange={(e) => setRecoveryOfficerId(e.target.value)}
+                  className="w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-boxdark px-3 py-2 text-xs font-semibold focus:outline-none focus:border-orange-500"
+                >
+                  <option value="">-- Unassigned --</option>
+                  {order.recovery_officer_id && !recoveryOfficers.some((o) => o.id === order.recovery_officer_id) && (
+                    <option value={order.recovery_officer_id}>{order.recovery_officer?.full_name} (@{order.recovery_officer?.username})</option>
+                  )}
+                  {recoveryOfficers.map((o) => (
                     <option key={o.id} value={o.id}>{o.full_name} (@{o.username})</option>
                   ))}
                 </select>
