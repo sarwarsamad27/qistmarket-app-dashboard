@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Cookies from "js-cookie";
 import toast from "react-hot-toast";
-import { CreditCard, Receipt, Tags, Store, Plus, ClipboardCheck, Users2, Trash2, Check, X, Upload, ExternalLink, Loader2 } from "lucide-react";
+import { CreditCard, Receipt, Tags, Store, Plus, ClipboardCheck, Users2, Trash2, Check, X, Upload, ExternalLink, Loader2, Search, CheckCircle2, Clock } from "lucide-react";
 import Breadcrumb from "@/components/Breadcrumbs/Breadcrumb";
 import OutletSelector from "@/components/common/OutletSelector";
 import PageHeader from "@/components/Accounts/PageHeader";
@@ -31,6 +31,16 @@ interface ExpenseVoucher {
   items: { category: string; amount: number; description: string | null }[];
 }
 interface SalaryMonth { month: string; total: number; paid: number; pending: number; count: number }
+interface SalarySlip {
+  id: number;
+  employee_name: string;
+  department?: string;
+  month: number;
+  year: number;
+  net_payable: number;
+  status: string;
+  paid_date?: string;
+}
 
 const TABS = [
   { key: "summary" as const, label: "Summary", icon: CreditCard },
@@ -54,7 +64,11 @@ export default function AccountsExpensesPage() {
   const invoiceInputRefs = useRef<Record<number, HTMLInputElement | null>>({});
 
   const [salaryMonths, setSalaryMonths] = useState<SalaryMonth[]>([]);
+  const [salarySlips, setSalarySlips] = useState<SalarySlip[]>([]);
   const [salaryLoading, setSalaryLoading] = useState(false);
+  const [selectedMonthFilter, setSelectedMonthFilter] = useState<string>("all");
+  const [salarySearch, setSalarySearch] = useState<string>("");
+  const [salaryStatusFilter, setSalaryStatusFilter] = useState<string>("all");
 
   useEffect(() => {
     fetch(`${BACKEND_URL}/api/accounts/expenses/summary`, { headers: authHeaders() })
@@ -78,7 +92,12 @@ export default function AccountsExpensesPage() {
       setSalaryLoading(true);
       fetch(`${BACKEND_URL}/api/accounts/expenses/salary`, { headers: authHeaders() })
         .then((res) => res.json())
-        .then((json) => { if (json.success) setSalaryMonths(json.data.months); })
+        .then((json) => {
+          if (json.success) {
+            setSalaryMonths(json.data.months || []);
+            setSalarySlips(json.data.slips || []);
+          }
+        })
         .finally(() => setSalaryLoading(false));
     }
   }, [tab]);
@@ -311,26 +330,180 @@ export default function AccountsExpensesPage() {
       )}
 
       {tab === "salary" && (
-        salaryLoading ? <TableSkeleton /> : salaryMonths.length > 0 ? (
-          <div className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm dark:border-white/10 dark:bg-boxdark">
-            <table className="w-full text-left text-sm">
-              <thead className="bg-gray-50 text-[11px] uppercase tracking-wide text-gray-500 dark:bg-dark-2 dark:text-gray-400">
-                <tr><th className="px-4 py-3 font-bold">Month</th><th className="px-4 py-3 text-right font-bold">Employees</th><th className="px-4 py-3 text-right font-bold">Paid</th><th className="px-4 py-3 text-right font-bold">Pending</th><th className="px-4 py-3 text-right font-bold">Total</th></tr>
-              </thead>
-              <tbody>
-                {salaryMonths.map((m) => (
-                  <tr key={m.month} className="border-t border-slate-50 dark:border-white/5">
-                    <td className="px-4 py-3.5 font-medium text-dark dark:text-white">{m.month}</td>
-                    <td className="px-4 py-3.5 text-right tabular-nums text-gray-600 dark:text-gray-300">{m.count}</td>
-                    <td className="px-4 py-3.5 text-right tabular-nums text-emerald-600">{PKR(m.paid)}</td>
-                    <td className="px-4 py-3.5 text-right tabular-nums text-amber-600">{PKR(m.pending)}</td>
-                    <td className="px-4 py-3.5 text-right tabular-nums font-bold text-dark dark:text-white">{PKR(m.total)}</td>
+        salaryLoading ? <TableSkeleton /> : (salaryMonths.length > 0 || salarySlips.length > 0) ? (
+          <div className="space-y-6">
+            {/* Top Table: Monthly Summary */}
+            <div className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm dark:border-white/10 dark:bg-boxdark">
+              <div className="border-b border-slate-100 px-5 py-4 dark:border-white/10">
+                <h3 className="font-bold text-dark dark:text-white">Monthly Salary Summary</h3>
+                <p className="text-xs text-gray-500 dark:text-gray-400">Total payroll expense aggregated per month (click a row to filter employee list)</p>
+              </div>
+              <table className="w-full text-left text-sm">
+                <thead className="bg-gray-50 text-[11px] uppercase tracking-wide text-gray-500 dark:bg-dark-2 dark:text-gray-400">
+                  <tr>
+                    <th className="px-5 py-3 font-bold">Month</th>
+                    <th className="px-5 py-3 text-right font-bold">Employees</th>
+                    <th className="px-5 py-3 text-right font-bold">Paid / Approved</th>
+                    <th className="px-5 py-3 text-right font-bold">Pending</th>
+                    <th className="px-5 py-3 text-right font-bold">Total Payable</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {salaryMonths.map((m) => (
+                    <tr
+                      key={m.month}
+                      onClick={() => setSelectedMonthFilter(selectedMonthFilter === m.month ? "all" : m.month)}
+                      className={`cursor-pointer border-t border-slate-50 transition hover:bg-slate-50 dark:border-white/5 dark:hover:bg-white/5 ${selectedMonthFilter === m.month ? "bg-amber-50/50 dark:bg-amber-500/10" : ""}`}
+                    >
+                      <td className="px-5 py-3.5 font-bold text-dark dark:text-white flex items-center gap-2">
+                        {m.month}
+                        {selectedMonthFilter === m.month && (
+                          <span className="rounded bg-amber-100 px-2 py-0.5 text-[10px] font-extrabold text-amber-700 dark:bg-amber-500/20 dark:text-amber-400">Filtered</span>
+                        )}
+                      </td>
+                      <td className="px-5 py-3.5 text-right tabular-nums text-gray-600 dark:text-gray-300">{m.count}</td>
+                      <td className="px-5 py-3.5 text-right tabular-nums font-semibold text-emerald-600">{PKR(m.paid)}</td>
+                      <td className="px-5 py-3.5 text-right tabular-nums font-semibold text-amber-600">{PKR(m.pending)}</td>
+                      <td className="px-5 py-3.5 text-right tabular-nums font-bold text-dark dark:text-white">{PKR(m.total)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Bottom Table: Individual Employee Breakdown */}
+            <div className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm dark:border-white/10 dark:bg-boxdark">
+              <div className="flex flex-col gap-3 border-b border-slate-100 p-5 sm:flex-row sm:items-center sm:justify-between dark:border-white/10">
+                <div>
+                  <h3 className="font-bold text-dark dark:text-white">Employee Salary Breakdown</h3>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Individual status per employee salary slip</p>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  {/* Search input */}
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-gray-400" />
+                    <input
+                      type="text"
+                      placeholder="Search employee or dept..."
+                      value={salarySearch}
+                      onChange={(e) => setSalarySearch(e.target.value)}
+                      className="w-48 rounded-xl border border-stroke bg-white py-1.5 pl-8 pr-3 text-xs outline-none dark:border-dark-3 dark:bg-gray-dark dark:text-white"
+                    />
+                  </div>
+
+                  {/* Filter by Month */}
+                  <select
+                    value={selectedMonthFilter}
+                    onChange={(e) => setSelectedMonthFilter(e.target.value)}
+                    className="rounded-xl border border-stroke bg-white px-3 py-1.5 text-xs font-medium outline-none dark:border-dark-3 dark:bg-gray-dark dark:text-white"
+                  >
+                    <option value="all">All Months</option>
+                    {salaryMonths.map((m) => (
+                      <option key={m.month} value={m.month}>{m.month}</option>
+                    ))}
+                  </select>
+
+                  {/* Filter by Status */}
+                  <select
+                    value={salaryStatusFilter}
+                    onChange={(e) => setSalaryStatusFilter(e.target.value)}
+                    className="rounded-xl border border-stroke bg-white px-3 py-1.5 text-xs font-medium outline-none dark:border-dark-3 dark:bg-gray-dark dark:text-white"
+                  >
+                    <option value="all">All Statuses</option>
+                    <option value="paid">Approved / Paid</option>
+                    <option value="pending">Pending</option>
+                  </select>
+                </div>
+              </div>
+
+              {salarySlips.filter((s) => {
+                const monthKey = `${s.year}-${String(s.month).padStart(2, "0")}`;
+                if (selectedMonthFilter !== "all" && monthKey !== selectedMonthFilter) return false;
+                if (salaryStatusFilter !== "all" && s.status !== salaryStatusFilter) return false;
+                if (salarySearch.trim()) {
+                  const q = salarySearch.toLowerCase();
+                  const nameMatch = s.employee_name?.toLowerCase().includes(q);
+                  const deptMatch = s.department?.toLowerCase().includes(q);
+                  if (!nameMatch && !deptMatch) return false;
+                }
+                return true;
+              }).length > 0 ? (
+                <table className="w-full text-left text-sm">
+                  <thead className="bg-gray-50 text-[11px] uppercase tracking-wide text-gray-500 dark:bg-dark-2 dark:text-gray-400">
+                    <tr>
+                      <th className="px-5 py-3 font-bold">Employee Name</th>
+                      <th className="px-5 py-3 font-bold">Department</th>
+                      <th className="px-5 py-3 font-bold">Month / Year</th>
+                      <th className="px-5 py-3 text-right font-bold">Net Salary</th>
+                      <th className="px-5 py-3 text-center font-bold">Status</th>
+                      <th className="px-5 py-3 text-right font-bold">Paid Date</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {salarySlips
+                      .filter((s) => {
+                        const monthKey = `${s.year}-${String(s.month).padStart(2, "0")}`;
+                        if (selectedMonthFilter !== "all" && monthKey !== selectedMonthFilter) return false;
+                        if (salaryStatusFilter !== "all" && s.status !== salaryStatusFilter) return false;
+                        if (salarySearch.trim()) {
+                          const q = salarySearch.toLowerCase();
+                          const nameMatch = s.employee_name?.toLowerCase().includes(q);
+                          const deptMatch = s.department?.toLowerCase().includes(q);
+                          if (!nameMatch && !deptMatch) return false;
+                        }
+                        return true;
+                      })
+                      .map((s) => (
+                        <tr key={s.id} className="border-t border-slate-50 dark:border-white/5">
+                          <td className="px-5 py-3.5 font-bold text-dark dark:text-white">
+                            {s.employee_name || "Unknown Employee"}
+                          </td>
+                          <td className="px-5 py-3.5 text-xs text-gray-500 dark:text-gray-400">
+                            {s.department ? (
+                              <span className="rounded bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600 dark:bg-white/10 dark:text-gray-300">
+                                {s.department}
+                              </span>
+                            ) : (
+                              "N/A"
+                            )}
+                          </td>
+                          <td className="px-5 py-3.5 text-xs font-medium text-gray-600 dark:text-gray-300">
+                            {s.year}-{String(s.month).padStart(2, "0")}
+                          </td>
+                          <td className="px-5 py-3.5 text-right tabular-nums font-bold text-dark dark:text-white">
+                            {PKR(s.net_payable)}
+                          </td>
+                          <td className="px-5 py-3.5 text-center">
+                            {s.status === "paid" ? (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-bold text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400">
+                                <CheckCircle2 className="size-3" /> Approved & Paid
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-bold text-amber-700 dark:bg-amber-500/10 dark:text-amber-400">
+                                <Clock className="size-3" /> Pending
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-5 py-3.5 text-right text-xs text-gray-500 dark:text-gray-400">
+                            {s.paid_date ? new Date(s.paid_date).toLocaleDateString() : "—"}
+                          </td>
+                        </tr>
+                      ))}
+                  </tbody>
+                </table>
+              ) : (
+                <div className="p-6">
+                  <EmptyState icon={Users2} title="No employee slips matching filter" description="Try selecting a different month or status filter." />
+                </div>
+              )}
+            </div>
           </div>
-        ) : <div className="rounded-2xl border border-slate-100 bg-white shadow-sm dark:border-white/10 dark:bg-boxdark"><EmptyState icon={Users2} title="No payroll data yet" description="Salary expenses are pulled from the HR module's payroll slips." /></div>
+        ) : (
+          <div className="rounded-2xl border border-slate-100 bg-white shadow-sm dark:border-white/10 dark:bg-boxdark">
+            <EmptyState icon={Users2} title="No payroll data yet" description="Salary expenses are pulled from the HR module's payroll slips." />
+          </div>
+        )
       )}
     </>
   );
