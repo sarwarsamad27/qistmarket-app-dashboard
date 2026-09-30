@@ -5,7 +5,7 @@ import Link from "next/link";
 import { hrFetch } from "@/lib/employee-api";
 import {
   Plus, Eye, Search, Filter, Download, CheckSquare,
-  Mail, Key, ToggleLeft, X, ChevronDown,
+  Mail, Key, ToggleLeft, X, ChevronDown, Trash2,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { ConfirmModal } from "@/components/Modals/ConfirmModal";
@@ -13,7 +13,7 @@ import { ConfirmModal } from "@/components/Modals/ConfirmModal";
 interface Employee {
   id: number; employee_id: string; full_name: string; department?: string;
   designation?: string; portal_active: boolean; status: string; phone?: string;
-  email?: string; outlet?: { name: string };
+  email?: string; outlet?: { name: string }; device_user_id?: string | null;
 }
 
 export default function HrEmployeesPage() {
@@ -25,6 +25,9 @@ export default function HrEmployeesPage() {
   const [selectAll, setSelectAll] = useState(false);
   const [bulkAction, setBulkAction] = useState("");
   const [confirmAction, setConfirmAction] = useState<{ open: boolean; action: string; message: string }>({ open: false, action: "", message: "" });
+  // Employees queued for deletion — one (row button) or the current selection.
+  const [deleteTarget, setDeleteTarget] = useState<Employee[] | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const load = useCallback(() => {
     hrFetch("/employees").then((r) => setEmployees(r.employees)).catch(console.error).finally(() => setLoading(false));
@@ -77,6 +80,27 @@ export default function HrEmployeesPage() {
     } catch (err: any) {
       toast.error(err.message || "Bulk action failed");
     }
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteTarget?.length) return;
+    setDeleting(true);
+    let deleted = 0;
+    const refused: string[] = [];
+    for (const emp of deleteTarget) {
+      try {
+        await hrFetch(`/employees/${emp.id}`, { method: "DELETE" });
+        deleted += 1;
+      } catch (err) {
+        refused.push((err as Error).message);
+      }
+    }
+    setDeleting(false);
+    setDeleteTarget(null);
+    if (deleted) toast.success(`${deleted} employee(s) deleted`);
+    refused.forEach((m) => toast.error(m, { duration: 8000 }));
+    clearSelection();
+    load();
   };
 
   const exportCsv = () => {
@@ -142,6 +166,7 @@ export default function HrEmployeesPage() {
               <button onClick={() => openBulkConfirm("toggle_portal")} className="rounded bg-white px-2 py-1 text-xs shadow-sm dark:bg-dark-3"><ToggleLeft className="mr-1 inline h-3 w-3" />Toggle Portal</button>
               <button onClick={() => openBulkConfirm("reset_password")} className="rounded bg-white px-2 py-1 text-xs shadow-sm dark:bg-dark-3"><Key className="mr-1 inline h-3 w-3" />Reset Pass</button>
               <button onClick={() => openBulkConfirm("send_credentials")} className="rounded bg-white px-2 py-1 text-xs shadow-sm dark:bg-dark-3"><Mail className="mr-1 inline h-3 w-3" />Send Creds</button>
+              <button onClick={() => setDeleteTarget(employees.filter((e) => selectedIds.includes(e.id)))} className="rounded bg-white px-2 py-1 text-xs text-red shadow-sm dark:bg-dark-3"><Trash2 className="mr-1 inline h-3 w-3" />Delete</button>
               <button onClick={clearSelection} className="rounded bg-white px-2 py-1 text-xs shadow-sm dark:bg-dark-3"><X className="h-3 w-3" /></button>
             </div>
           </div>
@@ -178,7 +203,7 @@ export default function HrEmployeesPage() {
                   <td className="px-4 py-3">
                     <div>
                       <p className="font-medium text-dark dark:text-white">{emp.full_name}</p>
-                      <p className="text-xs font-mono text-gray-500">{emp.employee_id}</p>
+                      <p className="text-xs font-mono text-gray-500">{emp.employee_id}{emp.device_user_id && <span className="ml-2 rounded bg-blue-100 px-1.5 py-0.5 text-[10px] text-blue-700 dark:bg-blue-900/30 dark:text-blue-300" title="Biometric device user ID">Device ID {emp.device_user_id}</span>}</p>
                     </div>
                   </td>
                   <td className="px-4 py-3 text-gray-600 dark:text-gray-400">{emp.department || "—"}</td>
@@ -200,6 +225,9 @@ export default function HrEmployeesPage() {
                       <Link href={`/hr/employees/${emp.id}`} className="rounded-lg p-1.5 text-gray-500 hover:bg-gray-2 dark:hover:bg-dark-3" title="View Details">
                         <Eye className="h-4 w-4" />
                       </Link>
+                      <button onClick={() => setDeleteTarget([emp])} className="rounded-lg p-1.5 text-gray-500 hover:bg-red/10 hover:text-red" title="Delete Employee">
+                        <Trash2 className="h-4 w-4" />
+                      </button>
                     </div>
                   </td>
                 </tr>
@@ -218,6 +246,18 @@ export default function HrEmployeesPage() {
         message={confirmAction.message}
         confirmText={`Apply to ${selectedIds.length}`}
         variant="info"
+      />
+
+      {/* Delete confirm modal */}
+      <ConfirmModal
+        open={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={confirmDelete}
+        loading={deleting}
+        title={deleteTarget?.length === 1 ? `Delete ${deleteTarget[0].full_name}?` : `Delete ${deleteTarget?.length || 0} employees?`}
+        message={`This permanently deletes ${deleteTarget?.length === 1 ? "this employee" : "these employees"} with their attendance, leaves, payroll slips, loans, documents and timeline. It cannot be undone. Employees with paid salary or an unpaid loan are not deleted — mark them Resigned instead. Biometric punches stay on the Biometric Device page.`}
+        confirmText={deleting ? "Deleting..." : "Delete permanently"}
+        variant="danger"
       />
     </div>
   );

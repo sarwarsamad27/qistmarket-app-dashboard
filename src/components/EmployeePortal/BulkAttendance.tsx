@@ -49,7 +49,7 @@ export default function BulkAttendance({ shiftStart, shiftEnd, onSaved }: Props)
   const [date, setDate] = useState(todayStr());
   const [employees, setEmployees] = useState<DayEmployee[]>([]);
   const [rows, setRows] = useState<Record<number, Row>>({});
-  const [weeklyOff, setWeeklyOff] = useState(false);
+  const [holiday, setHoliday] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState("");
@@ -66,7 +66,7 @@ export default function BulkAttendance({ shiftStart, shiftEnd, onSaved }: Props)
       const r = await hrFetch(`/attendance/day?date=${d}`);
       const list: DayEmployee[] = r.employees || [];
       setEmployees(list);
-      setWeeklyOff(!!r.weekly_off);
+      setHoliday(r.holiday || null);
       const next: Record<number, Row> = {};
       for (const e of list) {
         next[e.id] = {
@@ -177,8 +177,8 @@ export default function BulkAttendance({ shiftStart, shiftEnd, onSaved }: Props)
         </label>
       </div>
 
-      {weeklyOff && (
-        <p className="mb-3 rounded-lg bg-yellow-light-4/30 px-3 py-2 text-xs text-yellow-dark">This date is the weekly off day.</p>
+      {holiday && (
+        <p className="mb-3 rounded-lg bg-yellow-light-4/30 px-3 py-2 text-xs text-yellow-dark">This date is declared off for everyone: {holiday}.</p>
       )}
 
       {/* Apply-to-selected bar */}

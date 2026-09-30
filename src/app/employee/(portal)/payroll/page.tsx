@@ -156,7 +156,7 @@ export default function EmployeePayrollPage() {
                     viewSlip.slip_data.attendance.absent ? `${viewSlip.slip_data.attendance.absent} absent` : "",
                     viewSlip.slip_data.attendance.off ? `${viewSlip.slip_data.attendance.off} off` : "",
                     viewSlip.slip_data.attendance.late_penalty_offs ? `${viewSlip.slip_data.attendance.late_penalty_offs} for ${viewSlip.slip_data.attendance.late} lates` : "",
-                    viewSlip.slip_data.attendance.weekend_penalty_offs ? `${viewSlip.slip_data.attendance.weekend_penalty_offs} Sat/Mon penalty` : "",
+                    viewSlip.slip_data.attendance.weekend_penalty_offs ? `${viewSlip.slip_data.attendance.weekend_penalty_offs} off-day penalty` : "",
                     viewSlip.slip_data.attendance.unpaid_leave ? `${viewSlip.slip_data.attendance.unpaid_leave} unpaid leave` : "",
                   ].filter(Boolean).join(", ")}
                   {viewSlip.slip_data.per_day_rate ? ` × ${rs(viewSlip.slip_data.per_day_rate)}/day` : ""}

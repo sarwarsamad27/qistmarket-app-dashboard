@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { hrFetch } from "@/lib/employee-api";
-import { Search, Fingerprint, RefreshCw, Clock } from "lucide-react";
+import Link from "next/link";
+import { Search, Fingerprint, RefreshCw, Clock, CalendarOff, Trash2 } from "lucide-react";
 import toast from "react-hot-toast";
 import BulkAttendance from "@/components/EmployeePortal/BulkAttendance";
 
@@ -30,9 +31,18 @@ interface Settings {
   grace_minutes: number;
   weekly_off_day: number;
   lates_per_off: number;
+  biometric_day_start?: string;
+}
+
+interface Holiday {
+  id: number | null;
+  date: string;
+  title: string;
+  weekly?: boolean;
 }
 
 const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
 const STATUSES: [string, string][] = [
   ["present", "Present"], ["late", "Late"], ["absent", "Absent"], ["off", "Off"],
   ["leave", "Leave (paid)"], ["unpaid_leave", "Unpaid Leave"], ["holiday", "Holiday"],
@@ -47,7 +57,7 @@ const STATUS_STYLE: Record<string, string> = {
   leave: "border-blue-DEFAULT/30 bg-blue-light-5/10",
   unpaid_leave: "border-blue-DEFAULT/30 bg-blue-light-5/10",
 };
-const DEFAULT_SETTINGS: Settings = { shift_start: "09:00", shift_end: "18:00", grace_minutes: 15, weekly_off_day: 0, lates_per_off: 3 };
+const DEFAULT_SETTINGS: Settings = { shift_start: "09:00", shift_end: "18:00", grace_minutes: 15, weekly_off_day: 0, lates_per_off: 3, biometric_day_start: "06:00" };
 
 const cleanNotes = (n?: string) => (n || "").replace(/\[method:\w+\]\s*/g, "");
 const methodOf = (n?: string) => n?.match(/\[method:(\w+)\]/)?.[1] || "";
@@ -65,12 +75,19 @@ export default function HrAttendancePage() {
   const [month, setMonth] = useState(now.getMonth() + 1);
   const [year, setYear] = useState(now.getFullYear());
   const [records, setRecords] = useState<AttendanceRecord[]>([]);
-  const [summary, setSummary] = useState<(Record<string, number> & { missed_punch_dates?: string[] }) | null>(null);
+  const [summary, setSummary] = useState<(Record<string, number> & { missed_punch_dates?: string[]; absent_dates?: string[]; penalty_dates?: string[] }) | null>(null);
+  const [holidays, setHolidays] = useState<Holiday[]>([]);
+  const [showHolidays, setShowHolidays] = useState(false);
+  const [holidayForm, setHolidayForm] = useState({ from: "", to: "", title: "", notify: true });
+  const [savingHoliday, setSavingHoliday] = useState(false);
   const [loading, setLoading] = useState(false);
   const [showBulk, setShowBulk] = useState(false);
   const [showBiometric, setShowBiometric] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
-  const [deviceStatus, setDeviceStatus] = useState<{ model?: string; ip?: string; port?: string; connected?: boolean } | null>(null);
+  const [deviceStatus, setDeviceStatus] = useState<{ model?: string; ip?: string; port?: string; source?: string; connected?: boolean } | null>(null);
+  const [deviceStats, setDeviceStats] = useState<{ total_punches: number; today_punches: number; today_employees: number; linked_users: number; unlinked_users: number } | null>(null);
+  const [deviceLastSync, setDeviceLastSync] = useState<string | null>(null);
+  const [syncing, setSyncing] = useState(false);
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
   const [editDay, setEditDay] = useState<{ date: string; rec?: AttendanceRecord } | null>(null);
   const [editStatus, setEditStatus] = useState("present");
@@ -78,15 +95,85 @@ export default function HrAttendancePage() {
 
   useEffect(() => {
     hrFetch("/employees").then((r) => setEmployees(r.employees));
-    hrFetch("/biometric/device-status").then((r) => setDeviceStatus(r.device)).catch(() => {});
+    loadDeviceStatus();
     hrFetch("/attendance/settings").then((r) => setSettings(r.settings)).catch(() => {});
   }, []);
+
+  const loadDeviceStatus = () => hrFetch("/biometric/device-status").then((r) => {
+    setDeviceStatus(r.device);
+    setDeviceStats(r.stats || null);
+    setDeviceLastSync(r.devices?.[0]?.last_sync_at || null);
+  }).catch(() => {});
+
+  const syncDevice = async () => {
+    setSyncing(true);
+    try {
+      const r = await hrFetch("/biometric/sync", { method: "POST", body: JSON.stringify({}) });
+      toast.success(r.message);
+      await Promise.all([loadDeviceStatus(), loadRecords()]);
+    } catch (err) {
+      toast.error((err as Error).message);
+    } finally {
+      setSyncing(false);
+    }
+  };
 
   const loadRecords = async () => {
     if (!selectedEmp) return;
     const r = await hrFetch(`/employees/${selectedEmp}/attendance?month=${month}&year=${year}`);
     setRecords(r.records);
     setSummary(r.summary || null);
+  };
+
+  const loadHolidays = () =>
+    hrFetch(`/attendance/holidays?year=${year}&month=${month}`).then((r) => setHolidays(r.holidays || [])).catch(() => {});
+
+  useEffect(() => {
+    loadHolidays();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [month, year]);
+
+  const monthKey = `${year}-${String(month).padStart(2, "0")}`;
+  const addHolidays = async (dates: string[], title: string) => {
+    if (!dates.length) return toast.error("Pick a date");
+    setSavingHoliday(true);
+    try {
+      const r = await hrFetch("/attendance/holidays", {
+        method: "POST",
+        body: JSON.stringify({ dates, title: title || "Off day", notify: holidayForm.notify }),
+      });
+      toast.success(`${r.count} holiday(s) added${r.notified ? ` — announced to ${r.notified} employee(s)` : ""}`);
+      setHolidayForm({ from: "", to: "", title: "", notify: holidayForm.notify });
+      await Promise.all([loadHolidays(), loadRecords()]);
+    } catch (err) {
+      toast.error((err as Error).message);
+    } finally {
+      setSavingHoliday(false);
+    }
+  };
+
+  const submitHoliday = (e: React.FormEvent) => {
+    e.preventDefault();
+    const { from, to, title } = holidayForm;
+    if (!from) return toast.error("Pick a date");
+    const dates: string[] = [];
+    const end = new Date(`${to && to >= from ? to : from}T00:00:00Z`);
+    for (let d = new Date(`${from}T00:00:00Z`); d <= end && dates.length < 60; d = new Date(d.getTime() + 86400000)) {
+      dates.push(d.toISOString().slice(0, 10));
+    }
+    addHolidays(dates, title);
+  };
+
+  const removeHoliday = async (h: Holiday) => {
+    if (!h.id) return;
+    if (!confirm(`Remove holiday ${h.date} (${h.title})? Employees without attendance that day will count as absent.`)) return;
+    try {
+      await hrFetch(`/attendance/holidays/${h.id}`, { method: "DELETE" });
+      toast.success("Holiday removed");
+      await Promise.all([loadHolidays(), loadRecords()]);
+    } catch (err) {
+      toast.error((err as Error).message);
+    }
   };
 
   useEffect(() => {
@@ -107,6 +194,7 @@ export default function HrAttendancePage() {
   };
   const daysInMonth = new Date(year, month, 0).getDate();
   const recordMap = new Map(records.map((r) => [getDay(r.date), r]));
+  const holidayMap = new Map(holidays.map((h) => [getDay(h.date), h.title]));
 
   const openDay = (day: number) => {
     const rec = recordMap.get(day);
@@ -169,10 +257,11 @@ export default function HrAttendancePage() {
           grace_minutes: fd.get("grace_minutes"),
           weekly_off_day: fd.get("weekly_off_day"),
           lates_per_off: fd.get("lates_per_off"),
+          biometric_day_start: fd.get("biometric_day_start"),
         }),
       });
       setSettings(r.settings);
-      toast.success("Office timings saved");
+      toast.success("Office timings saved — device attendance is being recalculated");
       setShowSettings(false);
       loadRecords();
     } catch (err) {
@@ -189,12 +278,15 @@ export default function HrAttendancePage() {
         <div>
           <h1 className="text-2xl font-bold text-dark dark:text-white">Attendance Management</h1>
           <p className="text-xs text-gray-500">
-            Office timings: {to12h(settings.shift_start)} – {to12h(settings.shift_end)} · Late after {settings.grace_minutes} min · Weekly off: {DAYS[settings.weekly_off_day]} · {settings.lates_per_off} lates = 1 off
+            Office timings: {to12h(settings.shift_start)} – {to12h(settings.shift_end)} · Late after {settings.grace_minutes} min · Weekly off: {DAYS[settings.weekly_off_day]} + HR holidays · {settings.lates_per_off} lates = 1 off
           </p>
         </div>
         <div className="flex gap-2">
           <button onClick={() => setShowSettings(!showSettings)} className="rounded-lg border border-stroke px-3 py-2 text-sm dark:border-stroke-dark">
             <Clock className="mr-1 inline h-4 w-4" /> Office Timings
+          </button>
+          <button onClick={() => setShowHolidays(!showHolidays)} className="rounded-lg border border-stroke px-3 py-2 text-sm dark:border-stroke-dark">
+            <CalendarOff className="mr-1 inline h-4 w-4" /> Holidays
           </button>
           <button onClick={() => setShowBulk(!showBulk)} className="rounded-lg border border-stroke px-3 py-2 text-sm dark:border-stroke-dark">
             {showBulk ? "Close Bulk" : "Bulk Attendance"}
@@ -209,7 +301,7 @@ export default function HrAttendancePage() {
         <form onSubmit={saveSettings} className="mb-6 rounded-xl border border-stroke bg-white p-4 dark:border-stroke-dark dark:bg-dark-2">
           <h3 className="mb-1 font-semibold">Office Timings &amp; Attendance Rules</h3>
           <p className="mb-4 text-xs text-gray-500">A check-in later than the start time plus grace minutes is marked Late automatically. Time after the end time counts as overtime.</p>
-          <div className="grid gap-4 sm:grid-cols-3 lg:grid-cols-5">
+          <div className="grid gap-4 sm:grid-cols-3 lg:grid-cols-6">
             <label className="text-xs text-gray-500">Office start time
               <input name="shift_start" type="time" defaultValue={settings.shift_start} required className={`mt-1 ${input}`} />
             </label>
@@ -227,22 +319,83 @@ export default function HrAttendancePage() {
             <label className="text-xs text-gray-500">Lates = 1 off
               <input name="lates_per_off" type="number" min={0} max={31} defaultValue={settings.lates_per_off} className={`mt-1 ${input}`} />
             </label>
+            <label className="text-xs text-gray-500">Biometric day starts at
+              <input name="biometric_day_start" type="time" defaultValue={settings.biometric_day_start || "06:00"} className={`mt-1 ${input}`} />
+              <span className="mt-1 block text-[10px] text-gray-400">Device punches before this time count as the previous day&apos;s check-out</span>
+            </label>
           </div>
           <button type="submit" className="mt-4 rounded-lg bg-primary px-4 py-2 text-sm text-white">Save</button>
         </form>
       )}
 
-      {showBiometric && deviceStatus && (
+      {showHolidays && (
+        <div className="mb-6 rounded-xl border border-stroke bg-white p-4 dark:border-stroke-dark dark:bg-dark-2">
+          <h3 className="mb-1 font-semibold">Holidays</h3>
+          <p className="mb-4 text-xs text-gray-500">
+            {DAYS[settings.weekly_off_day]} is the weekly off. Add other holidays here (Eid, national holidays) — they are off for everyone and show on every employee&apos;s calendar.
+            Any other past day without attendance counts as <strong>absent</strong>. An absence right before or after an off day also deducts that off day.
+          </p>
+          <form onSubmit={submitHoliday} className="flex flex-wrap items-end gap-3">
+            <label className="text-xs text-gray-500">From
+              <input type="date" value={holidayForm.from} onChange={(e) => setHolidayForm({ ...holidayForm, from: e.target.value })} required className={`mt-1 block ${input}`} />
+            </label>
+            <label className="text-xs text-gray-500">To (optional)
+              <input type="date" value={holidayForm.to} min={holidayForm.from} onChange={(e) => setHolidayForm({ ...holidayForm, to: e.target.value })} className={`mt-1 block ${input}`} />
+            </label>
+            <label className="min-w-[200px] flex-1 text-xs text-gray-500">Title
+              <input value={holidayForm.title} onChange={(e) => setHolidayForm({ ...holidayForm, title: e.target.value })} placeholder="e.g. Eid ul Adha, 14 August" className={`mt-1 block ${input}`} />
+            </label>
+            <label className="flex items-center gap-2 self-center text-xs text-gray-500">
+              <input type="checkbox" checked={holidayForm.notify} onChange={(e) => setHolidayForm({ ...holidayForm, notify: e.target.checked })} /> Announce to all employees
+            </label>
+            <button type="submit" disabled={savingHoliday} className="rounded-lg bg-primary px-4 py-2 text-sm text-white disabled:opacity-50">Add</button>
+          </form>
+          <div className="mt-4">
+            {holidays.filter((h) => !h.weekly).length === 0 ? (
+              <p className="text-sm text-gray-500">No holidays declared for {new Date(year, month - 1).toLocaleString("default", { month: "long", year: "numeric" })}.</p>
+            ) : (
+              <ul className="divide-y divide-stroke text-sm dark:divide-stroke-dark">
+                {holidays.filter((h) => !h.weekly).map((h) => (
+                  <li key={h.id} className="flex items-center justify-between py-2">
+                    <span>
+                      <strong>{new Date(`${h.date}T00:00:00Z`).toLocaleDateString("en-PK", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" })}</strong> — {h.title}
+                    </span>
+                    <button type="button" onClick={() => removeHoliday(h)} className="rounded p-1 text-red hover:bg-red/10" aria-label="Remove holiday">
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </div>
+      )}
+
+      {showBiometric && (
         <div className="mb-6 rounded-xl border border-stroke bg-white p-4 dark:border-stroke-dark dark:bg-dark-2">
           <h3 className="mb-2 font-semibold">Biometric Device</h3>
-          <p className="text-sm">Device: {deviceStatus.model} ({deviceStatus.ip}:{deviceStatus.port})</p>
-          <p className="text-sm">Status: {deviceStatus.connected ? <span className="text-green">Connected</span> : <span className="text-red">Disconnected</span>}</p>
-          <button onClick={async () => {
-            await hrFetch("/biometric/sync", { method: "POST" });
-            toast.success("Biometric sync initiated");
-          }} className="mt-3 flex items-center gap-1 rounded-lg bg-primary px-3 py-1.5 text-xs text-white">
-            <RefreshCw className="h-3 w-3" /> Sync Now
-          </button>
+          {deviceStatus ? (
+            <>
+              <p className="text-sm">Device: {deviceStatus.model}{deviceStatus.source !== "zlink" && ` (${deviceStatus.ip}:${deviceStatus.port})`}</p>
+              <p className="text-sm">Status: {deviceStatus.connected ? <span className="text-green">Connected</span> : <span className="text-red">Disconnected</span>}
+                <span className="ml-2 text-xs text-gray-500">Last sync: {deviceLastSync ? new Date(deviceLastSync).toLocaleString("en-PK", { timeZone: "Asia/Karachi" }) : "never"}</span>
+              </p>
+              {deviceStats && (
+                <p className="mt-1 text-xs text-gray-500">
+                  Today: {deviceStats.today_punches} punch(es) by {deviceStats.today_employees} people · {deviceStats.total_punches.toLocaleString()} punches stored ·
+                  {" "}{deviceStats.linked_users} linked to employees{deviceStats.unlinked_users > 0 && <span className="text-yellow-dark"> · {deviceStats.unlinked_users} device user(s) not linked yet</span>}
+                </p>
+              )}
+            </>
+          ) : <p className="text-sm text-gray-500">No device added yet.</p>}
+          <div className="mt-3 flex gap-2">
+            {deviceStatus && (
+              <button onClick={syncDevice} disabled={syncing} className="flex items-center gap-1 rounded-lg bg-primary px-3 py-1.5 text-xs text-white disabled:opacity-50">
+                <RefreshCw className={`h-3 w-3 ${syncing ? "animate-spin" : ""}`} /> {syncing ? "Syncing…" : "Sync Now"}
+              </button>
+            )}
+            <Link href="/hr/biometric" className="rounded-lg border border-stroke px-3 py-1.5 text-xs dark:border-stroke-dark">Device users, punch log &amp; linking →</Link>
+          </div>
         </div>
       )}
 
@@ -285,7 +438,7 @@ export default function HrAttendancePage() {
           <p className="text-sm text-gray-500">Managing: <strong>{selectedEmployee.full_name}</strong> ({selectedEmployee.department || "No department"}) — click a day to set status and times.</p>
           {summary && (
             <p className="text-xs text-gray-500">
-              Present {summary.present} · Late {summary.late} · Absent {summary.absent} · Off {summary.off} · OT {summary.overtime_hours}h ·{" "}
+              Present {summary.present} · Late {summary.late} · Absent {summary.absent} · Off {summary.off} · OT {Math.round((summary.overtime_hours || 0) * 100) / 100}h ·{" "}
               {summary.missed_punches > 0 && <span className="text-red">Missed punch {summary.missed_punches} · </span>}
               <strong className="text-red">Deductible {summary.deductible_days} day(s)</strong>
             </p>
@@ -306,19 +459,24 @@ export default function HrAttendancePage() {
           {Array.from({ length: daysInMonth }, (_, i) => {
             const day = i + 1;
             const rec = recordMap.get(day);
-            const isWeeklyOff = new Date(year, month - 1, day).getDay() === settings.weekly_off_day;
+            const holidayTitle = holidayMap.get(day);
             const status = rec?.status;
-            const dateKey = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+            const dateKey = `${monthKey}-${String(day).padStart(2, "0")}`;
             const missed = (summary?.missed_punch_dates || []).includes(dateKey);
+            const autoAbsent = !rec && (summary?.absent_dates || []).includes(dateKey);
+            const isPenalty = (summary?.penalty_dates || []).includes(dateKey);
             return (
               <button
                 type="button"
                 key={day}
                 onClick={() => openDay(day)}
-                className={`rounded-lg border p-2 text-center text-sm transition hover:shadow ${status ? STATUS_STYLE[status] || "" : "border-stroke bg-white dark:border-stroke-dark dark:bg-dark-2"} ${missed ? "ring-2 ring-red/50" : ""}`}
+                className={`rounded-lg border p-2 text-center text-sm transition hover:shadow ${isPenalty ? "border-red/40 bg-red/10" : status ? STATUS_STYLE[status] || "" : holidayTitle ? STATUS_STYLE.holiday : autoAbsent ? "border-red/30 bg-red/5" : "border-stroke bg-white dark:border-stroke-dark dark:bg-dark-2"} ${missed ? "ring-2 ring-red/50" : ""}`}
               >
                 <p className="font-medium">{day}</p>
-                <p className="text-lg leading-6">{status ? STATUS_ICON[status] || "?" : isWeeklyOff ? <span className="text-xs text-gray-400">Weekly off</span> : <span className="text-gray-300">·</span>}</p>
+                <p className="text-lg leading-6">{status ? STATUS_ICON[status] || "?" : holidayTitle ? STATUS_ICON.holiday : autoAbsent ? <span className="text-red">✗</span> : <span className="text-gray-300">·</span>}</p>
+                {holidayTitle && <p className="truncate text-[10px] text-blue-DEFAULT">{holidayTitle}</p>}
+                {autoAbsent && <p className="text-[10px] text-red">Absent (no record)</p>}
+                {isPenalty && <p className="text-[10px] text-red">Off-day penalty</p>}
                 {(rec?.check_in || rec?.check_out) && (
                   <p className="text-[10px] text-gray-500">{to12h(rec?.check_in) || "--"} – {to12h(rec?.check_out) || "--"}</p>
                 )}

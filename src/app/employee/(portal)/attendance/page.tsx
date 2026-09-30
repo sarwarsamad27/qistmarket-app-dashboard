@@ -21,7 +21,6 @@ const STATUS_ICON: Record<string, string> = {
   holiday: "🎉",
   leave: "L",
   unpaid_leave: "U",
-  weekly_off: "·",
 };
 
 const METHOD_COLORS: Record<string, string> = {
@@ -29,6 +28,7 @@ const METHOD_COLORS: Record<string, string> = {
   machine: "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300",
   bulk: "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300",
   fingerprint: "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300",
+  biometric: "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300",
 };
 
 function getMethodFromNotes(notes?: string): string {
@@ -60,12 +60,14 @@ export default function EmployeeAttendancePage() {
   const [records, setRecords] = useState<AttendanceRecord[]>([]);
   const [summary, setSummary] = useState<Record<string, any>>({});
   const [policy, setPolicy] = useState<{ weekly_off_day: number; lates_per_off: number }>({ weekly_off_day: 0, lates_per_off: 3 });
+  const [holidays, setHolidays] = useState<{ date: string; title: string }[]>([]);
   const [selectedDay, setSelectedDay] = useState<AttendanceRecord | null>(null);
 
   useEffect(() => {
     employeeFetch(`/employee/attendance?month=${month}&year=${year}`).then((r) => {
       setRecords(r.records);
       setSummary(r.summary);
+      setHolidays(r.holidays || []);
       if (r.policy) setPolicy(r.policy);
     });
   }, [month, year]);
@@ -73,6 +75,7 @@ export default function EmployeeAttendancePage() {
   const getDay = (d: string | Date) => parseDate(d).getUTCDate();
   const daysInMonth = new Date(year, month, 0).getDate();
   const recordMap = new Map(records.map((r) => [getDay(r.date), r]));
+  const holidayMap = new Map(holidays.map((h) => [getDay(h.date), h.title]));
 
   return (
     <div>
@@ -91,7 +94,7 @@ export default function EmployeeAttendancePage() {
       </div>
 
       <div className="mb-4 rounded-lg border border-yellow-dark/30 bg-yellow-light-4/20 px-4 py-3 text-sm text-dark-5 dark:text-gray-6">
-        <strong>Policy:</strong> {policy.lates_per_off} lates = 1 off deduction. An absence or off on the day before or after the weekly off ({["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][policy.weekly_off_day]}) also deducts the weekly off.
+        <strong>Policy:</strong> {["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][policy.weekly_off_day]} is the weekly off; other holidays (Eid etc.) are announced by HR on this calendar. A working day with no attendance counts as absent. {policy.lates_per_off} lates = 1 off deduction. An absence or off on the day before or after an off day also deducts that off day.
       </div>
 
       <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-7">
@@ -101,12 +104,12 @@ export default function EmployeeAttendancePage() {
           ["Absent", summary.absent],
           ["Off", summary.off],
           ["Leave", (summary.leave || 0) + (summary.unpaid_leave || 0)],
-          ["Overtime (hrs)", summary.overtime_hours],
+          ["Overtime (hrs)", Math.round((summary.overtime_hours || 0) * 100) / 100],
           ["Missed Punches", summary.missed_punches],
         ].map(([label, val]) => (
           <div key={label as string} className="rounded-lg border border-stroke bg-white p-3 text-center dark:border-stroke-dark dark:bg-dark-2">
             <p className="text-xs text-gray-500">{label}</p>
-            <p className="text-lg font-bold text-dark dark:text-white">{val ?? 0}</p>
+            <p className="truncate text-lg font-bold text-dark dark:text-white">{val ?? 0}</p>
           </div>
         ))}
       </div>
@@ -117,9 +120,9 @@ export default function EmployeeAttendancePage() {
           <span>Absent: {summary.absent ?? 0}</span>
           <span>Off: {summary.off ?? 0}</span>
           <span>Late penalty: {summary.late_penalty_offs ?? 0} ({summary.late ?? 0} lates ÷ {policy.lates_per_off})</span>
-          <span>Saturday/Monday penalty: {summary.weekend_penalty_offs ?? 0}</span>
+          <span>Off-day penalty: {summary.weekend_penalty_offs ?? 0}</span>
           <span>Unpaid leave: {summary.unpaid_leave ?? 0}</span>
-          {summary.unmarked > 0 && <span className="text-yellow-dark">Not marked yet: {summary.unmarked} day(s) (not deducted)</span>}
+          <span>Off days / holidays: {summary.holiday ?? 0}</span>
         </div>
       </div>
 
@@ -133,33 +136,40 @@ export default function EmployeeAttendancePage() {
         {Array.from({ length: daysInMonth }, (_, i) => {
           const day = i + 1;
           const rec = recordMap.get(day);
-          const dow = new Date(year, month - 1, day).getDay();
-          const isWeeklyOff = dow === policy.weekly_off_day;
           const dateKey = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+          const holidayTitle = holidayMap.get(day);
           const isPenalty = (summary.penalty_dates || []).includes(dateKey);
-          const status = rec?.status || (isWeeklyOff ? "weekly_off" : "unmarked");
+          const autoAbsent = !rec && (summary.absent_dates || []).includes(dateKey);
+          const worked = rec && ["present", "late"].includes(rec.status);
+          const status = holidayTitle && !worked ? "holiday" : rec?.status || (autoAbsent ? "absent" : "unmarked");
           const missed = (summary.missed_punch_dates || []).includes(dateKey);
+          const detail: AttendanceRecord | null = rec && status !== "holiday" ? rec
+            : holidayTitle ? { date: dateKey, status: "holiday", notes: holidayTitle }
+            : autoAbsent ? { date: dateKey, status: "absent", notes: "No attendance recorded for this day." }
+            : null;
           return (
             <div
               key={day}
-              onClick={() => rec && setSelectedDay(rec)}
+              onClick={() => detail && setSelectedDay(detail)}
               className={`cursor-pointer rounded-lg border p-2 text-center text-sm transition ${
+                isPenalty ? "border-red/40 bg-red/10" :
                 status === "present" ? "border-green/30 bg-green/10" :
                 status === "late" ? "border-yellow-dark/30 bg-yellow-light-4/20" :
                 status === "holiday" ? "border-blue-DEFAULT/30 bg-blue-light-5/20" :
                 status === "leave" || status === "unpaid_leave" ? "border-blue-DEFAULT/30 bg-blue-light-5/10" :
-                isPenalty ? "border-red/40 bg-red/10" :
                 status === "absent" || status === "off" ? "border-red/30 bg-red/5" :
                 "border-stroke bg-white dark:border-stroke-dark dark:bg-dark-2"
               } ${missed ? "ring-2 ring-red/50" : ""}`}
             >
               <p className="font-medium">{day}</p>
               <p className="text-lg">{isPenalty ? "✗" : STATUS_ICON[status] || ""}</p>
-              {(rec?.check_in || rec?.check_out) && (
+              {status === "holiday" && holidayTitle && <p className="truncate text-[10px] text-blue-DEFAULT">{holidayTitle}</p>}
+              {autoAbsent && <p className="text-[10px] font-medium text-red">Absent</p>}
+              {status !== "holiday" && (rec?.check_in || rec?.check_out) && (
                 <p className="text-[10px] text-gray-500">{to12h(rec?.check_in) || "--"} – {to12h(rec?.check_out) || "--"}</p>
               )}
               {missed && <p className="mt-0.5 rounded bg-red/10 px-1 text-[10px] font-medium text-red">Missed punch</p>}
-              {isPenalty && <p className="text-[10px] text-red">Sat/Mon penalty</p>}
+              {isPenalty && <p className="text-[10px] text-red">Off-day penalty</p>}
             </div>
           );
         })}
@@ -190,9 +200,12 @@ export default function EmployeeAttendancePage() {
               {(() => {
                 const method = getMethodFromNotes(selectedDay.notes);
                 const clean = getCleanNotes(selectedDay.notes);
-                return method ? (
-                  <p><span className="text-gray-500">Source:</span> <span className={`inline-block rounded px-2 py-0.5 text-xs font-medium ${METHOD_COLORS[method] || "bg-gray-100 text-gray-700"}`}>{method}</span></p>
-                ) : clean ? <p><span className="text-gray-500">Notes:</span> {clean}</p> : null;
+                return (
+                  <>
+                    {method && <p><span className="text-gray-500">Source:</span> <span className={`inline-block rounded px-2 py-0.5 text-xs font-medium ${METHOD_COLORS[method] || "bg-gray-100 text-gray-700"}`}>{method}</span></p>}
+                    {clean && <p><span className="text-gray-500">{method === "biometric" ? "Punches:" : "Notes:"}</span> {clean}</p>}
+                  </>
+                );
               })()}
             </div>
             <button onClick={() => setSelectedDay(null)} className="mt-4 w-full rounded-lg border border-stroke px-4 py-2 text-sm dark:border-stroke-dark">Close</button>

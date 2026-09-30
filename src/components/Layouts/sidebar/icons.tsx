@@ -32,6 +32,7 @@ import {
   Ban,
   AlertTriangle,
   CheckCircle2,
+  Fingerprint,
 } from "lucide-react";
 
 export type PropsType = SVGProps<SVGSVGElement>;
@@ -162,6 +163,10 @@ export function FileTextIcon(props: PropsType) {
 
 export function LockIcon(props: PropsType) {
   return <Lock {...(props as any)} />;
+}
+
+export function FingerprintIcon(props: PropsType) {
+  return <Fingerprint {...(props as any)} />;
 }
 
 

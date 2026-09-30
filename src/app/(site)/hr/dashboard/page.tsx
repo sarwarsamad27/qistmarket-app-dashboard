@@ -13,7 +13,11 @@ const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
 
 interface HrStats {
   totalEmployees: number; activeEmployees: number; totalDepartments: number;
-  pendingLeaves: number; todayAttendance: number;
+  pendingLeaves: number; todayAttendance: number; todayLate?: number;
+  biometric?: {
+    ip: string; port: number; last_sync_at: string | null; last_status: string | null; last_error: string | null;
+    connected: boolean; today_punches: number; today_employees: number; device_users: number; linked_employees: number;
+  } | null;
 }
 
 const fetchWithAuth = async (url: string) => {
@@ -50,7 +54,7 @@ export default function HrDashboard() {
     { label: "Issue Document", icon: FileText, href: "/hr/documents", color: "bg-indigo-50 text-indigo-700 dark:bg-indigo-900/20 dark:text-indigo-300" },
     { label: "Payroll", icon: DollarSign, href: "/hr/payroll", color: "bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-300" },
     { label: "Performance", icon: Star, href: "/hr/performance", color: "bg-yellow-50 text-yellow-700 dark:bg-yellow-900/20 dark:text-yellow-300" },
-    { label: "Biometric", icon: Fingerprint, href: "/hr/attendance", color: "bg-rose-50 text-rose-700 dark:bg-rose-900/20 dark:text-rose-300" },
+    { label: "Biometric", icon: Fingerprint, href: "/hr/biometric", color: "bg-rose-50 text-rose-700 dark:bg-rose-900/20 dark:text-rose-300" },
     { label: "Announcements", icon: Bell, href: "/hr/announcements", color: "bg-purple-50 text-purple-700 dark:bg-purple-900/20 dark:text-purple-300" },
     { label: "Leaves", icon: CalendarCheck, href: "/hr/leaves", color: "bg-amber-50 text-amber-700 dark:bg-amber-900/20 dark:text-amber-300" },
   ];
@@ -87,6 +91,35 @@ export default function HrDashboard() {
             );
           })}
         </div>
+      )}
+
+      {/* Biometric device */}
+      {!loading && (
+        <Link href="/hr/biometric" className="block rounded-xl border border-stroke bg-white p-4 shadow-sm transition-all hover:shadow-lg sm:p-5 dark:border-stroke-dark dark:bg-dark-2">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-rose-500"><Fingerprint className="h-6 w-6 text-white" /></div>
+              <div>
+                <p className="font-semibold text-dark dark:text-white">Biometric Device</p>
+                {stats?.biometric ? (
+                  <p className="text-xs text-gray-500">
+                    {stats.biometric.ip}:{stats.biometric.port} ·{" "}
+                    {stats.biometric.connected ? <span className="text-green">Connected</span> : <span className="text-red">{stats.biometric.last_status === "error" ? "Not reachable" : "Not synced recently"}</span>}
+                    {" "}· Last sync {stats.biometric.last_sync_at ? new Date(stats.biometric.last_sync_at).toLocaleString("en-PK", { timeZone: "Asia/Karachi" }) : "never"}
+                  </p>
+                ) : <p className="text-xs text-gray-500">No device added — click to set it up</p>}
+              </div>
+            </div>
+            {stats?.biometric && (
+              <div className="flex flex-wrap gap-6 text-center">
+                <div><p className="text-xl font-bold text-dark dark:text-white">{stats.biometric.today_punches}</p><p className="text-xs text-gray-500">Punches today</p></div>
+                <div><p className="text-xl font-bold text-dark dark:text-white">{stats.biometric.today_employees}</p><p className="text-xs text-gray-500">People punched today</p></div>
+                <div><p className="text-xl font-bold text-dark dark:text-white">{stats.todayLate ?? 0}</p><p className="text-xs text-gray-500">Late today</p></div>
+                <div><p className="text-xl font-bold text-dark dark:text-white">{stats.biometric.linked_employees}/{stats.biometric.device_users}</p><p className="text-xs text-gray-500">Device users linked</p></div>
+              </div>
+            )}
+          </div>
+        </Link>
       )}
 
       {/* Quick Actions + Recent Activity */}

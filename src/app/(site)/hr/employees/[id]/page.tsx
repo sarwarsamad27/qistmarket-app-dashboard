@@ -16,7 +16,7 @@ interface Employee {
   qr_code?: string; department?: string; designation?: string; phone?: string; cnic?: string; email?: string;
   address?: string; emergency_contact?: string; emergency_phone?: string; qualification?: string;
   experience?: string; date_of_birth?: string; date_of_joining?: string; basic_salary?: number;
-  status?: string; outlet_id?: number | null; user_id?: number | null;
+  status?: string; outlet_id?: number | null; user_id?: number | null; device_user_id?: string | null;
   outlet?: { id: number; name: string; code: string };
   timeline_events?: { id: number; title: string; event_type: string; event_date: string; description?: string; document_url?: string | null }[];
   documents?: HrDocument[]; loans?: HrLoan[]; payroll_slips?: PayrollSlip[]; leave_requests?: LeaveRequest[];
@@ -59,6 +59,7 @@ export default function HrEmployeeDetailPage() {
   const [eventType, setEventType] = useState("promotion");
   const [outlets, setOutlets] = useState<{ id: number; name: string; code: string }[]>([]);
   const [appUsers, setAppUsers] = useState<{ id: number; full_name: string; username: string; role: string | null }[]>([]);
+  const [deviceUsers, setDeviceUsers] = useState<{ user_id: string; name: string | null; employee: { id: number; full_name: string } | null }[]>([]);
 
   const load = () => hrFetch(`/employees/${id}`).then((r) => setEmployee(r.employee));
   useEffect(() => { load(); }, [id]);
@@ -90,6 +91,7 @@ export default function HrEmployeeDetailPage() {
     fetch(`${API}/api/all-outlets`, { headers: { Authorization: `Bearer ${token}` } })
       .then((r) => r.json()).then((d) => setOutlets((d.data || d.outlets || []).filter((o: { deleted_at?: string | null }) => !o.deleted_at))).catch(() => {});
     hrFetch(`/app-users?employee_id=${id}`).then((r) => setAppUsers(r.users || [])).catch(() => {});
+    hrFetch("/biometric/device-users").then((r) => setDeviceUsers(r.users || [])).catch(() => {});
   };
 
   const saveProfile = async (e: React.FormEvent) => {
@@ -249,6 +251,7 @@ export default function HrEmployeeDetailPage() {
                 <div className="flex justify-between"><span className="text-gray-500">Outlet</span><span>{employee.outlet?.name || "-"}</span></div>
                 <div className="flex justify-between"><span className="text-gray-500">Basic Salary</span><span>Rs. {(employee.basic_salary || 0).toLocaleString()}</span></div>
                 <div className="flex justify-between"><span className="text-gray-500">Mobile App Account</span><span>{employee.user_id ? `Linked (user #${employee.user_id})` : "Not linked"}</span></div>
+                <div className="flex justify-between"><span className="text-gray-500">Biometric Device ID</span><span>{employee.device_user_id ? <Link href="/hr/biometric" className="font-mono text-primary hover:underline">{employee.device_user_id}</Link> : "Not linked"}</span></div>
                 <div className="flex justify-between"><span className="text-gray-500">Username</span><span className="font-mono">{employee.username}</span></div>
                 <hr className="border-stroke dark:border-stroke-dark" />
                 <div className="flex justify-between"><span className="text-gray-500">Emergency Contact</span><span>{employee.emergency_contact || "-"}</span></div>
@@ -310,18 +313,17 @@ export default function HrEmployeeDetailPage() {
             {attendSummary && (
               <div className="mb-4 rounded-lg bg-gray-2 px-4 py-3 text-xs dark:bg-dark-3">
                 <strong>Deductible days: {attendSummary.deductible_days}</strong> — absent {attendSummary.absent}, off {attendSummary.off},
-                late penalty {attendSummary.late_penalty_offs} ({attendSummary.late} lates), Sat/Mon penalty {attendSummary.weekend_penalty_offs}, unpaid leave {attendSummary.unpaid_leave}
-                {attendSummary.unmarked > 0 && <span className="text-yellow-dark"> · {attendSummary.unmarked} working day(s) not marked (not deducted)</span>}
+                late penalty {attendSummary.late_penalty_offs} ({attendSummary.late} lates), off-day penalty {attendSummary.weekend_penalty_offs}, unpaid leave {attendSummary.unpaid_leave}
               </div>
             )}
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead><tr className="border-b border-stroke dark:border-stroke-dark">
                   <th className="px-3 py-2 text-left">Date</th><th className="px-3 py-2 text-left">Status</th><th className="px-3 py-2 text-left">In</th>
-                  <th className="px-3 py-2 text-left">Out</th><th className="px-3 py-2 text-left">Source</th><th className="px-3 py-2 text-left">OT</th>
+                  <th className="px-3 py-2 text-left">Out</th><th className="px-3 py-2 text-left">Source</th><th className="px-3 py-2 text-left">OT</th><th className="px-3 py-2 text-left">Details</th>
                 </tr></thead>
                 <tbody>
-                  {attendRecords.length === 0 && <tr><td colSpan={6} className="px-3 py-6 text-center text-gray-500">No records</td></tr>}
+                  {attendRecords.length === 0 && <tr><td colSpan={7} className="px-3 py-6 text-center text-gray-500">No records</td></tr>}
                   {attendRecords.map((r) => {
                     const method = r.notes?.match(/\[method:(\w+)\]/)?.[1] || "";
                     return (
@@ -332,6 +334,7 @@ export default function HrEmployeeDetailPage() {
                         <td className="px-3 py-2">{r.check_out || "-"}</td>
                         <td className="px-3 py-2">{method ? <span className="rounded bg-blue-100 px-2 py-0.5 text-xs text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">{method}</span> : "-"}</td>
                         <td className="px-3 py-2">{r.overtime_hrs ? `${r.overtime_hrs}h` : "-"}</td>
+                        <td className="px-3 py-2 text-xs text-gray-500">{r.missed_punch && <span className="mr-1 rounded bg-red/10 px-1.5 py-0.5 text-red">Missed punch</span>}{(r.notes || "").replace(/[method:w+]s*/g, "") || "-"}</td>
                       </tr>
                     );
                   })}
@@ -561,6 +564,16 @@ export default function HrEmployeeDetailPage() {
                   <option value="">— Not linked —</option>
                   {employee.user_id && !appUsers.some((u) => u.id === employee.user_id) && <option value={employee.user_id}>User #{employee.user_id}</option>}
                   {appUsers.map((u) => <option key={u.id} value={u.id}>{u.full_name} (@{u.username}{u.role ? `, ${roleLabel(u.role)}` : ""})</option>)}
+                </select>
+              </label>
+              <label className="text-xs text-gray-500 sm:col-span-2">Biometric device user (attendance comes from this device ID&apos;s punches)
+                <select name="device_user_id" defaultValue={employee.device_user_id ?? ""} className="mt-1 w-full rounded-lg border border-stroke px-3 py-2 text-sm text-dark dark:border-stroke-dark dark:bg-dark-3 dark:text-white">
+                  <option value="">— Not linked —</option>
+                  {employee.device_user_id && !deviceUsers.some((u) => u.user_id === employee.device_user_id) && <option value={employee.device_user_id}>ID {employee.device_user_id}</option>}
+                  {deviceUsers.map((u) => {
+                    const other = u.employee && u.employee.id !== employee.id;
+                    return <option key={u.user_id} value={u.user_id} disabled={!!other}>ID {u.user_id} — {u.name || "(no name)"}{other ? ` (linked to ${u.employee?.full_name})` : ""}</option>;
+                  })}
                 </select>
               </label>
               <label className="text-xs text-gray-500 sm:col-span-2">Address

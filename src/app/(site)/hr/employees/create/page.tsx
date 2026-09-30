@@ -33,6 +33,7 @@ export default function CreateEmployeePage() {
   const router = useRouter();
   const [outlets, setOutlets] = useState<{ id: number; name: string; code: string }[]>([]);
   const [appUsers, setAppUsers] = useState<{ id: number; full_name: string; username: string; role: string | null }[]>([]);
+  const [deviceUsers, setDeviceUsers] = useState<{ user_id: string; name: string | null; employee: { full_name: string } | null }[]>([]);
   const [sendingSms, setSendingSms] = useState(false);
   const [loading, setLoading] = useState(false);
   const [docs, setDocs] = useState<DocRow[]>([]);
@@ -48,7 +49,7 @@ export default function CreateEmployeePage() {
     full_name: "", cnic: "", phone: "", email: "", address: "",
     emergency_contact: "", emergency_phone: "", qualification: "", experience: "",
     date_of_birth: "", date_of_joining: "", department: "", designation: "",
-    outlet_id: "", basic_salary: "", user_id: "",
+    outlet_id: "", basic_salary: "", user_id: "", device_user_id: "",
   });
 
   useEffect(() => {
@@ -60,6 +61,7 @@ export default function CreateEmployeePage() {
       .then((d) => setOutlets((d.data || d.outlets || []).filter((o: { deleted_at?: string | null }) => !o.deleted_at)))
       .catch(console.error);
     hrFetch("/app-users").then((r) => setAppUsers(r.users || [])).catch(() => {});
+    hrFetch("/biometric/device-users").then((r) => setDeviceUsers(r.users || [])).catch(() => {});
   }, []);
 
   const updateDoc = (key: number, patch: Partial<DocRow>) => setDocs((d) => d.map((r) => (r.key === key ? { ...r, ...patch } : r)));
@@ -184,7 +186,7 @@ export default function CreateEmployeePage() {
         )}
         <div className="mt-6 flex gap-3">
           <button onClick={() => router.push("/hr/employees")} className="flex-1 rounded-lg bg-primary py-2 text-white">View All Employees</button>
-          <button onClick={() => { setCredentials(null); docs.forEach((d) => d.preview && URL.revokeObjectURL(d.preview)); setDocs([]); setDocResult(null); setForm({ full_name: "", cnic: "", phone: "", email: "", address: "", emergency_contact: "", emergency_phone: "", qualification: "", experience: "", date_of_birth: "", date_of_joining: "", department: "", designation: "", outlet_id: "", basic_salary: "", user_id: "" }); }} className="flex-1 rounded-lg border border-stroke py-2 dark:border-stroke-dark">Add Another</button>
+          <button onClick={() => { setCredentials(null); docs.forEach((d) => d.preview && URL.revokeObjectURL(d.preview)); setDocs([]); setDocResult(null); setForm({ full_name: "", cnic: "", phone: "", email: "", address: "", emergency_contact: "", emergency_phone: "", qualification: "", experience: "", date_of_birth: "", date_of_joining: "", department: "", designation: "", outlet_id: "", basic_salary: "", user_id: "", device_user_id: "" }); }} className="flex-1 rounded-lg border border-stroke py-2 dark:border-stroke-dark">Add Another</button>
         </div>
       </div>
     );
@@ -225,6 +227,14 @@ export default function CreateEmployeePage() {
               className="w-full rounded-lg border border-stroke px-3 py-2 text-sm dark:border-stroke-dark dark:bg-dark-3">
               <option value="">— Not linked —</option>
               {appUsers.map((u) => <option key={u.id} value={u.id}>{u.full_name} (@{u.username}{u.role ? `, ${roleLabel(u.role)}` : ""})</option>)}
+            </select>
+          </div>
+          <div className="sm:col-span-2">
+            <label className="mb-1 block text-sm text-gray-500">Biometric device user (attendance will come from this device ID&apos;s punches)</label>
+            <select value={form.device_user_id} onChange={(e) => setForm({ ...form, device_user_id: e.target.value })}
+              className="w-full rounded-lg border border-stroke px-3 py-2 text-sm dark:border-stroke-dark dark:bg-dark-3">
+              <option value="">— Not linked —</option>
+              {deviceUsers.map((u) => <option key={u.user_id} value={u.user_id} disabled={!!u.employee}>ID {u.user_id} — {u.name || "(no name)"}{u.employee ? ` (linked to ${u.employee.full_name})` : ""}</option>)}
             </select>
           </div>
           <div className="sm:col-span-2">{field("address", "Address")}</div>

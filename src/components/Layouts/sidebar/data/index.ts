@@ -703,6 +703,12 @@ export const NAV_DATA = [
         items: [],
       },
       {
+        title: "Biometric Device",
+        icon: Icons.FingerprintIcon,
+        url: "/hr/biometric",
+        items: [],
+      },
+      {
         title: "Loans",
         icon: Icons.HashIcon,
         url: "/hr/loans",
