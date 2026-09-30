@@ -136,6 +136,7 @@ export default function AccountsExpensesPage() {
   // Salary state
   const [salaryMonths, setSalaryMonths] = useState<SalaryMonth[]>([]);
   const [salarySlips, setSalarySlips] = useState<SalarySlip[]>([]);
+  const [availableSalaryMonths, setAvailableSalaryMonths] = useState<string[]>([]);
   const [salaryLoading, setSalaryLoading] = useState(false);
   const [selectedMonthFilter, setSelectedMonthFilter] = useState<string>("all");
   const [salarySearch, setSalarySearch] = useState<string>("");
@@ -186,12 +187,19 @@ export default function AccountsExpensesPage() {
       fetchApprovals();
     } else if (tab === "salary") {
       setSalaryLoading(true);
-      fetch(`${BACKEND_URL}/api/accounts/expenses/salary`, { headers: authHeaders() })
+      const query = new URLSearchParams();
+      if (globalMonthFilter && globalMonthFilter !== "all") {
+        query.set("month", globalMonthFilter);
+      }
+      fetch(`${BACKEND_URL}/api/accounts/expenses/salary?${query.toString()}`, { headers: authHeaders() })
         .then((res) => res.json())
         .then((json) => {
           if (json.success) {
             setSalaryMonths(json.data.months || []);
             setSalarySlips(json.data.slips || []);
+            if (json.data.availableSalaryMonths) {
+              setAvailableSalaryMonths(json.data.availableSalaryMonths);
+            }
           }
         })
         .finally(() => setSalaryLoading(false));
@@ -345,21 +353,24 @@ export default function AccountsExpensesPage() {
         </div>
 
         {/* Global Month Filter Selector */}
-        {tab === "summary" && (
+        {(tab === "summary" || tab === "salary") && (
           <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 py-1.5 shadow-sm dark:border-white/10 dark:bg-boxdark">
             <Calendar className="size-4 text-[#ff3d3d]" />
             <span className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">Month Filter:</span>
             <select
               value={globalMonthFilter}
-              onChange={(e) => setGlobalMonthFilter(e.target.value)}
+              onChange={(e) => {
+                setGlobalMonthFilter(e.target.value);
+                setSelectedMonthFilter(e.target.value);
+              }}
               className="rounded-lg border-0 bg-transparent py-0.5 text-xs font-black text-dark outline-none dark:text-white cursor-pointer"
             >
-              {summary?.availableMonths?.map((mKey) => (
+              <option value="all">All Months (All Time)</option>
+              {(tab === "salary" && availableSalaryMonths.length > 0 ? availableSalaryMonths : summary?.availableMonths)?.map((mKey) => (
                 <option key={mKey} value={mKey}>
                   {formatMonthLabel(mKey)}
                 </option>
               ))}
-              <option value="all">All Months (All Time)</option>
             </select>
           </div>
         )}
@@ -935,12 +946,17 @@ export default function AccountsExpensesPage() {
 
                   <select
                     value={selectedMonthFilter}
-                    onChange={(e) => setSelectedMonthFilter(e.target.value)}
-                    className="rounded-xl border border-stroke bg-white px-3 py-1.5 text-xs font-medium outline-none dark:border-dark-3 dark:bg-gray-dark dark:text-white"
+                    onChange={(e) => {
+                      setSelectedMonthFilter(e.target.value);
+                      setGlobalMonthFilter(e.target.value);
+                    }}
+                    className="rounded-xl border border-stroke bg-white px-3 py-1.5 text-xs font-bold text-[#ff3d3d] outline-none dark:border-dark-3 dark:bg-gray-dark dark:text-white cursor-pointer"
                   >
-                    <option value="all">All Months</option>
-                    {salaryMonths.map((m) => (
-                      <option key={m.month} value={m.month}>{m.month}</option>
+                    <option value="all">All Months (All Time)</option>
+                    {(availableSalaryMonths.length > 0 ? availableSalaryMonths : salaryMonths.map((m) => m.month)).map((mKey) => (
+                      <option key={mKey} value={mKey}>
+                        {formatMonthLabel(mKey)} ({mKey})
+                      </option>
                     ))}
                   </select>
 
