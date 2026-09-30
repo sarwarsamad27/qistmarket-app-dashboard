@@ -124,6 +124,7 @@ export default function AccountsExpensesPage() {
   // Form states
   const [form, setForm] = useState({ outlet_id: "", payment_method: "Cash", notes: "" });
   const [items, setItems] = useState([{ category: "General", amount: "", description: "" }]);
+  const [createFile, setCreateFile] = useState<File | null>(null);
   const [creating, setCreating] = useState(false);
 
   // Approvals state
@@ -228,9 +229,26 @@ export default function AccountsExpensesPage() {
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.message || "Failed to create expense.");
+
+      // If user selected an invoice file during creation, attach it now
+      if (createFile && json.data?.id) {
+        try {
+          const fd = new FormData();
+          fd.append("file", createFile);
+          await fetch(`${BACKEND_URL}/api/accounts/expenses/${json.data.id}/invoice`, {
+            method: "POST",
+            headers: { Authorization: `Bearer ${Cookies.get("auth_token")}` },
+            body: fd,
+          });
+        } catch (fileErr) {
+          console.error("Failed to attach invoice file:", fileErr);
+        }
+      }
+
       toast.success("Expense submitted for approval.");
       setForm({ outlet_id: "", payment_method: "Cash", notes: "" });
       setItems([{ category: "General", amount: "", description: "" }]);
+      setCreateFile(null);
       fetchSummary(globalMonthFilter);
       fetchAllExpenses(globalMonthFilter);
     } catch (err: any) {
@@ -659,23 +677,42 @@ export default function AccountsExpensesPage() {
                         {/* Actions */}
                         <td className="px-5 py-3.5 text-right">
                           <div className="flex items-center justify-end gap-1.5">
+                            <input
+                              ref={(el) => { invoiceInputRefs.current[v.id] = el; }}
+                              type="file"
+                              accept="image/*,.pdf"
+                              className="hidden"
+                              onChange={(e) => handleInvoiceUpload(v.id, e)}
+                            />
+
                             {v.invoice_url ? (
                               <a
                                 href={`${BACKEND_URL}${v.invoice_url}`}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                title="View Invoice File"
-                                className="flex items-center gap-1 rounded-lg bg-slate-100 p-1.5 text-xs font-bold text-slate-700 hover:bg-slate-200 dark:bg-white/10 dark:text-gray-200"
+                                title="View Attached Invoice File"
+                                className="inline-flex items-center gap-1.5 rounded-lg bg-blue-50 px-2.5 py-1.5 text-xs font-bold text-blue-700 hover:bg-blue-100 dark:bg-blue-500/10 dark:text-blue-400 transition"
                               >
-                                <ExternalLink className="size-3.5" />
+                                <FileText className="size-3.5" /> View Invoice
                               </a>
-                            ) : null}
+                            ) : (
+                              <button
+                                type="button"
+                                disabled={uploadingInvoiceId === v.id}
+                                onClick={() => invoiceInputRefs.current[v.id]?.click()}
+                                title="Upload Invoice/Receipt file for this voucher"
+                                className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-50 px-2.5 py-1.5 text-xs font-bold text-indigo-700 hover:bg-indigo-100 dark:bg-indigo-500/10 dark:text-indigo-400 disabled:opacity-50 transition"
+                              >
+                                {uploadingInvoiceId === v.id ? <Loader2 className="size-3.5 animate-spin" /> : <Upload className="size-3.5" />}
+                                {uploadingInvoiceId === v.id ? "Uploading..." : "Upload Invoice"}
+                              </button>
+                            )}
 
                             <button
                               onClick={() => handleDeleteExpense(v.id, v.voucher_number, v.total_amount)}
                               disabled={deletingId === v.id}
                               title="Delete Expense Voucher"
-                              className="flex items-center gap-1 rounded-lg bg-rose-50 p-1.5 text-xs font-bold text-rose-600 hover:bg-rose-100 dark:bg-rose-500/10 dark:text-rose-400 disabled:opacity-50"
+                              className="inline-flex items-center gap-1 rounded-lg bg-rose-50 p-1.5 text-xs font-bold text-rose-600 hover:bg-rose-100 dark:bg-rose-500/10 dark:text-rose-400 disabled:opacity-50 transition"
                             >
                               {deletingId === v.id ? <Loader2 className="size-3.5 animate-spin" /> : <Trash2 className="size-3.5" />}
                             </button>
@@ -731,9 +768,24 @@ export default function AccountsExpensesPage() {
               </div>
             </div>
 
-            <div>
-              <label className="mb-1.5 block text-sm font-medium text-dark dark:text-white">Notes / References</label>
-              <textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} rows={2} placeholder="Optional notes for this voucher..." className="w-full rounded-xl border border-stroke bg-white px-4 py-2.5 text-sm outline-none dark:border-dark-3 dark:bg-gray-dark dark:text-white" />
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-dark dark:text-white">Notes / References</label>
+                <textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} rows={2} placeholder="Optional notes for this voucher..." className="w-full rounded-xl border border-stroke bg-white px-4 py-2 text-sm outline-none dark:border-dark-3 dark:bg-gray-dark dark:text-white" />
+              </div>
+
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-dark dark:text-white">Upload Invoice / Receipt Document (Optional)</label>
+                <div className="rounded-xl border border-dashed border-stroke bg-slate-50/50 p-2 dark:border-dark-3 dark:bg-white/5">
+                  <input
+                    type="file"
+                    accept="image/*,.pdf"
+                    onChange={(e) => setCreateFile(e.target.files?.[0] || null)}
+                    className="w-full text-xs text-gray-500 file:mr-3 file:rounded-lg file:border-0 file:bg-[#ff3d3d]/10 file:px-3 file:py-1.5 file:text-xs file:font-bold file:text-[#ff3d3d] hover:file:bg-[#ff3d3d]/20 dark:text-gray-400 dark:file:bg-[#ff3d3d]/20 dark:file:text-white"
+                  />
+                  {createFile ? <p className="mt-1 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">Selected: {createFile.name}</p> : null}
+                </div>
+              </div>
             </div>
 
             <button type="submit" disabled={creating} className="rounded-xl bg-[#ff3d3d] px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-opacity-90 disabled:opacity-50 flex items-center gap-2">
