@@ -1139,7 +1139,20 @@ function InstallmentsViewContent() {
                       <td className="px-4 py-3.5 font-bold text-gray-700 dark:text-slate-300">{inst.product_name}</td>
                       <td className="px-4 py-3.5 font-mono font-bold text-gray-600">{inst.imei_serial}</td>
                       <td className="px-4 py-3.5 text-right font-black text-slate-900 dark:text-white">Rs. {inst.monthlyAmount.toLocaleString()}</td>
-                      <td className="px-4 py-3.5 text-right font-black text-[#E31E24]">Rs. {inst.remainingAmount.toLocaleString()}</td>
+                      <td className="px-4 py-3.5 text-right">
+                        {inst.arrearsAmount > 0 ? (
+                          <div>
+                            <span className="font-black text-[#E31E24] text-sm">
+                              Rs. {(inst.remainingAmount + inst.arrearsAmount).toLocaleString()}
+                            </span>
+                            <p className="text-[10px] text-amber-600 font-bold mt-0.5">
+                              (Base Rs. {inst.remainingAmount.toLocaleString()} + Rs. {inst.arrearsAmount.toLocaleString()} arr.)
+                            </p>
+                          </div>
+                        ) : (
+                          <span className="font-black text-[#E31E24]">Rs. {inst.remainingAmount.toLocaleString()}</span>
+                        )}
+                      </td>
                       <td className="px-4 py-3.5 text-right font-black text-emerald-600 dark:text-emerald-400">
                         {inst.partialPayment ? `Rs. ${inst.partialPayment.toLocaleString()}` : "-"}
                       </td>
@@ -1178,7 +1191,7 @@ function InstallmentsViewContent() {
                             onClick={() => {
                               setQrOrderId(inst.order_id);
                               setQrMonthNumber(inst.monthNumber);
-                              setQrDefaultAmount(inst.remainingAmount);
+                              setQrDefaultAmount(inst.remainingAmount + (inst.arrearsAmount || 0));
                               setQrCustomerName(inst.customer_name);
                               setQrModalOpen(true);
                             }}

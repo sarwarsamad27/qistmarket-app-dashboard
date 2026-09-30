@@ -670,7 +670,18 @@ export const PaymentDetailsSection = ({
                                                         <CarryLines carriedIn={inst.carried_in} />
                                                     </td>
                                                     <td className="px-4 py-2 text-sm font-bold text-red-500">
-                                                        {inst.remaining_amount > 0 ? `Rs. ${inst.remaining_amount.toLocaleString()}` : '-'}
+                                                        {(inst.remaining_amount > 0 || (inst.arrears || 0) > 0) ? (
+                                                            (inst.arrears || 0) > 0 ? (
+                                                                <div>
+                                                                    <span>Rs. {((inst.remaining_amount || 0) + (inst.arrears || 0)).toLocaleString()}</span>
+                                                                    <p className="text-[9px] font-normal text-gray-400 dark:text-gray-500">
+                                                                        (Rs. {(inst.remaining_amount || 0).toLocaleString()} + Rs. {(inst.arrears || 0).toLocaleString()} arr.)
+                                                                    </p>
+                                                                </div>
+                                                            ) : (
+                                                                `Rs. ${inst.remaining_amount.toLocaleString()}`
+                                                            )
+                                                        ) : '-'}
                                                     </td>
                                                     <td className="px-4 py-2">
                                                         <span className={cn(

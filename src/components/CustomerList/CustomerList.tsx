@@ -745,7 +745,7 @@ const CustomerList = () => {
                                         <div className="font-semibold">{fmt(inst.dueAmount)}</div>
                                         {inst.arrears ? (
                                           <div className="text-[9px] font-medium text-red-500 whitespace-nowrap">
-                                            Inc. Arrears: {fmt(inst.arrears)}
+                                            Inc. Arrears: {fmt(inst.arrears || 0)}
                                           </div>
                                         ) : null}
                                       </td>
@@ -753,7 +753,18 @@ const CustomerList = () => {
                                         {inst.paidAmount > 0 ? fmt(inst.paidAmount) : '-'}
                                       </td>
                                       <td className="py-1 pr-2 text-right">
-                                        {inst.remainingAmount > 0 ? fmt(inst.remainingAmount) : '-'}
+                                        {(inst.remainingAmount > 0 || (inst.arrears || 0) > 0) ? (
+                                           (inst.arrears || 0) > 0 ? (
+                                             <div>
+                                               <span className="font-bold text-red-500">{fmt(inst.remainingAmount + (inst.arrears || 0))}</span>
+                                               <div className="text-[8px] text-gray-400 font-normal">
+                                                 ({fmt(inst.remainingAmount)} + {fmt(inst.arrears || 0)} arr)
+                                               </div>
+                                             </div>
+                                           ) : (
+                                             fmt(inst.remainingAmount)
+                                           )
+                                         ) : '-'}
                                       </td>
                                       <td className="py-1 text-right">
                                         <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${statusBadge(inst.status, inst.paidAmount, inst.remainingAmount)}`}>

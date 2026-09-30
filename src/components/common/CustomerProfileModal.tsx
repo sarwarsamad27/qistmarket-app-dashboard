@@ -895,7 +895,20 @@ function FinancialsTab({ orderId, orderRef }: { orderId: number, orderRef: strin
                                         ) : null}
                                     </td>
                                     <td className="px-6 py-4 text-[10px] font-bold text-emerald-600 text-right">{inst.paidAmount > 0 ? `PKR ${inst.paidAmount.toLocaleString()}` : '-'}</td>
-                                    <td className="px-6 py-4 text-[10px] font-bold text-red-500 text-right">{inst.remainingAmount > 0 ? `PKR ${inst.remainingAmount.toLocaleString()}` : '-'}</td>
+                                    <td className="px-6 py-4 text-right">
+                                         {(inst.remainingAmount > 0 || (inst.arrears || 0) > 0) ? (
+                                             (inst.arrears || 0) > 0 ? (
+                                                 <div>
+                                                     <span className="text-[10px] font-bold text-red-500">PKR {(inst.remainingAmount + (inst.arrears || 0)).toLocaleString()}</span>
+                                                     <p className="text-[9px] text-gray-400 font-normal">
+                                                         (PKR {inst.remainingAmount.toLocaleString()} + PKR {(inst.arrears || 0).toLocaleString()} arr)
+                                                     </p>
+                                                 </div>
+                                             ) : (
+                                                 <span className="text-[10px] font-bold text-red-500">PKR {inst.remainingAmount.toLocaleString()}</span>
+                                             )
+                                         ) : '-'}
+                                     </td>
                                     <td className="px-6 py-4">
                                         <span className={`px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest ${
                                             inst.status === 'paid' ? 'bg-green-100 text-green-600' : 
