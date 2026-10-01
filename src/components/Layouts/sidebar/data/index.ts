@@ -777,6 +777,7 @@ export const NAV_DATA = [
         icon: Icons.UsersIcon,
         items: [
           { title: "Customer Receivables", url: "/accounts/receivables" },
+          { title: "Daily Payments", url: "/accounts/daily-payments" },
           { title: "Installment Receiving", url: "/accounts/installment-receiving" },
           { title: "Installment Aging", url: "/accounts/aging" },
           { title: "Monthly Installments", url: "/accounts/monthly-installments" },
@@ -790,6 +791,7 @@ export const NAV_DATA = [
           { title: "Installment Flow Analytics", url: "/accounts/installment-flow" },
           { title: "Stock Summary", url: "/accounts/stock-summary" },
           { title: "Reports & Export", url: "/accounts/reports" },
+          { title: "Master Sheet Export", url: "/accounts/master-sheet" },
         ],
       },
       {
