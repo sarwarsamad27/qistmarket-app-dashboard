@@ -699,15 +699,25 @@ export const PaymentDetailsSection = ({
                                                         {inst.paid_at && inst.paid_amount > 0 ? formatExactDate(inst.paid_at, 'DD MMM YYYY, hh:mm A') : '-'}
                                                     </td>
                                                     <td className="px-4 py-2 text-sm text-gray-600 dark:text-gray-400">
-                                                        {inst.paid_amount > 0 ? (inst.payment_method || '-') : '-'}
+                                                        {inst.paid_amount > 0 ? (
+                                                            (() => {
+                                                                const m = inst.payment_method || '';
+                                                                const isOnline = m.toLowerCase().includes('tps') || m.toLowerCase().includes('smartpay') || m.toLowerCase().includes('1bill') || m.toLowerCase().includes('1link');
+                                                                return isOnline ? 'Online Payment' : (m || '-');
+                                                            })()
+                                                        ) : '-'}
                                                      </td>
                                                      <td className="px-4 py-2 text-sm font-semibold text-slate-800 dark:text-slate-200">
                                                          {inst.paid_amount > 0 ? (
-                                                             inst.received_by || inst.collected_by_name || inst.collectedByName || (
-                                                                 (inst.payment_method?.toLowerCase().includes('tps') || inst.payment_method?.toLowerCase().includes('smartpay') || inst.payment_method?.toLowerCase().includes('1bill'))
-                                                                     ? 'Online Payment'
-                                                                     : '-'
-                                                             )
+                                                             (() => {
+                                                                 const m = inst.payment_method || '';
+                                                                 const isOnline = m.toLowerCase().includes('tps') || m.toLowerCase().includes('smartpay') || m.toLowerCase().includes('1bill') || m.toLowerCase().includes('1link');
+                                                                 if (isOnline) {
+                                                                     if (m.toLowerCase().includes('smartpay')) return 'SmartPay QR';
+                                                                     return '1LINK TPS';
+                                                                 }
+                                                                 return inst.received_by || inst.collected_by_name || inst.collectedByName || '-';
+                                                             })()
                                                          ) : '-'}
                                                      </td>
                                                      <td className="px-4 py-2 text-sm font-semibold text-slate-800 dark:text-slate-200">
