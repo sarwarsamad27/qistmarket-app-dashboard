@@ -405,7 +405,7 @@ function InstallmentsViewContent() {
         row.product_name || '',
         row.imei_serial || '',
         row.monthlyAmount || 0,
-        row.remainingAmount || 0,
+        row.payableAmount || 0,
         row.partialPayment || "-",
         paymentHistoryStr,
         row.consumer_number || '',
@@ -1141,17 +1141,21 @@ function InstallmentsViewContent() {
                       <td className="px-4 py-3.5 font-mono font-bold text-gray-600">{inst.imei_serial}</td>
                       <td className="px-4 py-3.5 text-right font-black text-slate-900 dark:text-white">Rs. {inst.monthlyAmount.toLocaleString()}</td>
                       <td className="px-4 py-3.5 text-right">
-                        {inst.arrearsAmount > 0 ? (
+                        {/* Amount owed right now — same figure as the order ledger's
+                            "QR amount (payable now)": this month's balance + arrears. */}
+                        {(inst.arrearsAmount || 0) > 0 ? (
                           <div>
                             <span className="font-black text-[#E31E24] text-sm">
-                              Rs. {(inst.remainingAmount + inst.arrearsAmount).toLocaleString()}
+                              Rs. {(inst.payableAmount ?? 0).toLocaleString()}
                             </span>
                             <p className="text-[10px] text-amber-600 font-bold mt-0.5">
-                              (Base Rs. {inst.remainingAmount.toLocaleString()} + Rs. {inst.arrearsAmount.toLocaleString()} arr.)
+                              (This month Rs. {(inst.currentDueAmount ?? 0).toLocaleString()} + Rs. {inst.arrearsAmount.toLocaleString()} arr.)
                             </p>
                           </div>
+                        ) : (inst.payableAmount ?? 0) > 0 ? (
+                          <span className="font-black text-[#E31E24]">Rs. {inst.payableAmount.toLocaleString()}</span>
                         ) : (
-                          <span className="font-black text-[#E31E24]">Rs. {inst.remainingAmount.toLocaleString()}</span>
+                          <span className="font-bold text-gray-400">-</span>
                         )}
                       </td>
                       <td className="px-4 py-3.5 text-right font-black text-emerald-600 dark:text-emerald-400">
@@ -1192,7 +1196,7 @@ function InstallmentsViewContent() {
                             onClick={() => {
                               setQrOrderId(inst.order_id);
                               setQrMonthNumber(inst.monthNumber);
-                              setQrDefaultAmount(inst.remainingAmount + (inst.arrearsAmount || 0));
+                              setQrDefaultAmount(inst.payableAmount ?? 0);
                               setQrCustomerName(inst.customer_name);
                               setQrModalOpen(true);
                             }}
@@ -1269,7 +1273,7 @@ function InstallmentsViewContent() {
                                   onClick={() => {
                                       setQrOrderId(inst.order_id);
                                       setQrMonthNumber(inst.monthNumber);
-                                      setQrDefaultAmount(inst.remainingAmount);
+                                      setQrDefaultAmount(inst.payableAmount ?? 0);
                                       setQrCustomerName(inst.customer_name);
                                       setQrModalOpen(true);
                                   }}
