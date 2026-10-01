@@ -11,6 +11,7 @@ import { MenuItem } from "./menu-item";
 import { useSidebarContext } from "./sidebar-context";
 import { useAuth } from "../../../../contexts/AuthContext"; // Added AuthContext
 import { canSubAdminOpen, isSubAdmin } from "@/lib/subAdminPermissions";
+import { getRoleHome, OUTLET_ONLY_ROLES } from "@/lib/roleHome";
 
 export function Sidebar() {
   const pathname = usePathname();
@@ -47,13 +48,7 @@ export function Sidebar() {
   // in that way previously matched none of the exclusions below and fell
   // through to seeing MAIN MENU + CSR PORTAL + OUTLET PORTAL all at once.
   // These all belong in the same "outlet portal only" bucket as Branch User.
-  const outletOnlyRoles = [
-    "branch user",
-    "recovery officer",
-    "verification officer",
-    "delivery agent",
-    "stock manager",
-  ];
+  const outletOnlyRoles = OUTLET_ONLY_ROLES;
 
   const filteredNavData = NAV_DATA.filter((section) => {
     const allowedRoles = ["sales officer"];
@@ -155,15 +150,7 @@ export function Sidebar() {
         <div className="flex h-full flex-col py-10 pl-[25px] pr-[7px]">
           <div className="relative pr-4.5">
             <Link
-              href={
-                userRole === "sales officer"
-                  ? "/csr/dashboard"
-                  : outletOnlyRoles.includes(userRole)
-                    ? "/outlet/dashboard"
-                    : userRole === "hr"
-                      ? "/hr/dashboard"
-                      : "/"
-              }
+              href={getRoleHome(userRole)}
               onClick={() => isMobile && toggleSidebar()}
               className="px-0 py-2.5 min-[850px]:py-0"
             >

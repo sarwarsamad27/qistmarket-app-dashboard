@@ -11,6 +11,7 @@ import {
   Receipt, UserSquare2, Logs, Filter, TrendingUp, TrendingDown, Percent, Award, BadgeDollarSign
 } from "lucide-react";
 import { useAuth } from "../../../../../contexts/AuthContext";
+import { getRoleHome } from "@/lib/roleHome";
 
 const Chart = dynamic(() => import("react-apexcharts"), { ssr: false });
 
@@ -172,8 +173,10 @@ export default function OutletDashboardPage() {
   useEffect(() => {
     if (!authLoading && user) {
       const userRole = user.role?.toLowerCase();
-      if (userRole === "sales officer") {
-        router.push("/csr/dashboard");
+      // Roles with a different home (CSR, HR, Accounts) don't belong here.
+      const home = getRoleHome(userRole);
+      if (home !== "/" && home !== "/outlet/dashboard") {
+        router.replace(home);
       }
       setOutletName(user.outlet_name || user.full_name || "Outlet Portal");
     }

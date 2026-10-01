@@ -3,6 +3,7 @@
 import { useAuth } from "../../contexts/AuthContext";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
+import { getRoleHome } from "@/lib/roleHome";
 
 export default function GuestRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
@@ -10,7 +11,7 @@ export default function GuestRoute({ children }: { children: React.ReactNode }) 
 
   useEffect(() => {
     if (!loading && user) {
-      router.push("/"); 
+      router.replace(getRoleHome(user.role));
     }
   }, [user, loading, router]);
 

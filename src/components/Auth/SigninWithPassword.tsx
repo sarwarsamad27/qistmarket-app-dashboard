@@ -9,6 +9,7 @@ import InputGroup from "../FormElements/InputGroup";
 import Cookies from "js-cookie";
 import toast from "react-hot-toast";
 import { KeyIcon } from "lucide-react";
+import { getRoleHome } from "@/lib/roleHome";
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
 
@@ -159,7 +160,7 @@ export default function SigninWithOTP() {
       });
       localStorage.setItem("user", JSON.stringify(result.user));
       localStorage.setItem("token", result.token);
-      router.push("/");
+      router.push(getRoleHome(result.user?.role));
     } catch (err: any) {
       toast.error(err.message);
     } finally {

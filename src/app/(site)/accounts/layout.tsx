@@ -3,6 +3,7 @@
 import { ReactNode, useEffect } from "react";
 import { useAuth } from "../../../../contexts/AuthContext";
 import { useRouter } from "next/navigation";
+import { getRoleHome } from "@/lib/roleHome";
 
 const ALLOWED = ["accountant", "super admin"];
 
@@ -14,25 +15,20 @@ export default function AccountsLayout({ children }: { children: ReactNode }) {
     if (!loading) {
       const role = user?.role?.toLowerCase() || "";
       if (!user || !ALLOWED.includes(role)) {
-        router.replace("/");
+        // Send them to their own dashboard (not "/", which would bounce
+        // them a second time and flash the admin dashboard).
+        router.replace(user ? getRoleHome(role) : "/login");
       }
     }
   }, [loading, user, router]);
 
-  if (loading) {
+  // Keep showing the loader while an unauthorized user is being redirected
+  // to their own dashboard, instead of flashing an "Access Denied" box.
+  const role = user?.role?.toLowerCase() || "";
+  if (loading || !user || !ALLOWED.includes(role)) {
     return (
       <div className="flex min-h-[40vh] items-center justify-center">
         <p className="text-lg font-semibold">Loading Accounts access...</p>
-      </div>
-    );
-  }
-
-  const role = user?.role?.toLowerCase() || "";
-  if (!user || !ALLOWED.includes(role)) {
-    return (
-      <div className="rounded-xl border border-stroke bg-white p-8 text-center dark:border-stroke-dark dark:bg-dark-2">
-        <h1 className="text-xl font-semibold">Access Denied</h1>
-        <p className="mt-2 text-sm text-gray-500">Accounts module is restricted to Accountant users.</p>
       </div>
     );
   }

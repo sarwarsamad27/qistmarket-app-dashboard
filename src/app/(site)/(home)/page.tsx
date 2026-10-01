@@ -8,6 +8,7 @@ import { Store, Warehouse, Trophy, AlertTriangle, Activity, Users2, Landmark } f
 import { PaymentsOverviewChart } from '@/components/Charts/payments-overview/chart'
 import { useNotifications } from '../../../../contexts/NotificationContext'
 import { useAuth } from '../../../../contexts/AuthContext'
+import { getRoleHome } from '@/lib/roleHome'
 
 const BACKEND_URL =
   process.env.NEXT_PUBLIC_BACKEND_URL;
@@ -139,32 +140,15 @@ export default function Home() {
   const { notifications, unreadCount, socket } = useNotifications()
   const { user, loading: authLoading } = useAuth()
   const router = useRouter()
+  const roleHome = getRoleHome(user?.role)
 
   useEffect(() => {
-    if (!authLoading && user) {
-      const userRole = user.role?.toLowerCase()
-      // Any field/outlet-affiliated role can log in through the outlet
-      // login flow (it only checks username+outlet_id, not role) — Recovery
-      // Officer, Verification Officer, Delivery Agent and Stock Manager all
-      // need the same redirect Branch User already got, otherwise landing
-      // or navigating back to "/" leaves them stranded on the admin-only
-      // Operations Dashboard instead of their outlet dashboard.
-      const outletOnlyRoles = [
-        'branch user',
-        'recovery officer',
-        'verification officer',
-        'delivery agent',
-        'stock manager',
-      ]
-      if (userRole === 'sales officer') {
-        router.push('/csr/dashboard')
-      } else if (userRole && outletOnlyRoles.includes(userRole)) {
-        router.push('/outlet/dashboard')
-      } else if (userRole === 'hr') {
-        router.push('/hr/dashboard')
-      }
+    // Non-admin roles landing on (or navigating back to) "/" must go to their
+    // own dashboard instead of the admin-only Operations Dashboard.
+    if (!authLoading && user && roleHome !== '/') {
+      router.replace(roleHome)
     }
-  }, [user, authLoading, router])
+  }, [user, authLoading, router, roleHome])
 
   const token = useMemo(() => Cookies.get('auth_token'), [])
 
@@ -331,6 +315,16 @@ export default function Home() {
       })),
     }
   }, [reportSummary])
+
+  // Don't flash the admin Operations Dashboard while auth resolves or while
+  // a non-admin role is being redirected to its own dashboard.
+  if (authLoading || (user && roleHome !== '/')) {
+    return (
+      <div className="flex min-h-[60vh] items-center justify-center">
+        <div className="h-10 w-10 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-8">
