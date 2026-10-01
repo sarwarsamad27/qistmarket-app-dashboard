@@ -629,6 +629,8 @@ export const PaymentDetailsSection = ({
                                                 <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300">Status</th>
                                                 <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300">Payment Date</th>
                                                 <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300">Method</th>
+                                                 <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300">Received By</th>
+                                                 <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300">Outlet</th>
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-800">
@@ -698,6 +700,20 @@ export const PaymentDetailsSection = ({
                                                     </td>
                                                     <td className="px-4 py-2 text-sm text-gray-600 dark:text-gray-400">
                                                         {inst.paid_amount > 0 ? (inst.payment_method || '-') : '-'}
+                                                     </td>
+                                                     <td className="px-4 py-2 text-sm font-semibold text-slate-800 dark:text-slate-200">
+                                                         {inst.paid_amount > 0 ? (
+                                                             inst.received_by || inst.collected_by_name || inst.collectedByName || (
+                                                                 (inst.payment_method?.toLowerCase().includes('tps') || inst.payment_method?.toLowerCase().includes('smartpay') || inst.payment_method?.toLowerCase().includes('1bill'))
+                                                                     ? 'Online Payment'
+                                                                     : '-'
+                                                             )
+                                                         ) : '-'}
+                                                     </td>
+                                                     <td className="px-4 py-2 text-sm font-semibold text-slate-800 dark:text-slate-200">
+                                                         {inst.paid_amount > 0 ? (
+                                                             inst.outlet_name || inst.outletName || '-'
+                                                         ) : '-'}
                                                     </td>
                                                 </tr>
                                             )) : editedRows.map((row) => (
