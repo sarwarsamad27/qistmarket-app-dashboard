@@ -137,8 +137,11 @@ export default function Home() {
   const [deliveryStatus, setDeliveryStatus] = useState<DeliveryStatusItem[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  // Which data sources have loaded at least once. Until then a card shows a
+  // loading skeleton (or "—" if its source failed) instead of a misleading 0.
+  const [loaded, setLoaded] = useState<Record<string, boolean>>({})
 
-  const { notifications, unreadCount, socket } = useNotifications()
+  const { notifications, unreadCount, socket, hasLoaded: notificationsLoaded } = useNotifications()
   const { user, loading: authLoading } = useAuth()
   const router = useRouter()
   const roleHome = getRoleHome(user?.role)
@@ -191,7 +194,11 @@ export default function Home() {
     const settled = await Promise.allSettled(sources.map((s) => fetchJson(s.url)))
     const results: Record<string, any> = {}
     let failedCount = 0
+    const loadedNow: Record<string, boolean> = {}
     settled.forEach((r, i) => {
+      if (r.status === 'fulfilled' && r.value) {
+        loadedNow[sources[i].key] = true
+      }
       if (r.status === 'fulfilled') {
         results[sources[i].key] = r.value
       } else {
@@ -242,6 +249,7 @@ export default function Home() {
       setReportSummary({
         totalReceived: overview.totalReceived ?? 0,
         totalPending: overview.totalPending ?? 0,
+        totalSalesAmount: overview.totalSalesAmount ?? 0,
         dailyTrend: Array.isArray(dailyTrend) ? dailyTrend : [],
       })
     }
@@ -260,6 +268,7 @@ export default function Home() {
       }))
     }
 
+    setLoaded((prev) => ({ ...prev, ...loadedNow }))
     setLoading(false)
   }
 
@@ -341,15 +350,15 @@ export default function Home() {
         <div className="flex flex-wrap items-center gap-3 text-sm">
           <span className="rounded-full bg-emerald-50 px-3 py-1 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">
             Total Orders:{' '}
-            <strong>{stats.totalOrders.toLocaleString()}</strong>
+            <strong>{loaded.allOrders ? stats.totalOrders.toLocaleString() : <InlineLoading failed={!loading} />}</strong>
           </span>
           <span className="rounded-full bg-blue-50 px-3 py-1 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
             Today:{' '}
-            <strong>{stats.todayOrders.toLocaleString()}</strong>
+            <strong>{loaded.todayOrders ? stats.todayOrders.toLocaleString() : <InlineLoading failed={!loading} />}</strong>
           </span>
           <span className="rounded-full bg-gray-100 px-3 py-1 text-gray-700 dark:bg-dark-3 dark:text-gray-200">
             Unread Notifications:{' '}
-            <strong>{unreadCount}</strong>
+            <strong>{notificationsLoaded ? unreadCount.toLocaleString() : <InlineLoading />}</strong>
           </span>
         </div>
       </div>
@@ -363,25 +372,29 @@ export default function Home() {
       <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
         <DashboardCard
           title="New / Pending Orders"
-          value={stats.newPendingOrders}
+          value={loaded.newPendingOrders ? stats.newPendingOrders : null}
+          loading={loading}
           subtitle="Awaiting verification or processing"
           tone="primary"
         />
         <DashboardCard
           title="In Progress"
-          value={stats.inProgressOrders}
+          value={loaded.inProgressOrders ? stats.inProgressOrders : null}
+          loading={loading}
           subtitle="Picked / approved / being worked"
           tone="info"
         />
         <DashboardCard
           title="Delivered / Completed"
-          value={stats.deliveredOrders}
+          value={loaded.deliveredOrders ? stats.deliveredOrders : null}
+          loading={loading}
           subtitle="Successfully closed orders"
           tone="success"
         />
         <DashboardCard
           title="Cancelled"
-          value={stats.cancelledOrders}
+          value={loaded.cancelledOrders ? stats.cancelledOrders : null}
+          loading={loading}
           subtitle="Orders cancelled by team"
           tone="danger"
         />
@@ -390,21 +403,24 @@ export default function Home() {
       <div className="grid gap-5 md:grid-cols-3">
         <DashboardCard
           title="Total Collected (This Month)"
-          value={reportSummary?.totalReceived ?? 0}
+          value={loaded.reportSummaryRes && reportSummary ? reportSummary.totalReceived ?? 0 : null}
+          loading={loading}
           subtitle="Advance + installment payments received"
           tone="success"
           isCurrency
         />
         <DashboardCard
           title="Total Sales (Delivered This Month)"
-          value={reportSummary?.totalSalesAmount ?? 0}
+          value={loaded.reportSummaryRes && reportSummary ? reportSummary.totalSalesAmount ?? 0 : null}
+          loading={loading}
           subtitle="Sum of delivered order amounts"
           tone="primary"
           isCurrency
         />
         <DashboardCard
           title="Pending Receivables (This Month)"
-          value={reportSummary?.totalPending ?? 0}
+          value={loaded.reportSummaryRes && reportSummary ? reportSummary.totalPending ?? 0 : null}
+          loading={loading}
           subtitle="Outstanding amount across this month's orders"
           tone="danger"
           isCurrency
@@ -412,12 +428,12 @@ export default function Home() {
       </div>
 
       <div className="grid gap-5 grid-cols-2 md:grid-cols-3 xl:grid-cols-6">
-        <DashboardCard title="Active Employees" value={extras.activeEmployees} subtitle="Portal-active staff" tone="info" />
-        <DashboardCard title="Cash Recovered (Month)" value={extras.cashRecovered} subtitle="Cash-channel installments" tone="success" isCurrency />
-        <DashboardCard title="Online Recovered (Month)" value={extras.onlineRecovered} subtitle="Online-channel installments" tone="info" isCurrency />
-        <DashboardCard title="Today's Expenses" value={extras.todaysExpense} subtitle="Head-office + outlet vouchers" tone="danger" isCurrency />
-        <DashboardCard title="Vendor Payables" value={extras.vendorPayables} subtitle="Outstanding vendor balance" tone="danger" isCurrency />
-        <DashboardCard title="Customer Receivables" value={extras.customerReceivables} subtitle="Outstanding customer balance" tone="primary" isCurrency />
+        <DashboardCard title="Active Employees" value={loaded.employeesRes ? extras.activeEmployees : null} loading={loading} subtitle="Portal-active staff" tone="info" />
+        <DashboardCard title="Cash Recovered (Month)" value={loaded.channelRecoveryRes ? extras.cashRecovered : null} loading={loading} subtitle="Cash-channel installments" tone="success" isCurrency />
+        <DashboardCard title="Online Recovered (Month)" value={loaded.channelRecoveryRes ? extras.onlineRecovered : null} loading={loading} subtitle="Online-channel installments" tone="info" isCurrency />
+        <DashboardCard title="Today's Expenses" value={loaded.accountsSummaryRes ? extras.todaysExpense : null} loading={loading} subtitle="Head-office + outlet vouchers" tone="danger" isCurrency />
+        <DashboardCard title="Vendor Payables" value={loaded.accountsSummaryRes ? extras.vendorPayables : null} loading={loading} subtitle="Outstanding vendor balance" tone="danger" isCurrency />
+        <DashboardCard title="Customer Receivables" value={loaded.accountsSummaryRes ? extras.customerReceivables : null} loading={loading} subtitle="Outstanding customer balance" tone="primary" isCurrency />
       </div>
 
       <div className="rounded-[10px] border border-stroke bg-white p-5 shadow-1 dark:border-dark-3 dark:bg-gray-dark">
@@ -449,7 +465,19 @@ export default function Home() {
                 </p>
               </div>
             </div>
-            {paymentsChartData.received.length === 0 ? (
+            {!loaded.reportSummaryRes ? (
+              loading ? (
+                <div className="flex h-[310px] items-end gap-3 px-2" role="status" aria-label="Loading chart">
+                  {[40, 65, 50, 80, 35, 60, 45, 70, 55].map((h, i) => (
+                    <div key={i} className="flex-1 animate-pulse rounded-t bg-gray-100 dark:bg-dark-3" style={{ height: `${h}%`, animationDelay: `${i * 60}ms` }} />
+                  ))}
+                </div>
+              ) : (
+                <div className="flex h-[310px] items-center justify-center text-sm text-gray-400">
+                  Could not load this chart. It will retry automatically.
+                </div>
+              )
+            ) : paymentsChartData.received.length === 0 ? (
               <div className="flex h-[310px] items-center justify-center text-sm text-gray-400">
                 No collections recorded yet this month.
               </div>
@@ -747,13 +775,29 @@ function StatusBadge({ status }: { status: OrderStatus }) {
 
 interface DashboardCardProps {
   title: string
-  value: number
+  /** null = not loaded yet (skeleton while loading, "—" if it failed). */
+  value: number | null
+  loading?: boolean
   subtitle: string
   tone?: 'primary' | 'success' | 'danger' | 'info'
   isCurrency?: boolean
 }
 
-function DashboardCard({ title, value, subtitle, tone = 'primary', isCurrency = false }: DashboardCardProps) {
+// Shimmer while a figure is loading; "—" (not a fake 0) if it failed to load.
+function InlineLoading({ failed, className = 'h-4 w-10' }: { failed?: boolean; className?: string }) {
+  if (failed) {
+    return <span title="Could not load this figure" className="text-gray-400">—</span>
+  }
+  return (
+    <span
+      role="status"
+      aria-label="Loading"
+      className={`inline-block animate-pulse rounded bg-gray-200 align-middle dark:bg-dark-3 ${className}`}
+    />
+  )
+}
+
+function DashboardCard({ title, value, loading = false, subtitle, tone = 'primary', isCurrency = false }: DashboardCardProps) {
   const toneClasses: Record<
     NonNullable<DashboardCardProps['tone']>,
     { badge: string; value: string }
@@ -783,7 +827,9 @@ function DashboardCard({ title, value, subtitle, tone = 'primary', isCurrency = 
       <div>
         <p className="pr-10 text-xs font-medium text-gray-500 dark:text-gray-400">{title}</p>
         <p className={`mt-2 text-lg sm:text-xl lg:text-[22px] font-bold tracking-tight ${tones.value} break-words`}>
-          {isCurrency ? `PKR ${value.toLocaleString('en-PK')}` : value.toLocaleString()}
+          {value === null ? (
+            <InlineLoading failed={!loading} className="h-7 w-28" />
+          ) : isCurrency ? `PKR ${value.toLocaleString('en-PK')}` : value.toLocaleString()}
         </p>
       </div>
       <span className={`absolute top-4 right-4 rounded-full px-2 py-0.5 text-[10px] font-semibold ${tones.badge}`}>

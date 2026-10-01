@@ -8,6 +8,7 @@ import Breadcrumb from "@/components/Breadcrumbs/Breadcrumb";
 import { formatExactDate } from "@/utils/dateUtils";
 import { DollarSign, Building, FileText, CheckCircle, XCircle, ArrowRightLeft, ArrowDownLeft, ArrowUpRight, Search } from "lucide-react";
 import { getErrorMessage } from "@/lib/apiErrors";
+import { ListSkeleton, ValueSkeleton } from "@/components/ui/LoadingStates";
 
 const API_BASE = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
 const getAuthHeaders = () => ({
@@ -90,6 +91,9 @@ export default function CashDepositPage() {
     const [incomingTransfers, setIncomingTransfers] = useState<TransferRequest[]>([]);
     const [outgoingTransfers, setOutgoingTransfers] = useState<TransferRequest[]>([]);
     const [depositHistory, setDepositHistory] = useState<BankDeposit[]>([]);
+    // Lists show a skeleton until their first load, not "No ... yet".
+    const [historyLoaded, setHistoryLoaded] = useState(false);
+    const [transfersLoaded, setTransfersLoaded] = useState(false);
     const [cashInHand, setCashInHand] = useState<number | null>(null);
 
     const fetchBanks = async () => {
@@ -114,6 +118,7 @@ export default function CashDepositPage() {
             const data = await res.json();
             if (data.success) setDepositHistory(data.data || []);
         } catch (err) { console.error(err); }
+        finally { setHistoryLoaded(true); }
     };
 
     const fetchCashInHand = async () => {
@@ -135,6 +140,7 @@ export default function CashDepositPage() {
             if (inData.success) setIncomingTransfers(inData.data);
             if (outData.success) setOutgoingTransfers(outData.data);
         } catch (err) { console.error(err); }
+        finally { setTransfersLoaded(true); }
     };
 
     useEffect(() => {
@@ -341,7 +347,7 @@ export default function CashDepositPage() {
                                 <DollarSign className="h-4 w-4 text-primary" />
                                 <span className="text-xs font-medium text-body-color">Cash in Hand:</span>
                                 <span className="text-sm font-bold text-primary">
-                                    {cashInHand === null ? "Loading..." : `Rs ${cashInHand.toLocaleString()}`}
+                                    {cashInHand === null ? <ValueSkeleton className="h-6 w-28" /> : `Rs ${cashInHand.toLocaleString()}`}
                                 </span>
                             </div>
                         </div>
@@ -430,7 +436,9 @@ export default function CashDepositPage() {
                             </div>
                         </div>
                         <div className="p-4">
-                            {depositHistory.length === 0 ? (
+                            {!historyLoaded ? (
+                                <ListSkeleton rows={3} />
+                            ) : depositHistory.length === 0 ? (
                                 <p className="text-gray-500 text-sm text-center py-4">No deposit history yet.</p>
                             ) : filteredDepositHistory.length === 0 ? (
                                 <p className="text-gray-500 text-sm text-center py-4">No deposits match your search.</p>
@@ -607,7 +615,9 @@ export default function CashDepositPage() {
                                 </h3>
                             </div>
                             <div className="p-4">
-                                {incomingTransfers.length === 0 ? (
+                                {!transfersLoaded ? (
+                                    <ListSkeleton rows={2} />
+                                ) : incomingTransfers.length === 0 ? (
                                     <p className="text-gray-500 text-sm text-center py-4">No incoming transfers.</p>
                                 ) : (
                                     <div className="overflow-x-auto">
@@ -668,7 +678,9 @@ export default function CashDepositPage() {
                                 </h3>
                             </div>
                             <div className="p-4">
-                                {outgoingTransfers.length === 0 ? (
+                                {!transfersLoaded ? (
+                                    <ListSkeleton rows={2} />
+                                ) : outgoingTransfers.length === 0 ? (
                                     <p className="text-gray-500 text-sm text-center py-4">No outgoing transfers.</p>
                                 ) : (
                                     <div className="overflow-x-auto">

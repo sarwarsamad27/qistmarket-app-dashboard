@@ -10,6 +10,7 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { formatExactDate } from "@/utils/dateUtils";
 import { findCurrentInstallmentIndex } from "@/lib/currentInstallment";
+import { ValueSkeleton } from "@/components/ui/LoadingStates";
 
 const API_BASE = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
 
@@ -385,6 +386,8 @@ function InstallmentsContent() {
     const [startDate, setStartDate] = useState("");
     const [endDate, setEndDate] = useState("");
     const [stats, setStats] = useState<any>({});
+    // Summary metrics show a skeleton until the first successful load (not PKR 0).
+    const [statsLoaded, setStatsLoaded] = useState(false);
     const [categoriesSummary, setCategoriesSummary] = useState<any>({});
 
     // Advanced Filters State
@@ -450,6 +453,7 @@ function InstallmentsContent() {
                 setPagination(result.data.pagination);
                 setCategoriesSummary(result.data.categories_summary || {});
                 setStats(result.data.stats || {});
+                setStatsLoaded(true);
             }
         } catch (e) {
             console.error(e);
@@ -647,28 +651,28 @@ function InstallmentsContent() {
                 <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
                     <div className="bg-white dark:bg-gray-800 p-4 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 hover:shadow-md transition-shadow">
                         <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">Months Due</p>
-                        <p className="text-xl font-black text-gray-900 dark:text-white">{pkr(stats.months_due || 0)}</p>
+                        <p className="text-xl font-black text-gray-900 dark:text-white">{statsLoaded ? pkr(stats.months_due || 0) : <ValueSkeleton failed={!loading} className="h-6 w-24" />}</p>
                     </div>
                     <div className="bg-blue-50/50 dark:bg-blue-900/10 p-4 rounded-2xl shadow-sm border border-blue-100 dark:border-blue-800 hover:shadow-md transition-shadow">
                         <p className="text-[10px] font-bold text-blue-500 uppercase tracking-widest mb-1.5">Months Collected</p>
-                        <p className="text-xl font-black text-blue-600 dark:text-blue-400">{pkr(stats.months_collected || 0)}</p>
+                        <p className="text-xl font-black text-blue-600 dark:text-blue-400">{statsLoaded ? pkr(stats.months_collected || 0) : <ValueSkeleton failed={!loading} className="h-6 w-24" />}</p>
                         <p className="text-[9px] text-gray-400 mt-1">Installments only</p>
                     </div>
                     <div className="bg-purple-50/50 dark:bg-purple-900/10 p-4 rounded-2xl shadow-sm border border-purple-100 dark:border-purple-800 hover:shadow-md transition-shadow">
                         <p className="text-[10px] font-bold text-purple-500 uppercase tracking-widest mb-1.5">Down Payment Collected</p>
-                        <p className="text-xl font-black text-purple-600 dark:text-purple-400">{pkr(stats.months_collected_advance || 0)}</p>
+                        <p className="text-xl font-black text-purple-600 dark:text-purple-400">{statsLoaded ? pkr(stats.months_collected_advance || 0) : <ValueSkeleton failed={!loading} className="h-6 w-24" />}</p>
                     </div>
                     <div className="bg-red-50/50 dark:bg-red-900/10 p-4 rounded-2xl shadow-sm border border-red-100 dark:border-red-800 hover:shadow-md transition-shadow">
                         <p className="text-[10px] font-bold text-red-500 uppercase tracking-widest mb-1.5">Months Remaining</p>
-                        <p className="text-xl font-black text-red-600 dark:text-red-400">{pkr(stats.months_remaining || 0)}</p>
+                        <p className="text-xl font-black text-red-600 dark:text-red-400">{statsLoaded ? pkr(stats.months_remaining || 0) : <ValueSkeleton failed={!loading} className="h-6 w-24" />}</p>
                     </div>
                     <div className="bg-emerald-50/50 dark:bg-emerald-900/10 p-4 rounded-2xl shadow-sm border border-emerald-100 dark:border-emerald-800 hover:shadow-md transition-shadow">
                         <p className="text-[10px] font-bold text-emerald-500 uppercase tracking-widest mb-1.5">System Collected</p>
-                        <p className="text-xl font-black text-emerald-600 dark:text-emerald-400">{pkr(stats.system_collected || 0)}</p>
+                        <p className="text-xl font-black text-emerald-600 dark:text-emerald-400">{statsLoaded ? pkr(stats.system_collected || 0) : <ValueSkeleton failed={!loading} className="h-6 w-24" />}</p>
                     </div>
                     <div className="bg-orange-50/50 dark:bg-orange-900/10 p-4 rounded-2xl shadow-sm border border-orange-100 dark:border-orange-800 hover:shadow-md transition-shadow">
                         <p className="text-[10px] font-bold text-orange-500 uppercase tracking-widest mb-1.5">System Outstanding</p>
-                        <p className="text-xl font-black text-orange-600 dark:text-orange-400">{pkr(stats.system_outstanding || 0)}</p>
+                        <p className="text-xl font-black text-orange-600 dark:text-orange-400">{statsLoaded ? pkr(stats.system_outstanding || 0) : <ValueSkeleton failed={!loading} className="h-6 w-24" />}</p>
                     </div>
                 </div>
 

@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import Breadcrumb from "@/components/Breadcrumbs/Breadcrumb";
 import { getErrorMessage } from "@/lib/apiErrors";
+import { ValueSkeleton } from "@/components/ui/LoadingStates";
 
 // Edit/Delete are only allowed within 3 days of the sale (mirrors the backend
 // rule in cashSaleController.js) — used here just to grey the buttons out
@@ -587,7 +588,7 @@ export default function CashSalePage() {
 
           <div className="bg-white dark:bg-gray-dark rounded-[2rem] shadow-xl shadow-gray-100/50 dark:shadow-none border border-gray-100 dark:border-dark-3 p-6">
             <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3">Today</p>
-            <p className="text-2xl font-black text-gray-900 dark:text-white">{pagination.total} <span className="text-sm font-bold text-gray-400">total sale{pagination.total === 1 ? "" : "s"} on record</span></p>
+            <p className="text-2xl font-black text-gray-900 dark:text-white">{historyLoading ? <ValueSkeleton className="h-7 w-16" /> : pagination.total} <span className="text-sm font-bold text-gray-400">total sale{pagination.total === 1 ? "" : "s"} on record</span></p>
           </div>
         </div>
       </div>

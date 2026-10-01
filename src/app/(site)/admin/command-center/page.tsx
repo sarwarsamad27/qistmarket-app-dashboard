@@ -7,6 +7,7 @@ import { Radio, Bell, Truck, AlertTriangle, ShieldCheck, CreditCard, ClipboardCh
 import Breadcrumb from "@/components/Breadcrumbs/Breadcrumb";
 import PageHeader from "@/components/Accounts/PageHeader";
 import { useNotifications } from "../../../../../contexts/NotificationContext";
+import { ListSkeleton, TableRowsSkeleton } from "@/components/ui/LoadingStates";
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
 const authHeaders = () => ({ Authorization: `Bearer ${Cookies.get("auth_token")}` });
@@ -23,58 +24,39 @@ interface AttendanceRow { outlet_id: number; outlet_name: string; totalStaff: nu
 
 export default function AdminCommandCenterPage() {
   const { notifications } = useNotifications();
-  const [orders, setOrders] = useState<RecentOrder[]>([]);
-  const [deliveries, setDeliveries] = useState<DeliveryItem[]>([]);
-  const [alerts, setAlerts] = useState<AlertItem[]>([]);
-  const [approvals, setApprovals] = useState<ApprovalOrder[]>([]);
-  const [verificationQueue, setVerificationQueue] = useState<VerificationOrder[]>([]);
-  const [onlinePayments, setOnlinePayments] = useState<OnlinePayment[]>([]);
-  const [recoveries, setRecoveries] = useState<RecoveryItem[]>([]);
-  const [attendance, setAttendance] = useState<AttendanceRow[]>([]);
+  const [orders, setOrders] = useState<RecentOrder[] | null>(null);
+  const [deliveries, setDeliveries] = useState<DeliveryItem[] | null>(null);
+  const [alerts, setAlerts] = useState<AlertItem[] | null>(null);
+  const [approvals, setApprovals] = useState<ApprovalOrder[] | null>(null);
+  const [verificationQueue, setVerificationQueue] = useState<VerificationOrder[] | null>(null);
+  const [onlinePayments, setOnlinePayments] = useState<OnlinePayment[] | null>(null);
+  const [recoveries, setRecoveries] = useState<RecoveryItem[] | null>(null);
+  const [attendance, setAttendance] = useState<AttendanceRow[] | null>(null);
+  // Panels stay `null` (skeleton) until their first load; a failed load is
+  // flagged so the panel says so instead of pretending it's empty.
+  const [failed, setFailed] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     const todayStr = new Date().toISOString().slice(0, 10);
 
+    const load = (key: string, url: string, apply: (json: any) => void) =>
+      fetch(url, { headers: authHeaders() })
+        .then((r) => r.json())
+        .then((json) => {
+          if (json.success) apply(json);
+          setFailed((f) => ({ ...f, [key]: !json.success }));
+        })
+        .catch(() => setFailed((f) => ({ ...f, [key]: true })));
+
     const poll = () => {
-      fetch(`${BACKEND_URL}/api/orders?page=1&limit=8&sortBy=updated_at&sortDir=desc`, { headers: authHeaders() })
-        .then((r) => r.json())
-        .then((json) => { if (json.success) setOrders(json.data?.orders || []); })
-        .catch(() => {});
-
-      fetch(`${BACKEND_URL}/api/orders/delivery-status`, { headers: authHeaders() })
-        .then((r) => r.json())
-        .then((json) => { if (json.success) setDeliveries((json.data || []).slice(0, 8)); })
-        .catch(() => {});
-
-      fetch(`${BACKEND_URL}/api/accounts/alerts`, { headers: authHeaders() })
-        .then((r) => r.json())
-        .then((json) => { if (json.success) setAlerts(json.data.alerts || []); })
-        .catch(() => {});
-
-      fetch(`${BACKEND_URL}/api/orders?page=1&limit=8&status=pending`, { headers: authHeaders() })
-        .then((r) => r.json())
-        .then((json) => { if (json.success) setApprovals(json.data?.orders || []); })
-        .catch(() => {});
-
-      fetch(`${BACKEND_URL}/api/orders/verification-pending?page=1&limit=8`, { headers: authHeaders() })
-        .then((r) => r.json())
-        .then((json) => { if (json.success) setVerificationQueue(json.data?.orders || []); })
-        .catch(() => {});
-
-      fetch(`${BACKEND_URL}/api/accounts/online-payments?range=Day`, { headers: authHeaders() })
-        .then((r) => r.json())
-        .then((json) => { if (json.success) setOnlinePayments((json.data?.recent || []).slice(0, 8)); })
-        .catch(() => {});
-
-      fetch(`${BACKEND_URL}/api/outlet-reports/installment-recoveries?startDate=${todayStr}`, { headers: authHeaders() })
-        .then((r) => r.json())
-        .then((json) => { if (json.success) setRecoveries((json.data?.recoveries || []).slice(0, 8)); })
-        .catch(() => {});
-
-      fetch(`${BACKEND_URL}/api/admin-panel/attendance`, { headers: authHeaders() })
-        .then((r) => r.json())
-        .then((json) => { if (json.success) setAttendance(json.data || []); })
-        .catch(() => {});
+      load("orders", `${BACKEND_URL}/api/orders?page=1&limit=8&sortBy=updated_at&sortDir=desc`, (json) => setOrders(json.data?.orders || []));
+      load("deliveries", `${BACKEND_URL}/api/orders/delivery-status`, (json) => setDeliveries((json.data || []).slice(0, 8)));
+      load("alerts", `${BACKEND_URL}/api/accounts/alerts`, (json) => setAlerts(json.data?.alerts || []));
+      load("approvals", `${BACKEND_URL}/api/orders?page=1&limit=8&status=pending`, (json) => setApprovals(json.data?.orders || []));
+      load("verificationQueue", `${BACKEND_URL}/api/orders/verification-pending?page=1&limit=8`, (json) => setVerificationQueue(json.data?.orders || []));
+      load("onlinePayments", `${BACKEND_URL}/api/accounts/online-payments?range=Day`, (json) => setOnlinePayments((json.data?.recent || []).slice(0, 8)));
+      load("recoveries", `${BACKEND_URL}/api/outlet-reports/installment-recoveries?startDate=${todayStr}`, (json) => setRecoveries((json.data?.recoveries || []).slice(0, 8)));
+      load("attendance", `${BACKEND_URL}/api/admin-panel/attendance`, (json) => setAttendance(json.data || []));
     };
 
     poll();
@@ -114,7 +96,7 @@ export default function AdminCommandCenterPage() {
             <span className="ml-auto text-[10px] font-medium text-gray-400">refreshes every 10s</span>
           </div>
           <div className="max-h-[380px] space-y-2 overflow-y-auto pr-1 custom-scrollbar">
-            {deliveries.length === 0 ? (
+            {deliveries === null ? <ListSkeleton failed={failed.deliveries} /> : deliveries.length === 0 ? (
               <p className="py-6 text-center text-xs text-gray-400">No active deliveries.</p>
             ) : deliveries.map((d) => (
               <div key={d.id} className="rounded-lg border border-stroke bg-gray-50 p-3 text-xs dark:border-dark-3 dark:bg-dark-3">
@@ -132,7 +114,7 @@ export default function AdminCommandCenterPage() {
             <Link href="/admin/alerts" className="ml-auto text-[10px] font-bold text-[#ff3d3d] hover:underline">View all</Link>
           </div>
           <div className="max-h-[380px] space-y-2 overflow-y-auto pr-1 custom-scrollbar">
-            {alerts.length === 0 ? (
+            {alerts === null ? <ListSkeleton failed={failed.alerts} /> : alerts.length === 0 ? (
               <p className="py-6 text-center text-xs text-gray-400">No active alerts.</p>
             ) : alerts.slice(0, 10).map((a, idx) => (
               <div key={idx} className="rounded-lg border border-stroke bg-gray-50 p-3 text-xs dark:border-dark-3 dark:bg-dark-3">
@@ -151,7 +133,7 @@ export default function AdminCommandCenterPage() {
             <h2 className="text-sm font-bold text-dark dark:text-white">Pending Approvals</h2>
           </div>
           <div className="max-h-[300px] space-y-2 overflow-y-auto pr-1 custom-scrollbar">
-            {approvals.length === 0 ? <p className="py-6 text-center text-xs text-gray-400">No pending approvals.</p> : approvals.map((o) => (
+            {approvals === null ? <ListSkeleton failed={failed.approvals} /> : approvals.length === 0 ? <p className="py-6 text-center text-xs text-gray-400">No pending approvals.</p> : approvals.map((o) => (
               <div key={o.id} className="rounded-lg border border-stroke bg-gray-50 p-3 text-xs dark:border-dark-3 dark:bg-dark-3">
                 <p className="font-semibold text-dark dark:text-white">{o.order_ref}</p>
                 <p className="text-gray-500 dark:text-gray-400">{o.customer_name}</p>
@@ -166,7 +148,7 @@ export default function AdminCommandCenterPage() {
             <h2 className="text-sm font-bold text-dark dark:text-white">Verification Queue</h2>
           </div>
           <div className="max-h-[300px] space-y-2 overflow-y-auto pr-1 custom-scrollbar">
-            {verificationQueue.length === 0 ? <p className="py-6 text-center text-xs text-gray-400">Queue is empty.</p> : verificationQueue.map((o) => (
+            {verificationQueue === null ? <ListSkeleton failed={failed.verificationQueue} /> : verificationQueue.length === 0 ? <p className="py-6 text-center text-xs text-gray-400">Queue is empty.</p> : verificationQueue.map((o) => (
               <div key={o.id} className="rounded-lg border border-stroke bg-gray-50 p-3 text-xs dark:border-dark-3 dark:bg-dark-3">
                 <p className="font-semibold text-dark dark:text-white">{o.order_ref}</p>
                 <p className="text-gray-500 dark:text-gray-400">{o.customer_name}</p>
@@ -181,7 +163,7 @@ export default function AdminCommandCenterPage() {
             <h2 className="text-sm font-bold text-dark dark:text-white">Online Payment Activity</h2>
           </div>
           <div className="max-h-[300px] space-y-2 overflow-y-auto pr-1 custom-scrollbar">
-            {onlinePayments.length === 0 ? <p className="py-6 text-center text-xs text-gray-400">No online payment activity today.</p> : onlinePayments.map((p, idx) => (
+            {onlinePayments === null ? <ListSkeleton failed={failed.onlinePayments} /> : onlinePayments.length === 0 ? <p className="py-6 text-center text-xs text-gray-400">No online payment activity today.</p> : onlinePayments.map((p, idx) => (
               <div key={idx} className="rounded-lg border border-stroke bg-gray-50 p-3 text-xs dark:border-dark-3 dark:bg-dark-3">
                 <p className="font-semibold text-dark dark:text-white">{p.channel} — PKR {p.amount.toLocaleString()}</p>
                 <p className="text-gray-500 dark:text-gray-400 capitalize">{p.consumer_number} · {p.status}</p>
@@ -196,7 +178,7 @@ export default function AdminCommandCenterPage() {
             <h2 className="text-sm font-bold text-dark dark:text-white">Live Recoveries (Today)</h2>
           </div>
           <div className="max-h-[300px] space-y-2 overflow-y-auto pr-1 custom-scrollbar">
-            {recoveries.length === 0 ? <p className="py-6 text-center text-xs text-gray-400">No recoveries collected yet today.</p> : recoveries.map((r, idx) => (
+            {recoveries === null ? <ListSkeleton failed={failed.recoveries} /> : recoveries.length === 0 ? <p className="py-6 text-center text-xs text-gray-400">No recoveries collected yet today.</p> : recoveries.map((r, idx) => (
               <div key={idx} className="rounded-lg border border-stroke bg-gray-50 p-3 text-xs dark:border-dark-3 dark:bg-dark-3">
                 <p className="font-semibold text-dark dark:text-white">{r.order_ref} — PKR {r.amount.toLocaleString()}</p>
                 <p className="text-gray-500 dark:text-gray-400">{r.customer_name}</p>
@@ -211,7 +193,7 @@ export default function AdminCommandCenterPage() {
             <h2 className="text-sm font-bold text-dark dark:text-white">Employee Attendance — Live Status</h2>
           </div>
           <div className="max-h-[300px] overflow-y-auto pr-1 custom-scrollbar">
-            {attendance.length === 0 ? <p className="py-6 text-center text-xs text-gray-400">No attendance data.</p> : (
+            {attendance === null ? <ListSkeleton failed={failed.attendance} /> : attendance.length === 0 ? <p className="py-6 text-center text-xs text-gray-400">No attendance data.</p> : (
               <table className="w-full text-left text-xs">
                 <thead className="bg-gray-50 text-[11px] uppercase tracking-wide text-gray-500 dark:bg-dark-3 dark:text-gray-400">
                   <tr><th className="px-3 py-2">Outlet</th><th className="px-3 py-2 text-right">Staff</th><th className="px-3 py-2 text-right">Present</th><th className="px-3 py-2 text-right">Absent</th><th className="px-3 py-2 text-right">Not Marked</th></tr>
@@ -247,7 +229,15 @@ export default function AdminCommandCenterPage() {
               </tr>
             </thead>
             <tbody>
-              {orders.map((o) => (
+              {orders === null ? (
+                failed.orders ? (
+                  <tr><td colSpan={5} className="px-3 py-6 text-center text-xs text-gray-400">Could not load recent orders. Retrying automatically…</td></tr>
+                ) : (
+                  <TableRowsSkeleton rows={5} cols={5} />
+                )
+              ) : orders.length === 0 ? (
+                <tr><td colSpan={5} className="px-3 py-6 text-center text-xs text-gray-400">No recent orders.</td></tr>
+              ) : orders.map((o) => (
                 <tr key={o.id} className="border-b border-stroke last:border-0 dark:border-dark-3">
                   <td className="px-3 py-2 font-semibold text-[#ff3d3d]">
                     <Link href={`/verifications/${o.id}`} className="hover:underline">
@@ -271,7 +261,7 @@ export default function AdminCommandCenterPage() {
                           });
                           const json = await res.json();
                           if (json.success) {
-                            setOrders(orders.filter(item => item.id !== o.id));
+                            setOrders((prev) => (prev || []).filter(item => item.id !== o.id));
                           } else {
                             alert(json.message || "Failed to delete order");
                           }

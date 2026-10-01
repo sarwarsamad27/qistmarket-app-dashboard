@@ -10,6 +10,7 @@ import EmptyState from "@/components/Accounts/EmptyState";
 import { TableSkeleton } from "@/components/Accounts/Skeleton";
 import { PKR } from "@/components/Accounts/StatCard";
 import { apiErrorMessage, getErrorMessage } from "@/lib/apiErrors";
+import { ValueSkeleton } from "@/components/ui/LoadingStates";
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
 const authHeaders = () => ({ Authorization: `Bearer ${Cookies.get("auth_token")}`, "Content-Type": "application/json" });
@@ -189,7 +190,7 @@ export default function AccountsVendorsPage() {
 
       <div className="mb-6 flex items-center gap-3 rounded-2xl border border-orange-100 bg-gradient-to-br from-orange-50 to-white p-5 dark:border-orange-500/20 dark:from-orange-500/10 dark:to-transparent">
         <div className="flex size-12 items-center justify-center rounded-2xl bg-orange-500/15 text-orange-600"><HandCoins className="size-6" strokeWidth={2.25} /></div>
-        <div><p className="text-xs font-black uppercase tracking-widest text-orange-600/80">Total Vendor Payables</p><p className="text-3xl font-black leading-tight text-orange-700 dark:text-orange-400">{PKR(data?.totalPayable || 0)}</p></div>
+        <div><p className="text-xs font-black uppercase tracking-widest text-orange-600/80">Total Vendor Payables</p><p className="text-3xl font-black leading-tight text-orange-700 dark:text-orange-400">{data ? PKR(data.totalPayable || 0) : <ValueSkeleton failed={!loading} className="h-8 w-40" />}</p></div>
       </div>
 
       <div className="mb-4 flex flex-wrap gap-1 rounded-xl bg-gray-100 p-1 dark:bg-dark-3 w-fit">

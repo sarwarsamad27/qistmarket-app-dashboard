@@ -10,6 +10,7 @@ import Link from "next/link";
 import { toast } from "react-hot-toast";
 import { formatExactDate } from "@/utils/dateUtils";
 import { getErrorMessage } from "@/lib/apiErrors";
+import { ValueSkeleton } from "@/components/ui/LoadingStates";
 
 const API_BASE = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
 const getAuthHeaders = () => ({
@@ -191,7 +192,7 @@ export default function CashHistoryPage() {
                 <div className="bg-white dark:bg-boxdark p-5 rounded-2xl border border-stroke dark:border-strokedark shadow-sm">
                     <p className="text-xs font-black text-gray-400 uppercase tracking-widest mb-1">Collections</p>
                     <div className="flex items-center justify-between">
-                        <p className="text-2xl font-black text-gray-800 dark:text-white">{totalRecordsCount.toLocaleString()}</p>
+                        <p className="text-2xl font-black text-gray-800 dark:text-white">{loading ? <ValueSkeleton className="h-7 w-16" /> : totalRecordsCount.toLocaleString()}</p>
                         <div className="p-2 bg-green-100 dark:bg-green-900/20 rounded-lg text-green-600">
                             <RefreshCw size={20} />
                         </div>

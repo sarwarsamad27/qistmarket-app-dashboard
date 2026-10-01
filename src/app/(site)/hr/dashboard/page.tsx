@@ -8,6 +8,7 @@ import {
   FileText, DollarSign, Star, Fingerprint, Bell, Activity,
   ArrowRight, UserPlus,
 } from "lucide-react";
+import { ValueSkeleton } from "@/components/ui/LoadingStates";
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
 
@@ -41,11 +42,11 @@ export default function HrDashboard() {
   }, []);
 
   const statCards = [
-    { label: "Total Employees", value: stats?.totalEmployees ?? 0, icon: Users, color: "bg-blue-500", href: "/hr/employees" },
-    { label: "Active Employees", value: stats?.activeEmployees ?? 0, icon: UserCheck, color: "bg-green-500", href: "/hr/employees" },
-    { label: "Departments", value: stats?.totalDepartments ?? 0, icon: Building2, color: "bg-purple-500", href: "/hr/employees" },
-    { label: "Pending Leaves", value: stats?.pendingLeaves ?? 0, icon: Clock, color: "bg-amber-500", href: "/hr/leaves" },
-    { label: "Today's Attendance", value: stats?.todayAttendance ?? 0, icon: CalendarCheck, color: "bg-teal-500", href: "/hr/attendance" },
+    { label: "Total Employees", value: stats ? stats.totalEmployees ?? 0 : null, icon: Users, color: "bg-blue-500", href: "/hr/employees" },
+    { label: "Active Employees", value: stats ? stats.activeEmployees ?? 0 : null, icon: UserCheck, color: "bg-green-500", href: "/hr/employees" },
+    { label: "Departments", value: stats ? stats.totalDepartments ?? 0 : null, icon: Building2, color: "bg-purple-500", href: "/hr/employees" },
+    { label: "Pending Leaves", value: stats ? stats.pendingLeaves ?? 0 : null, icon: Clock, color: "bg-amber-500", href: "/hr/leaves" },
+    { label: "Today's Attendance", value: stats ? stats.todayAttendance ?? 0 : null, icon: CalendarCheck, color: "bg-teal-500", href: "/hr/attendance" },
   ];
 
   const quickLinks = [
@@ -68,11 +69,7 @@ export default function HrDashboard() {
       </div>
 
       {/* Stats */}
-      {loading ? (
-        <div className="flex min-h-[30vh] items-center justify-center">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-        </div>
-      ) : (
+      {(
         <div className="grid grid-cols-2 gap-3 sm:gap-5 sm:grid-cols-3 xl:grid-cols-5">
           {statCards.map((card) => {
             const Icon = card.icon;
@@ -81,7 +78,10 @@ export default function HrDashboard() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-xs sm:text-sm font-medium text-gray-500 dark:text-gray-400">{card.label}</p>
-                    <p className="mt-1 text-xl sm:text-3xl font-bold text-dark dark:text-white break-all">{card.value}</p>
+                    <p className="mt-1 text-xl sm:text-3xl font-bold text-dark dark:text-white break-all">
+                      {/* Shimmer while loading; "—" (not 0) if stats failed to load. */}
+                      {card.value === null ? <ValueSkeleton failed={!loading} className="h-7 w-12" /> : card.value}
+                    </p>
                   </div>
                   <div className={`flex h-10 w-10 sm:h-12 sm:w-12 shrink-0 items-center justify-center rounded-xl ${card.color} transition-transform group-hover:scale-110`}>
                     <Icon className="h-5 w-5 sm:h-6 sm:w-6 text-white" />

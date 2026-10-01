@@ -26,6 +26,8 @@ interface NotificationContextType {
     notifications: Notification[];
     unreadCount: number;
     loading: boolean;
+    /** False until notifications have loaded once — show a skeleton, not 0. */
+    hasLoaded: boolean;
     pagination: Pagination;
     fetchNotifications: (page?: number, limit?: number, status?: string) => Promise<void>;
     markAsRead: (id: number) => Promise<void>;
@@ -39,6 +41,7 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
     const [notifications, setNotifications] = useState<Notification[]>([]);
     const [unreadCount, setUnreadCount] = useState(0);
     const [loading, setLoading] = useState(false);
+    const [hasLoaded, setHasLoaded] = useState(false);
     const [pagination, setPagination] = useState<Pagination>({
         page: 1,
         limit: 10,
@@ -63,6 +66,7 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
                 setNotifications(result.data.notifications);
                 setUnreadCount(result.data.unreadCount);
                 setPagination(result.data.pagination);
+                setHasLoaded(true);
             }
         } catch (error) {
             console.error("Failed to fetch notifications:", error);
@@ -149,6 +153,7 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
                 notifications,
                 unreadCount,
                 loading,
+                hasLoaded,
                 pagination,
                 fetchNotifications,
                 markAsRead,
