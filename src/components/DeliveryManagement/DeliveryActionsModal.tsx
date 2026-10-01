@@ -3,6 +3,7 @@ import { Modal } from '../Modal/Modal';
 import Cookies from 'js-cookie';
 import toast from 'react-hot-toast';
 import { InstallmentLedgerEditor } from '../Installments/InstallmentLedgerEditor';
+import { apiErrorMessage } from "@/lib/apiErrors";
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
 
@@ -70,7 +71,7 @@ export const DeliveryActionsModal = ({
             });
 
             const data = await res.json();
-            if (!res.ok) throw new Error(data.error?.message || 'Failed to send OTP');
+            if (!res.ok) throw new Error(await apiErrorMessage(res, "Failed to send OTP", data));
 
             setIsOtpSent(true);
             toast.success('OTP sent to customer successfully');

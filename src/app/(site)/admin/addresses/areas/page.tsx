@@ -26,6 +26,7 @@ import ColumnFilter from "@/components/DataTables/ColumnFilter";
 import { Modal } from "@/components/Modal/Modal";
 import Pagination from "@/components/common/Pagination";
 import { createPortal } from "react-dom";
+import { getErrorMessage, extractBodyMessage } from "@/lib/apiErrors";
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
 
@@ -85,7 +86,7 @@ const AreasPage = () => {
             if (areasData.success) setAreas(areasData.data);
             if (zonesData.success) setZones(zonesData.data);
         } catch (err) {
-            toast.error("Error fetching data");
+            toast.error(getErrorMessage(err, "Error fetching data"));
         } finally {
             setLoading(false);
         }
@@ -290,10 +291,10 @@ const AreasPage = () => {
                 setIsCreateModalOpen(false);
                 fetchData();
             } else {
-                toast.error(data.error || "Failed to create area");
+                toast.error(extractBodyMessage(data) || "Failed to create area");
             }
         } catch (err) {
-            toast.error("Error creating area");
+            toast.error(getErrorMessage(err, "Error creating area"));
         } finally {
             setSubmitting(false);
         }
@@ -323,10 +324,10 @@ const AreasPage = () => {
                 setSelectedArea(null);
                 fetchData();
             } else {
-                toast.error(data.error || "Failed to update area");
+                toast.error(extractBodyMessage(data) || "Failed to update area");
             }
         } catch (err) {
-            toast.error("Error updating area");
+            toast.error(getErrorMessage(err, "Error updating area"));
         } finally {
             setSubmitting(false);
         }
@@ -351,10 +352,10 @@ const AreasPage = () => {
                 setSelectedArea(null);
                 fetchData();
             } else {
-                toast.error(data.error || "Failed to delete area");
+                toast.error(extractBodyMessage(data) || "Failed to delete area");
             }
         } catch (err) {
-            toast.error("Error deleting area");
+            toast.error(getErrorMessage(err, "Error deleting area"));
         } finally {
             setSubmitting(false);
         }

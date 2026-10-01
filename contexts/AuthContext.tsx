@@ -43,7 +43,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const token = Cookies.get("auth_token");
     if (token) {
       try {
-        const decoded: User = jwtDecode(token);
+        const decoded: User & { exp?: number } = jwtDecode(token);
+        // An expired session would otherwise look "logged in" while every API
+        // call fails with 401 — send the user to sign in again instead.
+        if (decoded.exp && decoded.exp * 1000 < Date.now()) {
+          Cookies.remove("auth_token");
+          setUser(null);
+          setLoading(false);
+          return;
+        }
         setUser(decoded);
         // A Sub Admin's pages can be changed by a Super Admin after login — pick up the
         // current list (the backend enforces it either way; this keeps the menu in step).

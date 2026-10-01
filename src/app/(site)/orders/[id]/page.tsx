@@ -17,6 +17,7 @@ import LinkedAccountsBadge from '@/components/common/LinkedAccountsBadge';
 import EditTimelineDatesModal from '@/components/Orders/EditTimelineDatesModal';
 import MissingGrantorForm from '@/components/Orders/MissingGrantorForm';
 import { Ban, AlertTriangle } from 'lucide-react';
+import { apiErrorMessage, getErrorMessage, extractBodyMessage } from "@/lib/apiErrors";
 
 const API_BASE = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
 
@@ -62,7 +63,7 @@ const EditableField = ({
             toast.success(`${label} updated successfully`)
         } catch (error) {
             console.error('Save error:', error)
-            toast.error('Failed to save changes')
+            toast.error(getErrorMessage(error, 'Failed to save changes'))
         } finally {
             setIsSaving(false)
         }
@@ -441,7 +442,7 @@ export default function OrderDetailsPage() {
             const res = await fetch(`${BACKEND_URL}/api/orders/${id}`, {
                 headers: { Authorization: `Bearer ${token}` },
             });
-            if (!res.ok) throw new Error('Order not found');
+            if (!res.ok) throw new Error(await apiErrorMessage(res, "Order not found"));
             const json = await res.json();
             if (json.success) setOrder(json.data.order);
             else throw new Error(json.message || 'Failed to fetch order');
@@ -475,7 +476,7 @@ export default function OrderDetailsPage() {
             body: JSON.stringify({ field_name: fieldName, new_value: newValue })
         });
 
-        if (!res.ok) throw new Error('Update failed');
+        if (!res.ok) throw new Error(await apiErrorMessage(res, "Update failed"));
         await fetchVerification();
     };
 
@@ -495,7 +496,7 @@ export default function OrderDetailsPage() {
             body: formData
         });
 
-        if (!res.ok) throw new Error('Media replacement failed');
+        if (!res.ok) throw new Error(await apiErrorMessage(res, "Media replacement failed"));
         toast.success('Media replaced successfully');
         await fetchVerification();
     };
@@ -511,7 +512,7 @@ export default function OrderDetailsPage() {
             body: formData
         });
 
-        if (!res.ok) throw new Error('Location media replacement failed');
+        if (!res.ok) throw new Error(await apiErrorMessage(res, "Location media replacement failed"));
         toast.success('Location photo replaced successfully');
         await fetchVerification();
     };
@@ -529,7 +530,7 @@ export default function OrderDetailsPage() {
                 body: formData
             });
             const json = await res.json();
-            if (!res.ok || !json.success) throw new Error(json.error || json.message || 'Failed to add photo(s)');
+            if (!res.ok || !json.success) throw new Error(extractBodyMessage(json) || 'Failed to add photo(s)');
             toast.success('Location photo(s) added successfully');
             await fetchVerification();
         } catch (err: any) {
@@ -544,7 +545,7 @@ export default function OrderDetailsPage() {
             headers: { Authorization: `Bearer ${token}` },
         });
         const json = await res.json();
-        if (!res.ok) throw new Error(json.error?.message || json.message || 'Failed to delete document');
+        if (!res.ok) throw new Error(await apiErrorMessage(res, "Failed to delete document", json));
         toast.success('Document deleted');
         await fetchVerification();
     };
@@ -802,7 +803,7 @@ export default function OrderDetailsPage() {
                 body: formData,
             });
             const json = await res.json();
-            if (!res.ok) throw new Error(json.error || json.message || 'Failed to upload document');
+            if (!res.ok) throw new Error(await apiErrorMessage(res, "Failed to upload document", json));
             toast.success('Document uploaded successfully!');
             await fetchVerification();
         } catch (err: any) {
@@ -823,7 +824,7 @@ export default function OrderDetailsPage() {
                 },
                 body: JSON.stringify({ officer_id: officerId })
             });
-            if (!res.ok) throw new Error('Failed to assign officer for location capture');
+            if (!res.ok) throw new Error(await apiErrorMessage(res, "Failed to assign officer for location capture"));
             toast.success(action === 'send-to-vo' ? 'Successfully sent to Verification Officer' : 'Successfully sent to Delivery Officer');
             // Refresh verification data
             await fetchVerification();
@@ -889,7 +890,7 @@ export default function OrderDetailsPage() {
                     total_amount: selectedPlan.totalPrice
                 }),
             });
-            if (!res.ok) throw new Error('Update failed');
+            if (!res.ok) throw new Error(await apiErrorMessage(res, "Update failed"));
             await fetchOrder();
             setEditModalOpen(false);
             // Reset selection states
@@ -917,7 +918,7 @@ export default function OrderDetailsPage() {
                 },
                 body: JSON.stringify({ reason: cancelReason }),
             });
-            if (!res.ok) throw new Error('Cancellation failed');
+            if (!res.ok) throw new Error(await apiErrorMessage(res, "Cancellation failed"));
             await fetchOrder();
             setCancelModalOpen(false);
         } catch (err) {
@@ -956,7 +957,7 @@ export default function OrderDetailsPage() {
                 toast.error(json.message || 'Failed to send ledger');
             }
         } catch (err) {
-            toast.error('Failed to send ledger');
+            toast.error(getErrorMessage(err, 'Failed to send ledger'));
         } finally {
             setIsSendingLedger(false);
         }
@@ -2641,8 +2642,8 @@ export default function OrderDetailsPage() {
                                     } else {
                                         toast.error(json.message || 'Failed to update status');
                                     }
-                                } catch {
-                                    toast.error('Failed to update status');
+                                } catch (err) {
+                                    toast.error(getErrorMessage(err, 'Failed to update status'));
                                 } finally {
                                     setIsUpdatingStatus(false);
                                     setStatusModalOpen(false);

@@ -15,6 +15,7 @@ import {
 import * as XLSX from "xlsx";
 import Loader from "@/components/common/Loader";
 import toast from "react-hot-toast";
+import { getErrorMessage } from "@/lib/apiErrors";
 
 const API_BASE = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
 const getAuthHeaders = () => ({
@@ -144,7 +145,7 @@ export default function VendorPurchasesPage() {
             }
         } catch (e) {
             console.error(e);
-            toast.error("An error occurred while deleting the purchase.");
+            toast.error(getErrorMessage(e, "An error occurred while deleting the purchase."));
         } finally {
             setDeletingId(null);
         }
@@ -194,7 +195,7 @@ export default function VendorPurchasesPage() {
             }
         } catch (e) {
             console.error(e);
-            toast.error("Error submitting return.");
+            toast.error(getErrorMessage(e, "Error submitting return."));
         } finally {
             setIsSubmittingReturn(false);
         }
@@ -215,7 +216,7 @@ export default function VendorPurchasesPage() {
             }
         } catch (e) {
             console.error(e);
-            toast.error("Error loading history");
+            toast.error(getErrorMessage(e, "Error loading history"));
         } finally {
             setLoadingHistory(false);
         }

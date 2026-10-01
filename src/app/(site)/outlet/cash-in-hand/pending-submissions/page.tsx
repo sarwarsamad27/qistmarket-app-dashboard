@@ -7,6 +7,7 @@ import Breadcrumb from "@/components/Breadcrumbs/Breadcrumb";
 import Link from "next/link";
 import { toast } from "react-hot-toast";
 import { formatExactDate } from "@/utils/dateUtils";
+import { getErrorMessage } from "@/lib/apiErrors";
 
 const API_BASE = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
 const getAuthHeaders = () => ({
@@ -63,8 +64,8 @@ function OtpVerifyPopup({
             } else {
                 toast.error(data.message || "Invalid OTP, try again.");
             }
-        } catch {
-            toast.error("Verification failed. Please retry.");
+        } catch (err) {
+            toast.error(getErrorMessage(err, "Verification failed. Please retry."));
         } finally {
             setLoading(false);
         }
@@ -189,7 +190,7 @@ export default function PendingSubmissionsPage() {
             }
         } catch (error) {
             console.error(error);
-            toast.error("Failed to fetch pending submissions");
+            toast.error(getErrorMessage(error, "Failed to fetch pending submissions"));
         } finally {
             setLoading(false);
         }
@@ -214,7 +215,7 @@ export default function PendingSubmissionsPage() {
             }
         } catch (error) {
             console.error(error);
-            toast.error("Failed to resend OTP");
+            toast.error(getErrorMessage(error, "Failed to resend OTP"));
         } finally {
             setResendingOtpFor(null);
         }

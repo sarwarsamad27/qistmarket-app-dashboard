@@ -7,6 +7,7 @@ import toast from "react-hot-toast";
 import Link from 'next/link';
 import { Loader2, RotateCcw, Trash2 } from 'lucide-react';
 import { useAuth } from "../../../../../contexts/AuthContext";
+import { apiErrorMessage } from "@/lib/apiErrors";
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
 
@@ -157,7 +158,7 @@ export default function RecycleBinPage() {
         body: JSON.stringify({ [bodyKey]: ids }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.message || 'Failed to delete');
+      if (!res.ok) throw new Error(await apiErrorMessage(res, "Failed to delete", data));
       toast.success(data.message || `${tab === 'orders' ? 'Order' : 'Outlet'}(s) permanently deleted`);
       if (data.results) {
         data.results.filter((r: any) => !r.success).forEach((r: any) => toast.error(r.message));

@@ -6,6 +6,7 @@ import { useAuth } from "../../contexts/AuthContext";
 import Cookies from "js-cookie";
 import { Truck, Store, KeyRound, CheckCircle2, X } from "lucide-react";
 import { toast } from "react-hot-toast";
+import { getErrorMessage } from "@/lib/apiErrors";
 
 export const StockTransferOTPPopup = () => {
     const { socket } = useNotifications();
@@ -134,7 +135,7 @@ export const StockTransferOTPPopup = () => {
                 toast.error(data.message || "Verification failed");
             }
         } catch (error) {
-            toast.error("An error occurred");
+            toast.error(getErrorMessage(error, "An error occurred"));
         } finally {
             setIsSubmitting(false);
         }

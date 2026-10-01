@@ -9,6 +9,7 @@ import {
   Eye, RefreshCw, Calendar, Filter, CheckCircle2, XCircle
 } from "lucide-react";
 import { toast } from "react-hot-toast";
+import { getErrorMessage } from "@/lib/apiErrors";
 
 const API_BASE = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
 const authHeaders = () => ({ Authorization: `Bearer ${Cookies.get("auth_token")}` });
@@ -33,8 +34,8 @@ export default function DeliveryAgentsListing() {
       const data = await res.json();
       if (data.success) setOfficers(data.officers || []);
       else toast.error(data.message || "Failed to load agents");
-    } catch {
-      toast.error("Failed to load delivery agents");
+    } catch (err) {
+      toast.error(getErrorMessage(err, "Failed to load delivery agents"));
     } finally {
       setLoading(false);
     }

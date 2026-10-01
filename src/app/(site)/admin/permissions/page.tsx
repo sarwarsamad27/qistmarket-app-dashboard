@@ -7,6 +7,7 @@ import { KeyRound, Search } from "lucide-react";
 import Breadcrumb from "@/components/Breadcrumbs/Breadcrumb";
 import PageHeader from "@/components/Accounts/PageHeader";
 import { roleLabel } from "@/lib/roleLabels";
+import { apiErrorMessage } from "@/lib/apiErrors";
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
 const authHeaders = () => ({ Authorization: `Bearer ${Cookies.get("auth_token")}`, "Content-Type": "application/json" });
@@ -66,7 +67,7 @@ export default function AdminPermissionsPage() {
         headers: authHeaders(),
         body: JSON.stringify({ permissions_json: merged }),
       });
-      if (!res.ok) throw new Error("Failed to update permission.");
+      if (!res.ok) throw new Error(await apiErrorMessage(res, "Failed to update permission."));
       toast.success("Permission updated.");
       setSelected({ ...selected, permissions: merged });
       setUsers((prev) => prev.map((u) => (u.id === selected.id ? { ...u, permissions: merged } : u)));

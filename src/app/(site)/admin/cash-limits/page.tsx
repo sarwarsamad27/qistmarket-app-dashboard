@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import Breadcrumb from "@/components/Breadcrumbs/Breadcrumb";
 import { roleLabel } from "@/lib/roleLabels";
+import { getErrorMessage } from "@/lib/apiErrors";
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
 const authHeaders = () => ({ Authorization: `Bearer ${Cookies.get("auth_token")}`, "Content-Type": "application/json" });
@@ -34,8 +35,8 @@ export default function CashLimitsPage() {
       const data = await res.json();
       if (data.success) setLimits(data.data);
       else toast.error(data.message || "Failed to load limits");
-    } catch {
-      toast.error("Failed to load limits");
+    } catch (err) {
+      toast.error(getErrorMessage(err, "Failed to load limits"));
     } finally {
       setLoading(false);
     }
@@ -82,8 +83,8 @@ export default function CashLimitsPage() {
       } else {
         toast.error(data.message || "Failed to add cash limit");
       }
-    } catch {
-      toast.error("Failed to add cash limit");
+    } catch (err) {
+      toast.error(getErrorMessage(err, "Failed to add cash limit"));
     } finally {
       setAdding(false);
     }
@@ -96,8 +97,8 @@ export default function CashLimitsPage() {
       const data = await res.json();
       if (data.success) { toast.success("Cash limit removed"); setLimits(limits.filter(l => l.id !== id)); }
       else toast.error(data.message || "Failed to remove limit");
-    } catch {
-      toast.error("Failed to remove limit");
+    } catch (err) {
+      toast.error(getErrorMessage(err, "Failed to remove limit"));
     }
   };
 

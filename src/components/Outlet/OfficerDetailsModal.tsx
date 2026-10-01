@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import Cookies from "js-cookie";
 import { toast } from "react-hot-toast";
+import { getErrorMessage } from "@/lib/apiErrors";
 
 const API_BASE = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
 
@@ -42,7 +43,7 @@ export default function OfficerDetailsModal({ isOpen, onClose, officerId }: Offi
                 }
             }
         } catch (err) {
-            toast.error("Failed to load officer details");
+            toast.error(getErrorMessage(err, "Failed to load officer details"));
         } finally {
             setLoading(false);
         }

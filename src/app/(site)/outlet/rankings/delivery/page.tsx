@@ -5,6 +5,7 @@ import Cookies from "js-cookie";
 import toast from "react-hot-toast";
 import { Truck, RefreshCw, Store, Trophy, User, ArrowUpRight, ArrowDownRight, CheckCircle2, XCircle } from "lucide-react";
 import Breadcrumb from "@/components/Breadcrumbs/Breadcrumb";
+import { getErrorMessage } from "@/lib/apiErrors";
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
 const authHeaders = () => ({ Authorization: `Bearer ${Cookies.get("auth_token")}`, "Content-Type": "application/json" });
@@ -43,8 +44,8 @@ export default function DeliveryOfficerRankingsPage() {
             } else {
                 toast.error(data.message || "Failed to load rankings");
             }
-        } catch {
-            toast.error("Failed to load rankings");
+        } catch (err) {
+            toast.error(getErrorMessage(err, "Failed to load rankings"));
         } finally {
             setLoading(false);
         }

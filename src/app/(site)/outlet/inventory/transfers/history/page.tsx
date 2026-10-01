@@ -12,6 +12,7 @@ import { toast } from "react-hot-toast";
 import { useNotifications } from "../../../../../../../contexts/NotificationContext";
 import { useAuth } from "../../../../../../../contexts/AuthContext";
 import { formatExactDate } from "@/utils/dateUtils";
+import { getErrorMessage } from "@/lib/apiErrors";
 
 const API_BASE = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
 const getAuthHeaders = () => ({
@@ -186,7 +187,7 @@ export default function TransferHistoryPage() {
                 setTimeout(() => fetchHistory(), 500); 
             }
             else toast.error(data.message || "Verification failed.");
-        } catch { toast.error("Network error."); } finally { setActionLoading(false); }
+        } catch (err) { toast.error(getErrorMessage(err, "Network error.")); } finally { setActionLoading(false); }
     };
 
     const handleCancel = (id: number) => { setItemToCancel(id); setConfirmModalOpen(true); };
@@ -202,7 +203,7 @@ export default function TransferHistoryPage() {
             const data = await res.json();
             if (data.success) { toast.success("Transfer cancelled."); setConfirmModalOpen(false); setItemToCancel(null); fetchHistory(); }
             else toast.error(data.message || "Cancellation failed.");
-        } catch { toast.error("Network error."); } finally { setActionLoading(false); }
+        } catch (err) { toast.error(getErrorMessage(err, "Network error.")); } finally { setActionLoading(false); }
     };
 
     const handleResendOTP = async (rec: TransferRecord) => {
@@ -215,7 +216,7 @@ export default function TransferHistoryPage() {
             const data = await res.json();
             if (data.success) { toast.success("OTP resent."); if (direction === 'sent') { setSelectedTransfer(rec); setOtpModalOpen(true); setOtp(""); } }
             else toast.error(data.message || "Failed to resend OTP.");
-        } catch { toast.error("Network error."); } finally { setActionLoading(false); }
+        } catch (err) { toast.error(getErrorMessage(err, "Network error.")); } finally { setActionLoading(false); }
     };
 
     const handleInitiateStockBack = (id: number, name: string, imei: string) => { setBackConfirmData({ id, name, imei }); setBackConfirmModalOpen(true); };
@@ -231,7 +232,7 @@ export default function TransferHistoryPage() {
             const data = await res.json();
             if (data.success) { toast.success("Stock back initiated!"); setBackConfirmModalOpen(false); setBackConfirmData(null); fetchHistory(); }
             else toast.error(data.message || "Failed.");
-        } catch { toast.error("Network error."); } finally { setActionLoading(false); }
+        } catch (err) { toast.error(getErrorMessage(err, "Network error.")); } finally { setActionLoading(false); }
     };
 
     // ── Bulk selection helpers ───────────────────────────────────────────────
@@ -278,7 +279,7 @@ export default function TransferHistoryPage() {
                 setBulkCancelModalOpen(false);
                 fetchHistory();
             } else toast.error(data.message || "Bulk cancel failed.");
-        } catch { toast.error("Network error."); } finally { setBulkActionLoading(false); }
+        } catch (err) { toast.error(getErrorMessage(err, "Network error.")); } finally { setBulkActionLoading(false); }
     };
 
     // ── Bulk Resend OTP / Verify Selected ─────────────────────────────────────────────────────
@@ -331,7 +332,7 @@ export default function TransferHistoryPage() {
             if (!(direction === 'sent' && successCount > 0 && groupArray.length === 1)) {
                 setSelectedPendingIds(new Set());
             }
-        } catch { toast.error("Network error."); } finally { setBulkActionLoading(false); }
+        } catch (err) { toast.error(getErrorMessage(err, "Network error.")); } finally { setBulkActionLoading(false); }
     };
 
     // ── Bulk Stock Back ────────────────────────────────────────────────────────
@@ -376,7 +377,7 @@ export default function TransferHistoryPage() {
                 setSelectedTransferredIds(new Set());
                 fetchHistory();
             } else toast.error(data.message || "Failed.");
-        } catch { toast.error("Network error."); } finally { setBulkActionLoading(false); }
+        } catch (err) { toast.error(getErrorMessage(err, "Network error.")); } finally { setBulkActionLoading(false); }
     };
 
     const toggleExpand = (key: string) => {

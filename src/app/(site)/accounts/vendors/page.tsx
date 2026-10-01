@@ -9,6 +9,7 @@ import PageHeader from "@/components/Accounts/PageHeader";
 import EmptyState from "@/components/Accounts/EmptyState";
 import { TableSkeleton } from "@/components/Accounts/Skeleton";
 import { PKR } from "@/components/Accounts/StatCard";
+import { apiErrorMessage, getErrorMessage } from "@/lib/apiErrors";
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
 const authHeaders = () => ({ Authorization: `Bearer ${Cookies.get("auth_token")}`, "Content-Type": "application/json" });
@@ -101,7 +102,7 @@ export default function AccountsVendorsPage() {
       const json = await res.json();
       if (json.success) setLedgerByVendor((prev) => ({ ...prev, [vendorId]: json.data.transactions }));
     } catch (err) {
-      toast.error("Failed to load vendor ledger.");
+      toast.error(getErrorMessage(err, "Failed to load vendor ledger."));
     } finally {
       setLedgerLoading(null);
     }
@@ -128,7 +129,7 @@ export default function AccountsVendorsPage() {
     setCreatingVendor(true);
     try {
       const res = await fetch(`${BACKEND_URL}/api/accounts/vendors`, { method: "POST", headers: authHeaders(), body: JSON.stringify(vendorForm) });
-      if (!res.ok) throw new Error("Failed to create vendor.");
+      if (!res.ok) throw new Error(await apiErrorMessage(res, "Failed to create vendor."));
       toast.success("Vendor created.");
       setVendorForm({ name: "", phone: "", email: "", address: "" });
       fetchVendorList();
@@ -144,7 +145,7 @@ export default function AccountsVendorsPage() {
     if (!cashForm.vendor_id || !cashForm.amount) { toast.error("Vendor ID and amount are required."); return; }
     try {
       const res = await fetch(`${BACKEND_URL}/api/accounts/vendors/cash-transactions`, { method: "POST", headers: authHeaders(), body: JSON.stringify({ ...cashForm, amount: parseFloat(cashForm.amount) }) });
-      if (!res.ok) throw new Error("Transaction failed.");
+      if (!res.ok) throw new Error(await apiErrorMessage(res, "Transaction failed."));
       toast.success("Vendor cash transaction recorded.");
       const affectedVendorId = parseInt(cashForm.vendor_id);
       setCashForm({ vendor_id: "", type: "credit", amount: "", description: "" });
@@ -162,7 +163,7 @@ export default function AccountsVendorsPage() {
     if (!scheduleForm.vendor_id || !scheduleForm.amount || !scheduleForm.scheduled_date) { toast.error("Vendor, amount, and date are required."); return; }
     try {
       const res = await fetch(`${BACKEND_URL}/api/accounts/vendors/scheduled-payments`, { method: "POST", headers: authHeaders(), body: JSON.stringify(scheduleForm) });
-      if (!res.ok) throw new Error("Failed to schedule payment.");
+      if (!res.ok) throw new Error(await apiErrorMessage(res, "Failed to schedule payment."));
       toast.success("Payment scheduled.");
       setScheduleForm({ vendor_id: "", amount: "", scheduled_date: "", notes: "" });
       fetchScheduled();
@@ -176,8 +177,8 @@ export default function AccountsVendorsPage() {
       await fetch(`${BACKEND_URL}/api/accounts/vendors/scheduled-payments/${id}`, { method: "PATCH", headers: authHeaders(), body: JSON.stringify({ status }) });
       toast.success(`Marked ${status}.`);
       fetchScheduled();
-    } catch {
-      toast.error("Update failed.");
+    } catch (err) {
+      toast.error(getErrorMessage(err, "Update failed."));
     }
   };
 

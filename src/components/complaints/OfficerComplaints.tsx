@@ -6,6 +6,7 @@ import Cookies from "js-cookie";
 import { Image as ImageIcon, Search, Clock, CheckCircle, AlertCircle, X } from "lucide-react";
 import CnicSearch from "./CnicSearch";
 import { formatExactDate } from "@/utils/dateUtils";
+import { apiErrorMessage, getErrorMessage } from "@/lib/apiErrors";
 
 interface ComplaintItem {
   id: number;
@@ -58,7 +59,7 @@ export default function OfficerComplaints() {
       }
     } catch (error) {
       console.error(error);
-      toast.error("Unable to load complaints.");
+      toast.error(getErrorMessage(error, "Unable to load complaints."));
     } finally {
       setLoading(false);
     }
@@ -126,7 +127,7 @@ export default function OfficerComplaints() {
         body: formData,
       });
       const json = await res.json();
-      if (!res.ok) throw new Error(json.message || "Failed to submit complaint.");
+      if (!res.ok) throw new Error(await apiErrorMessage(res, "Failed to submit complaint.", json));
       
       toast.success("Complaint submitted successfully.");
       setCustomerName("");

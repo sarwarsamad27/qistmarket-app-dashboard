@@ -10,6 +10,7 @@ import { useAuth } from "../../../../contexts/AuthContext";
 import { jwtDecode } from "jwt-decode";
 import { getMyDeletionRequest, requestAccountDeletion } from "@/services/account-deletion.service";
 import { AccountDeletionRequest } from "@/types/account-deletion";
+import { getErrorMessage } from "@/lib/apiErrors";
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
 
@@ -123,7 +124,7 @@ export default function ProfilePage() {
         toast.error("Failed to update profile");
       }
     } catch (err) {
-      toast.error("An error occurred");
+      toast.error(getErrorMessage(err, "An error occurred"));
     } finally {
       setSaving(false);
     }

@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import Loader from "@/components/common/Loader";
 import { formatExactDate } from "@/utils/dateUtils";
+import { getErrorMessage } from "@/lib/apiErrors";
 
 const API_BASE = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
 const getAuthHeaders = () => ({
@@ -158,7 +159,7 @@ export default function VendorPaymentsPage() {
                 setError(data.message || "Failed to record payment.");
             }
         } catch (err) {
-            setError("Network error.");
+            setError(getErrorMessage(err, "Network error."));
         } finally {
             setSaving(false);
         }

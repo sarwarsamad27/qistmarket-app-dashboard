@@ -29,6 +29,7 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
 import { formatExactDate } from "@/utils/dateUtils";
+import { getErrorMessage } from "@/lib/apiErrors";
 const API_BASE = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
 
 const getAuthHeaders = () => {
@@ -200,7 +201,7 @@ function InstallmentsViewContent() {
       }
     } catch (e) {
       console.error(e);
-      toast.error("Error communicating with PayTrigger");
+      toast.error(getErrorMessage(e, "Error communicating with PayTrigger"));
     } finally {
       setPtpLoading(false);
     }
@@ -275,7 +276,7 @@ function InstallmentsViewContent() {
       }
     } catch (err) {
       console.error(err);
-      toast.error("Error connecting to backend");
+      toast.error(getErrorMessage(err, "Error connecting to backend"));
     } finally {
       setLoading(false);
     }
@@ -537,7 +538,7 @@ function InstallmentsViewContent() {
       }
     } catch (err) {
       console.error(err);
-      toast.error("Error saving note");
+      toast.error(getErrorMessage(err, "Error saving note"));
     } finally {
       setSavingNote(false);
     }

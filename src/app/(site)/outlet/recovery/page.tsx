@@ -6,6 +6,7 @@ import Breadcrumb from "@/components/Breadcrumbs/Breadcrumb";
 import { Search, Phone, User, Banknote, DollarSign, Eye, RefreshCw, Layers, Calendar, CheckCircle2, XCircle } from "lucide-react";
 import { toast } from "react-hot-toast";
 import { useRouter } from "next/navigation";
+import { getErrorMessage } from "@/lib/apiErrors";
 
 const API_BASE = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
 const authHeaders = () => ({ Authorization: `Bearer ${Cookies.get("auth_token")}` });
@@ -30,8 +31,8 @@ export default function RecoveryOfficersListing() {
       const data = await res.json();
       if (data.success) setOfficers(data.officers || []);
       else toast.error(data.message || "Failed to load officers");
-    } catch {
-      toast.error("Failed to load recovery officers");
+    } catch (err) {
+      toast.error(getErrorMessage(err, "Failed to load recovery officers"));
     } finally {
       setLoading(false);
     }

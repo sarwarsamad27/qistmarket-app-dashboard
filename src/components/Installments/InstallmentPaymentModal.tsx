@@ -3,6 +3,7 @@ import { Modal } from "../Modal/Modal";
 import Cookies from "js-cookie";
 import { toast } from "react-hot-toast";
 import { useAuth } from "../../../contexts/AuthContext";
+import { getErrorMessage } from "@/lib/apiErrors";
 
 const API_BASE = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
 
@@ -112,7 +113,7 @@ export default function InstallmentPaymentModal({ open, onClose, onSuccess, orde
             }
         } catch (e) {
             console.error(e);
-            toast.error("Error sending OTP");
+            toast.error(getErrorMessage(e, "Error sending OTP"));
         } finally {
             setLoading(false);
         }
@@ -141,7 +142,7 @@ export default function InstallmentPaymentModal({ open, onClose, onSuccess, orde
             }
         } catch (e) {
             console.error(e);
-            toast.error("Error communicating with payment gateway");
+            toast.error(getErrorMessage(e, "Error communicating with payment gateway"));
         } finally {
             setGeneratingQr(false);
         }
@@ -217,7 +218,7 @@ export default function InstallmentPaymentModal({ open, onClose, onSuccess, orde
             }
         } catch (e) {
             console.error(e);
-            toast.error("Error processing payment");
+            toast.error(getErrorMessage(e, "Error processing payment"));
         } finally {
             setLoading(false);
         }

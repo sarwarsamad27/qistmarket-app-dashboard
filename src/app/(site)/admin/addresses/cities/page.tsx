@@ -26,6 +26,7 @@ import ColumnFilter from "@/components/DataTables/ColumnFilter";
 import { Modal } from "@/components/Modal/Modal";
 import Pagination from "@/components/common/Pagination";
 import { createPortal } from "react-dom";
+import { getErrorMessage, extractBodyMessage } from "@/lib/apiErrors";
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
 
@@ -72,10 +73,10 @@ const CitiesPage = () => {
             if (data.success) {
                 setCities(data.data);
             } else {
-                toast.error(data.error || "Failed to fetch cities");
+                toast.error(extractBodyMessage(data) || "Failed to fetch cities");
             }
         } catch (err) {
-            toast.error("Error fetching cities");
+            toast.error(getErrorMessage(err, "Error fetching cities"));
         } finally {
             setLoading(false);
         }
@@ -274,10 +275,10 @@ const CitiesPage = () => {
                 setIsCreateModalOpen(false);
                 fetchCities();
             } else {
-                toast.error(data.error || "Failed to create city");
+                toast.error(extractBodyMessage(data) || "Failed to create city");
             }
         } catch (err) {
-            toast.error("Error creating city");
+            toast.error(getErrorMessage(err, "Error creating city"));
         } finally {
             setSubmitting(false);
         }
@@ -307,10 +308,10 @@ const CitiesPage = () => {
                 setSelectedCity(null);
                 fetchCities();
             } else {
-                toast.error(data.error || "Failed to update city");
+                toast.error(extractBodyMessage(data) || "Failed to update city");
             }
         } catch (err) {
-            toast.error("Error updating city");
+            toast.error(getErrorMessage(err, "Error updating city"));
         } finally {
             setSubmitting(false);
         }
@@ -335,10 +336,10 @@ const CitiesPage = () => {
                 setSelectedCity(null);
                 fetchCities();
             } else {
-                toast.error(data.error || "Failed to delete city");
+                toast.error(extractBodyMessage(data) || "Failed to delete city");
             }
         } catch (err) {
-            toast.error("Error deleting city");
+            toast.error(getErrorMessage(err, "Error deleting city"));
         } finally {
             setSubmitting(false);
         }

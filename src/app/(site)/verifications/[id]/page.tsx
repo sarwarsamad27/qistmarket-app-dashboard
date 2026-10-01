@@ -16,6 +16,7 @@ import { formatExactDate } from "@/utils/dateUtils";
 import LinkedAccountsBadge from '@/components/common/LinkedAccountsBadge';
 
 import EditTimelineDatesModal from '@/components/Orders/EditTimelineDatesModal';
+import { apiErrorMessage, getErrorMessage, extractBodyMessage } from "@/lib/apiErrors";
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL
 
@@ -313,7 +314,7 @@ const EditableField = ({
       toast.success(`${label} updated successfully`)
     } catch (error) {
       console.error('Save error:', error)
-      toast.error('Failed to save changes')
+      toast.error(getErrorMessage(error, 'Failed to save changes'))
     } finally {
       setIsSaving(false)
     }
@@ -548,7 +549,7 @@ const VerificationDetails = ({ params }: { params: Promise<{ id: string }> }) =>
         headers: { Authorization: `Bearer ${token}` },
       })
 
-      if (!res.ok) throw new Error('Failed to fetch verification details')
+      if (!res.ok) throw new Error(await apiErrorMessage(res, "Failed to fetch verification details"))
 
       const json = await res.json()
       console.log('API Response:', json)
@@ -710,7 +711,7 @@ const VerificationDetails = ({ params }: { params: Promise<{ id: string }> }) =>
         body: JSON.stringify({ officer_id: officerId })
       })
 
-      if (!res.ok) throw new Error('Failed to assign officer for location capture')
+      if (!res.ok) throw new Error(await apiErrorMessage(res, "Failed to assign officer for location capture"))
 
       toast.success(action === 'send-to-vo' ? 'Successfully sent to Verification Officer' : 'Successfully sent to Delivery Officer')
 
@@ -765,7 +766,7 @@ const VerificationDetails = ({ params }: { params: Promise<{ id: string }> }) =>
       const result = await res.json()
 
       if (!res.ok || !result.success) {
-        throw new Error(result.error || 'Failed to submit review')
+        throw new Error(extractBodyMessage(result) || 'Failed to submit review')
       }
 
       // Refresh data
@@ -815,7 +816,7 @@ const VerificationDetails = ({ params }: { params: Promise<{ id: string }> }) =>
 
       if (!res.ok) {
         const errorData = await res.json()
-        throw new Error(errorData.error || 'Failed to update media')
+        throw new Error(extractBodyMessage(errorData) || 'Failed to update media')
       }
 
       const result = await res.json()
@@ -857,7 +858,7 @@ const VerificationDetails = ({ params }: { params: Promise<{ id: string }> }) =>
 
         if (!res.ok) {
             const errorData = await res.json();
-            throw new Error(errorData.error || 'Location media replacement failed');
+            throw new Error(extractBodyMessage(errorData) || 'Location media replacement failed');
         }
 
         // Refresh data
@@ -896,7 +897,7 @@ const VerificationDetails = ({ params }: { params: Promise<{ id: string }> }) =>
 
         if (!res.ok) {
             const errorData = await res.json();
-            throw new Error(errorData.error || 'Adding location photo(s) failed');
+            throw new Error(extractBodyMessage(errorData) || 'Adding location photo(s) failed');
         }
 
         const refreshRes = await fetch(`${BACKEND_URL}/api/verification/order/${id}`, {
@@ -939,7 +940,7 @@ const VerificationDetails = ({ params }: { params: Promise<{ id: string }> }) =>
       });
 
       const json = await res.json();
-      if (!res.ok) throw new Error(json.error || json.message || 'Failed to upload document');
+      if (!res.ok) throw new Error(await apiErrorMessage(res, "Failed to upload document", json));
 
       // Refresh data to show newly uploaded document
       const refreshRes = await fetch(`${BACKEND_URL}/api/verification/order/${id}`, {
@@ -1009,7 +1010,7 @@ const VerificationDetails = ({ params }: { params: Promise<{ id: string }> }) =>
         body: formData,
       });
       const json = await res.json();
-      if (!res.ok) throw new Error(json.error?.message || json.message || 'Failed to save location');
+      if (!res.ok) throw new Error(await apiErrorMessage(res, "Failed to save location", json));
 
       const refreshRes = await fetch(`${BACKEND_URL}/api/verification/order/${id}`, {
         headers: { Authorization: `Bearer ${token}` },
@@ -1041,7 +1042,7 @@ const VerificationDetails = ({ params }: { params: Promise<{ id: string }> }) =>
         headers: { Authorization: `Bearer ${token}` },
       });
       const json = await res.json();
-      if (!res.ok) throw new Error(json.error?.message || json.message || 'Failed to delete location');
+      if (!res.ok) throw new Error(await apiErrorMessage(res, "Failed to delete location", json));
 
       const refreshRes = await fetch(`${BACKEND_URL}/api/verification/order/${id}`, {
         headers: { Authorization: `Bearer ${token}` },
@@ -1069,7 +1070,7 @@ const VerificationDetails = ({ params }: { params: Promise<{ id: string }> }) =>
       headers: { Authorization: `Bearer ${token}` },
     });
     const json = await res.json();
-    if (!res.ok) throw new Error(json.error?.message || json.message || 'Failed to delete document');
+    if (!res.ok) throw new Error(await apiErrorMessage(res, "Failed to delete document", json));
 
     const refreshRes = await fetch(`${BACKEND_URL}/api/verification/order/${id}`, {
       headers: { Authorization: `Bearer ${token}` },
@@ -1266,7 +1267,7 @@ const VerificationDetails = ({ params }: { params: Promise<{ id: string }> }) =>
         headers: { Authorization: `Bearer ${token}` },
         body: formData,
       });
-      if (!res.ok) throw new Error('Replacement failed');
+      if (!res.ok) throw new Error(await apiErrorMessage(res, "Replacement failed"));
       toast.success('Delivery photo replaced successfully');
       await fetchData();
     } catch (err: any) {

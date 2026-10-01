@@ -9,6 +9,7 @@ import Breadcrumb from "@/components/Breadcrumbs/Breadcrumb";
 import Link from "next/link";
 import { toast } from "react-hot-toast";
 import { formatExactDate } from "@/utils/dateUtils";
+import { getErrorMessage } from "@/lib/apiErrors";
 
 const API_BASE = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
 const getAuthHeaders = () => ({
@@ -76,7 +77,7 @@ export default function CashHistoryPage() {
             }
         } catch (error) {
             console.error(error);
-            toast.error("Failed to fetch collection history");
+            toast.error(getErrorMessage(error, "Failed to fetch collection history"));
         } finally {
             setLoading(false);
         }

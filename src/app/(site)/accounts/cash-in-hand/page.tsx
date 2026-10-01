@@ -9,6 +9,7 @@ import PageHeader from "@/components/Accounts/PageHeader";
 import EmptyState from "@/components/Accounts/EmptyState";
 import { TableSkeleton } from "@/components/Accounts/Skeleton";
 import { PKR } from "@/components/Accounts/StatCard";
+import { apiErrorMessage, getErrorMessage } from "@/lib/apiErrors";
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
 const authHeaders = () => ({ Authorization: `Bearer ${Cookies.get("auth_token")}`, "Content-Type": "application/json" });
@@ -139,7 +140,7 @@ export default function CashInHandPage() {
     }
     try {
       const res = await fetch(`${BACKEND_URL}/api/accounts/cash/limits`, { method: "POST", headers: authHeaders(), body: JSON.stringify(limitForm) });
-      if (!res.ok) throw new Error("Failed to save limit.");
+      if (!res.ok) throw new Error(await apiErrorMessage(res, "Failed to save limit."));
       toast.success("Cash limit saved.");
       setLimitForm({ scope_type: "outlet", scope_id: "", daily_limit: "" });
       fetchLimits();
@@ -185,8 +186,8 @@ export default function CashInHandPage() {
       await fetch(`${BACKEND_URL}/api/accounts/cash/limits/${id}`, { method: "DELETE", headers: authHeaders() });
       toast.success("Limit removed.");
       fetchLimits();
-    } catch {
-      toast.error("Failed to remove limit.");
+    } catch (err) {
+      toast.error(getErrorMessage(err, "Failed to remove limit."));
     }
   };
 

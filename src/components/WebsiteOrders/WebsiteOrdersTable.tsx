@@ -18,6 +18,7 @@ import Loader from '@/components/common/Loader'
 import { cn } from '@/lib/utils'
 import { X, Check, AlertCircle } from 'lucide-react'
 import { formatExactDate } from "@/utils/dateUtils";
+import { getErrorMessage } from "@/lib/apiErrors";
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL
 
@@ -91,7 +92,7 @@ export default function WebsiteOrdersTable() {
       }
     } catch (error) {
       console.error('Fetch error:', error)
-      toast.error('Failed to load website orders')
+      toast.error(getErrorMessage(error, 'Failed to load website orders'))
     } finally {
       setLoading(false)
     }
@@ -149,7 +150,7 @@ export default function WebsiteOrdersTable() {
       fetchWebsiteOrders()
     } catch (error) {
       console.error('Pickup error:', error)
-      toast.error('Something went wrong')
+      toast.error(getErrorMessage(error, 'Something went wrong'))
     } finally {
       setIsPickingUp(false)
     }
@@ -184,7 +185,7 @@ export default function WebsiteOrdersTable() {
       }
     } catch (error) {
       console.error('Cancel error:', error)
-      toast.error('Something went wrong')
+      toast.error(getErrorMessage(error, 'Something went wrong'))
     } finally {
       setIsCancelling(false)
     }

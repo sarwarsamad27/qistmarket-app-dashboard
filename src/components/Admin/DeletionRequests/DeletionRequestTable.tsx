@@ -7,6 +7,7 @@ import { getAllDeletionRequests, reviewDeletionRequest } from "@/services/accoun
 import { AccountDeletionRequest } from "@/types/account-deletion";
 import { ReviewModal } from "./ReviewModal";
 import toast from "react-hot-toast";
+import { getErrorMessage } from "@/lib/apiErrors";
 
 export default function DeletionRequestsTable() {
     const [requests, setRequests] = useState<AccountDeletionRequest[]>([]);
@@ -19,7 +20,7 @@ export default function DeletionRequestsTable() {
             const response = await getAllDeletionRequests();
             setRequests(response.requests);
         } catch (error) {
-            toast.error("Failed to fetch deletion requests");
+            toast.error(getErrorMessage(error, "Failed to fetch deletion requests"));
             console.error(error);
         } finally {
             setLoading(false);
@@ -41,7 +42,7 @@ export default function DeletionRequestsTable() {
             toast.success(`Request ${action === 'approve' ? 'approved' : 'rejected'} successfully`);
             fetchRequests(); // Refresh list
         } catch (error) {
-            toast.error("Failed to submit review");
+            toast.error(getErrorMessage(error, "Failed to submit review"));
             console.error(error);
             throw error; // Re-throw to handle loading state in modal
         }

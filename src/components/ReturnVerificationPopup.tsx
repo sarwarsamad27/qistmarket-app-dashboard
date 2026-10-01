@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { X, CheckCircle2, PackageCheck, Info } from "lucide-react";
+import { getErrorMessage, extractBodyMessage } from "@/lib/apiErrors";
 
 interface ReturnVerificationPopupProps {
     isOpen: boolean;
@@ -75,10 +76,10 @@ const ReturnVerificationPopup: React.FC<ReturnVerificationPopupProps> = ({
                 onSuccess();
                 onClose();
             } else {
-                setError(data.error || "Failed to verify OTP.");
+                setError(extractBodyMessage(data) || "Failed to verify OTP.");
             }
         } catch (err: any) {
-            setError("Something went wrong. Please try again.");
+            setError(getErrorMessage(err, "Something went wrong. Please try again."));
         } finally {
             setLoading(false);
         }

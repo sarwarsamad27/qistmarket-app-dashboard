@@ -11,6 +11,7 @@ import {
     ArrowLeft
 } from "lucide-react";
 import Loader from "@/components/common/Loader";
+import { getErrorMessage } from "@/lib/apiErrors";
 
 const API_BASE = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
 const getAuthHeaders = () => ({
@@ -94,7 +95,7 @@ export default function AddExpenseVoucherPage() {
                 setError(data.message || "Failed to record expense voucher.");
             }
         } catch (err) {
-            setError("Connection error. Please try again.");
+            setError(getErrorMessage(err, "Connection error. Please try again."));
         } finally {
             setSaving(false);
         }

@@ -12,6 +12,7 @@ import Cookies from 'js-cookie'
 import { SearchIcon } from '@/assets/icons'
 import { useProfileModal } from '../../../contexts/ProfileModalContext'
 import { CheckCircle, PartyPopper, Ban } from 'lucide-react'
+import { apiErrorMessage } from "@/lib/apiErrors";
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL
 
@@ -39,7 +40,7 @@ const ClearedCustomerList = () => {
       const res = await fetch(`${BACKEND_URL}/api/customers/cleared`, {
         headers: { Authorization: `Bearer ${token}` },
       })
-      if (!res.ok) throw new Error('Failed to fetch cleared accounts')
+      if (!res.ok) throw new Error(await apiErrorMessage(res, "Failed to fetch cleared accounts"))
       const json = await res.json()
 
       if (json.success && json.data) {

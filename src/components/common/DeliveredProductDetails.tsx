@@ -7,6 +7,7 @@ import toast from "react-hot-toast";
 import { useAuth } from "../../../contexts/AuthContext";
 import { formatExactDate } from "@/utils/dateUtils";
 import { Modal } from "@/components/Modal/Modal";
+import { apiErrorMessage } from "@/lib/apiErrors";
 
 const LabeledInput = ({ label, value, onChange, type = 'text' }: { label: string; value: string; onChange: (v: string) => void; type?: string }) => (
     <div>
@@ -99,7 +100,7 @@ export default function DeliveredProductDetails({
                 body: formData
             });
 
-            if (!res.ok) throw new Error('Replacement failed');
+            if (!res.ok) throw new Error(await apiErrorMessage(res, "Replacement failed"));
             toast.success('Delivery upload replaced successfully');
             await fetchDeliveredProductDetails();
             if (onRefresh) await onRefresh();

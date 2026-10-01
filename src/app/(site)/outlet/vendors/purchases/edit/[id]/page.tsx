@@ -14,6 +14,7 @@ import Papa from "papaparse";
 import Loader from "@/components/common/Loader";
 import SearchableSelect from "@/components/common/SearchableSelect";
 import SerialOrEngineChassisInput from "@/components/VendorPurchase/SerialOrEngineChassisInput";
+import { getErrorMessage } from "@/lib/apiErrors";
 
 const API_BASE = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
 const getAuthHeaders = () => ({
@@ -329,7 +330,7 @@ export default function EditVendorPurchasePage() {
                 setError(data.message || "Failed to update purchase.");
             }
         } catch (err) {
-            setError("Network error. Please try again.");
+            setError(getErrorMessage(err, "Network error. Please try again."));
             console.error(err);
         } finally {
             setSaving(false);

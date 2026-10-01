@@ -5,6 +5,7 @@ import { ShoppingBag, Globe, MessageSquare, Building, Users, Search, ChevronDown
 import toast from "react-hot-toast";
 import Cookies from "js-cookie";
 import { useAuth } from "../../../contexts/AuthContext";
+import { apiErrorMessage } from "@/lib/apiErrors";
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
 
@@ -637,7 +638,7 @@ const CreateOrders: React.FC = () => {
 
       const result = await response.json();
 
-      if (!response.ok) throw new Error(result.error?.message || 'Failed to create order');
+      if (!response.ok) throw new Error(await apiErrorMessage(response, "Failed to create order", result));
 
       toast.success(`Order created successfully! Token: ${result.data.order.token_number}`);
 

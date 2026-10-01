@@ -6,6 +6,7 @@ import Breadcrumb from "@/components/Breadcrumbs/Breadcrumb";
 import { Plus, Search, User, Phone, Mail, MapPin, IndianRupee, History, Edit, Trash2, Eye, ExternalLink } from "lucide-react";
 import Link from "next/link";
 import toast from "react-hot-toast";
+import { getErrorMessage } from "@/lib/apiErrors";
 
 const API_BASE = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
 const getAuthHeaders = () => ({
@@ -43,7 +44,7 @@ export default function VendorManagementPage() {
             const data = await res.json();
             if (data.success) setVendors(data.vendors);
         } catch (err) {
-            toast.error("Failed to load vendors");
+            toast.error(getErrorMessage(err, "Failed to load vendors"));
         } finally {
             setLoading(false);
         }
@@ -77,7 +78,7 @@ export default function VendorManagementPage() {
                 toast.error(data.message || "Operation failed");
             }
         } catch (err) {
-            toast.error("Network error");
+            toast.error(getErrorMessage(err, "Network error"));
         }
     };
 
@@ -90,8 +91,8 @@ export default function VendorManagementPage() {
             const data = await res.json();
             if (data.success) setDeletePreview(data.data);
             else toast.error(data.message || "Could not load vendor details");
-        } catch {
-            toast.error("Network error");
+        } catch (err) {
+            toast.error(getErrorMessage(err, "Network error"));
         }
     };
 

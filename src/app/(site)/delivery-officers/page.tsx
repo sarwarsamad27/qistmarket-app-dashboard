@@ -12,6 +12,7 @@ import { DeliveryStats } from '@/components/DeliveryManagement/DeliveryStats';
 import { SearchIcon } from '@/assets/icons';
 import io from 'socket.io-client';
 import { formatExactDate } from '@/utils/dateUtils';
+import { getErrorMessage, extractBodyMessage } from "@/lib/apiErrors";
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5000';
 
@@ -412,10 +413,10 @@ export default function DeliveryOfficers() {
       if (result.success) {
         toast.success('OTP has been generated and sent via WhatsApp');
       } else {
-        toast.error(result.error || 'Failed to generate OTP');
+        toast.error(extractBodyMessage(result) || 'Failed to generate OTP');
       }
     } catch (error) {
-      toast.error('Failed to send OTP');
+      toast.error(getErrorMessage(error, 'Failed to send OTP'));
     } finally {
       setIsActionLoading(false);
     }
@@ -444,10 +445,10 @@ export default function DeliveryOfficers() {
         await fetchBoyDetails(selectedBoyId);
         fetchAllDeliveries(); // Refresh stats
       } else {
-        toast.error(result.error || 'Invalid or expired OTP');
+        toast.error(extractBodyMessage(result) || 'Invalid or expired OTP');
       }
     } catch (error) {
-      toast.error('Failed to verify OTP');
+      toast.error(getErrorMessage(error, 'Failed to verify OTP'));
     } finally {
       setIsActionLoading(false);
     }

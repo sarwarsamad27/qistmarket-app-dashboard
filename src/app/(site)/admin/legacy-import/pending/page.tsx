@@ -7,6 +7,7 @@ import toast from "react-hot-toast";
 import Link from 'next/link';
 import { ImageIcon, MapPin, Loader2 } from 'lucide-react';
 import { useAuth } from "../../../../../../contexts/AuthContext";
+import { apiErrorMessage } from "@/lib/apiErrors";
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
 
@@ -108,7 +109,7 @@ export default function PendingLegacyProfilesPage() {
           headers: { Authorization: `Bearer ${token}` },
         });
         const data = await res.json();
-        if (!res.ok) throw new Error(data.message || 'Failed to load');
+        if (!res.ok) throw new Error(await apiErrorMessage(res, "Failed to load", data));
         setOrders(data.data || []);
       } catch (err: any) {
         console.error(err);
@@ -128,7 +129,7 @@ export default function PendingLegacyProfilesPage() {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.message || 'Failed to update');
+      if (!res.ok) throw new Error(await apiErrorMessage(res, "Failed to update", data));
       dropFromList([orderId]);
       toast.success('Profile marked complete');
     } catch (err: any) {

@@ -5,6 +5,7 @@ import Breadcrumb from "@/components/Breadcrumbs/Breadcrumb";
 import Cookies from "js-cookie";
 import toast from "react-hot-toast";
 import { Upload, FileText, CheckCircle2, AlertCircle, Loader2, Download } from 'lucide-react';
+import { getErrorMessage, extractBodyMessage } from "@/lib/apiErrors";
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
 
@@ -186,12 +187,12 @@ const BulkUploadPage = () => {
                         toast.success(result.message || "Upload successful");
                     } else {
                         setUploadProgress(0);
-                        toast.error(result.error || "Upload failed");
+                        toast.error(extractBodyMessage(result) || "Upload failed");
                     }
                 } catch (err) {
                     console.error(err);
                     setUploadProgress(0);
-                    toast.error("Error processing file");
+                    toast.error(getErrorMessage(err, "Error processing file"));
                 } finally {
                     setUploading(false);
                 }
@@ -208,7 +209,7 @@ const BulkUploadPage = () => {
             console.error(err);
             setUploading(false);
             setUploadProgress(0);
-            toast.error("Error processing file");
+            toast.error(getErrorMessage(err, "Error processing file"));
         }
     };
 

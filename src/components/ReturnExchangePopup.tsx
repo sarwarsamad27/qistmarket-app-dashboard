@@ -5,6 +5,7 @@ import { Modal } from "./Modal/Modal";
 import Cookies from "js-cookie";
 import { toast } from "react-hot-toast";
 import { PackageX, PackageCheck } from "lucide-react";
+import { getErrorMessage, extractBodyMessage } from "@/lib/apiErrors";
 
 const API_BASE = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
 
@@ -90,11 +91,11 @@ export function ReturnExchangePopup({ socket }: { socket: any }) {
           window.dispatchEvent(new Event("refreshReturnList"));
         }
       } else {
-        toast.error(result.error || result.message || "Verification failed");
+        toast.error(extractBodyMessage(result) || "Verification failed");
       }
     } catch (error) {
       console.error(error);
-      toast.error("An error occurred during verification");
+      toast.error(getErrorMessage(error, "An error occurred during verification"));
     } finally {
       setLoading(false);
     }

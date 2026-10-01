@@ -5,6 +5,7 @@ import Breadcrumb from "@/components/Breadcrumbs/Breadcrumb";
 import toast from "react-hot-toast";
 import Cookies from "js-cookie";
 import Pagination from "@/components/common/Pagination";
+import { getErrorMessage } from "@/lib/apiErrors";
 
 interface CustomerItem {
   customer: {
@@ -73,7 +74,7 @@ export default function CsrClearAccountsPage() {
         }
       } catch (error) {
         console.error(error);
-        toast.error("Unable to load clear account customers.");
+        toast.error(getErrorMessage(error, "Unable to load clear account customers."));
       } finally {
         setLoading(false);
       }

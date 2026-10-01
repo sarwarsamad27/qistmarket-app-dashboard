@@ -9,6 +9,7 @@ import { PaymentsOverviewChart } from '@/components/Charts/payments-overview/cha
 import { useNotifications } from '../../../../contexts/NotificationContext'
 import { useAuth } from '../../../../contexts/AuthContext'
 import { getRoleHome } from '@/lib/roleHome'
+import { apiErrorMessage } from "@/lib/apiErrors";
 
 const BACKEND_URL =
   process.env.NEXT_PUBLIC_BACKEND_URL;
@@ -157,7 +158,7 @@ export default function Home() {
     const res = await fetch(url, {
       headers: { Authorization: `Bearer ${token}` },
     })
-    if (!res.ok) throw new Error(`Request failed: ${res.status}`)
+    if (!res.ok) throw new Error(await apiErrorMessage(res))
     return res.json()
   }
 

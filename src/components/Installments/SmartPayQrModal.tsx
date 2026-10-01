@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import Cookies from "js-cookie";
 import { formatExactDate } from "@/utils/dateUtils";
+import { getErrorMessage } from "@/lib/apiErrors";
 
 const API_BASE = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
 
@@ -86,7 +87,7 @@ export default function SmartPayQrModal({ open, onClose, orderId, monthNumber, d
             }
         } catch (e) {
             console.error("Error generating QR", e);
-            setError("Something went wrong");
+            setError(getErrorMessage(e, "Something went wrong"));
         } finally {
             setGenerating(false);
         }

@@ -15,6 +15,7 @@ import { useProfileModal } from '../../../contexts/ProfileModalContext'
 import { useAuth } from '../../../contexts/AuthContext'
 import { AlertTriangle, Ban, ShieldCheck, Filter, X, ChevronDown, ChevronRight, Users, Calendar, FileWarning, UserCog } from 'lucide-react'
 import toast from 'react-hot-toast'
+import { apiErrorMessage } from "@/lib/apiErrors";
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL
 
@@ -196,7 +197,7 @@ const BlacklistedCustomerList = () => {
       const res = await fetch(`${BACKEND_URL}/api/customers/blacklist`, {
         headers: { Authorization: `Bearer ${token}` },
       })
-      if (!res.ok) throw new Error('Failed to fetch blacklist')
+      if (!res.ok) throw new Error(await apiErrorMessage(res, "Failed to fetch blacklist"))
       const json = await res.json()
 
       if (json.success && json.data) {

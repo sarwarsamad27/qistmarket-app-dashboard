@@ -26,6 +26,7 @@ import { useAuth } from '../../../contexts/AuthContext'
 import { ArrowRightLeft, Send } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { formatExactDate } from "@/utils/dateUtils";
+import { apiErrorMessage } from "@/lib/apiErrors";
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL
 
@@ -330,7 +331,7 @@ const OrderListContent = ({ forcedStatus, forcedChannel, apiEndpoint, hideAction
         headers: { Authorization: `Bearer ${token}` },
       })
 
-      if (!res.ok) throw new Error('Failed to fetch orders')
+      if (!res.ok) throw new Error(await apiErrorMessage(res, "Failed to fetch orders"))
       const json = await res.json()
 
       if (json.success && json.data?.orders) {

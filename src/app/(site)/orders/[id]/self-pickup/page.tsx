@@ -18,6 +18,7 @@ import io from 'socket.io-client';
 import { cn } from '@/lib/utils';
 import Breadcrumb from "@/components/Breadcrumbs/Breadcrumb";
 import Loader from '@/components/common/Loader';
+import { apiErrorMessage, getErrorMessage } from "@/lib/apiErrors";
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
 
@@ -240,7 +241,7 @@ export default function SelfPickupPage() {
       const res = await fetch(`${BACKEND_URL}/api/orders/${id}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (!res.ok) throw new Error('Order not found');
+      if (!res.ok) throw new Error(await apiErrorMessage(res, "Order not found"));
       const json = await res.json();
       if (json.success) {
         const orderData = json.data.order;
@@ -553,7 +554,7 @@ export default function SelfPickupPage() {
         toast.error(data.message || 'Failed to send OTP');
       }
     } catch (e) {
-      toast.error('Network error while sending OTP');
+      toast.error(getErrorMessage(e, 'Network error while sending OTP'));
     } finally {
       setOtpLoading(false);
     }
@@ -578,7 +579,7 @@ export default function SelfPickupPage() {
         toast.error(data.message || 'Invalid OTP');
       }
     } catch (e) {
-      toast.error('Verification failed');
+      toast.error(getErrorMessage(e, 'Verification failed'));
     } finally {
       setOtpLoading(false);
     }
@@ -605,7 +606,7 @@ export default function SelfPickupPage() {
         setIsCameraActive(true);
       }
     } catch (err) {
-      toast.error("Could not access camera. Please check permissions.");
+      toast.error(getErrorMessage(err, "Could not access camera. Please check permissions."));
       console.error(err);
     }
   };
@@ -645,7 +646,7 @@ export default function SelfPickupPage() {
         }
       } catch (err) {
         console.error("Capture error:", err);
-        toast.error("Failed to capture image correctly.");
+        toast.error(getErrorMessage(err, "Failed to capture image correctly."));
       }
     }
   };
@@ -729,7 +730,7 @@ export default function SelfPickupPage() {
         toast.error(data.message || 'Submission failed');
       }
     } catch (e) {
-      toast.error('Error submitting delivery');
+      toast.error(getErrorMessage(e, 'Error submitting delivery'));
     } finally {
       setIsSubmitting(false);
     }

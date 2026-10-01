@@ -6,6 +6,7 @@ import Cookies from "js-cookie";
 import toast from "react-hot-toast";
 import Loader from '@/components/common/Loader';
 import SwitcherOne from '@/components/FormElements/Switchers/SwitcherOne';
+import { getErrorMessage } from "@/lib/apiErrors";
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
 
@@ -70,7 +71,7 @@ const AreaAssignmentPage = ({ role, title }: Props) => {
             }
 
         } catch (err) {
-            toast.error("Error fetching data");
+            toast.error(getErrorMessage(err, "Error fetching data"));
         } finally {
             setLoading(false);
         }
@@ -117,7 +118,7 @@ const AreaAssignmentPage = ({ role, title }: Props) => {
                 toast.error(data.error?.message || "Update failed");
             }
         } catch (err) {
-            toast.error("Error updating assignments");
+            toast.error(getErrorMessage(err, "Error updating assignments"));
         } finally {
             setSaving(false);
         }
@@ -144,7 +145,7 @@ const AreaAssignmentPage = ({ role, title }: Props) => {
                 toast.error("Failed to update setting");
             }
         } catch (err) {
-            toast.error("Error updating settings");
+            toast.error(getErrorMessage(err, "Error updating settings"));
         } finally {
             setToggling(false);
         }

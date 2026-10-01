@@ -9,6 +9,7 @@ import PageHeader from "@/components/Accounts/PageHeader";
 import EmptyState from "@/components/Accounts/EmptyState";
 import { StatCardSkeleton, TableSkeleton } from "@/components/Accounts/Skeleton";
 import { PKR } from "@/components/Accounts/StatCard";
+import { apiErrorMessage, getErrorMessage } from "@/lib/apiErrors";
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
 const authHeaders = () => ({ Authorization: `Bearer ${Cookies.get("auth_token")}` });
@@ -114,7 +115,7 @@ export default function PayTriggerPage() {
         toast.error(data.message || `Failed to ${locking ? "lock" : "unlock"} device.`);
       }
     } catch (err: any) {
-      toast.error("Connection failed.");
+      toast.error(getErrorMessage(err, "Connection failed."));
     } finally {
       setActionImei(null);
     }
@@ -150,7 +151,7 @@ export default function PayTriggerPage() {
     setSavingRule(true);
     try {
       const res = await fetch(`${BACKEND_URL}/api/paytrigger/company/lock-rule`, { method: "POST", headers: { ...authHeaders(), "Content-Type": "application/json" }, body: JSON.stringify({ ruleNum: parseInt(ruleNum) }) });
-      if (!res.ok) throw new Error("Failed to update rule.");
+      if (!res.ok) throw new Error(await apiErrorMessage(res, "Failed to update rule."));
       toast.success("Company lock rule updated.");
     } catch (err: any) {
       toast.error(err.message);

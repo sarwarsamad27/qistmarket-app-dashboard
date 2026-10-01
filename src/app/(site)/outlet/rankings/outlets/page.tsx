@@ -6,6 +6,7 @@ import toast from "react-hot-toast";
 import { Trophy, Store, TrendingUp, TrendingDown, Minus, RefreshCw, Medal, Award, Calendar, Settings2 } from "lucide-react";
 import Breadcrumb from "@/components/Breadcrumbs/Breadcrumb";
 import ScoringConfigModal from "@/components/Admin/ScoringConfigModal";
+import { getErrorMessage } from "@/lib/apiErrors";
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
 const authHeaders = () => ({ Authorization: `Bearer ${Cookies.get("auth_token")}`, "Content-Type": "application/json" });
@@ -52,8 +53,8 @@ export default function OutletRankingsPage() {
             } else {
                 toast.error(data.message || "Failed to load rankings");
             }
-        } catch {
-            toast.error("Failed to load rankings");
+        } catch (err) {
+            toast.error(getErrorMessage(err, "Failed to load rankings"));
         } finally {
             setLoading(false);
         }

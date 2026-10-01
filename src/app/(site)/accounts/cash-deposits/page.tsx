@@ -7,6 +7,7 @@ import io from "socket.io-client";
 import Breadcrumb from "@/components/Breadcrumbs/Breadcrumb";
 import { CheckCircle, XCircle, Clock, ExternalLink, Image as ImageIcon } from "lucide-react";
 import { formatExactDate } from "@/utils/dateUtils";
+import { getErrorMessage } from "@/lib/apiErrors";
 
 const API_BASE = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
 const getAuthHeaders = () => ({
@@ -91,7 +92,7 @@ export default function AccountsCashDepositsPage() {
                 setDeposits(data.data);
             }
         } catch (err) {
-            toast.error("Failed to fetch deposit requests.");
+            toast.error(getErrorMessage(err, "Failed to fetch deposit requests."));
         } finally {
             setLoading(false);
         }
@@ -115,7 +116,7 @@ export default function AccountsCashDepositsPage() {
                 toast.error(data.message || "Failed to process request.");
             }
         } catch (err) {
-            toast.error("An error occurred.");
+            toast.error(getErrorMessage(err, "An error occurred."));
         }
     };
 

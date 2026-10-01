@@ -7,6 +7,7 @@ import toast from "react-hot-toast";
 import Cookies from "js-cookie";
 import Breadcrumb from '@/components/Breadcrumbs/Breadcrumb';
 import { roleLabel } from "@/lib/roleLabels";
+import { getErrorMessage } from "@/lib/apiErrors";
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
 
@@ -197,7 +198,7 @@ const CreateUsers: React.FC = () => {
         toast.error(result.message || "Failed to create outlet");
       }
     } catch (error) {
-      toast.error("Error creating outlet");
+      toast.error(getErrorMessage(error, "Error creating outlet"));
     } finally {
       setCreatingOutlet(false);
     }

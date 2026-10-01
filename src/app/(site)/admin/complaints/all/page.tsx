@@ -5,6 +5,7 @@ import Breadcrumb from "@/components/Breadcrumbs/Breadcrumb";
 import toast from "react-hot-toast";
 import Cookies from "js-cookie";
 import { Search, Image as ImageIcon, X, Clock, CheckCircle } from "lucide-react";
+import { getErrorMessage } from "@/lib/apiErrors";
 
 interface ComplaintItem {
   id: number;
@@ -46,7 +47,7 @@ export default function AdminComplaintsPage() {
       }
     } catch (error) {
       console.error(error);
-      toast.error("Unable to load complaints.");
+      toast.error(getErrorMessage(error, "Unable to load complaints."));
     } finally {
       setLoading(false);
     }

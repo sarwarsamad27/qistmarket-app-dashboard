@@ -4,6 +4,7 @@ import { useState } from "react";
 import Breadcrumb from "@/components/Breadcrumbs/Breadcrumb";
 import toast from "react-hot-toast";
 import Cookies from "js-cookie";
+import { getErrorMessage } from "@/lib/apiErrors";
 
 interface CustomerItem {
   customer: {
@@ -47,7 +48,7 @@ export default function CsrCustomerSearchPage() {
       }
     } catch (error) {
       console.error(error);
-      toast.error("Customer search failed.");
+      toast.error(getErrorMessage(error, "Customer search failed."));
     } finally {
       setLoading(false);
     }

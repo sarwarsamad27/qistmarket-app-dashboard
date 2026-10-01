@@ -10,6 +10,7 @@ import PageHeader from "@/components/Accounts/PageHeader";
 import EmptyState from "@/components/Accounts/EmptyState";
 import { TableSkeleton } from "@/components/Accounts/Skeleton";
 import { PKR } from "@/components/Accounts/StatCard";
+import { apiErrorMessage, getErrorMessage } from "@/lib/apiErrors";
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
 const authHeaders = () => ({ Authorization: `Bearer ${Cookies.get("auth_token")}`, "Content-Type": "application/json" });
@@ -130,7 +131,7 @@ export default function BlacklistPage() {
   const handleDecidePending = async (id: number, decision: "approve" | "reject") => {
     try {
       const res = await fetch(`${BACKEND_URL}/api/accounts/blacklist/${id}/${decision}`, { method: "POST", headers: authHeaders() });
-      if (!res.ok) throw new Error("Failed.");
+      if (!res.ok) throw new Error(await apiErrorMessage(res, "Failed."));
       toast.success(`Whitelist request ${decision}d.`);
       fetchPending();
     } catch (err: any) {
@@ -143,8 +144,8 @@ export default function BlacklistPage() {
       const res = await fetch(`${BACKEND_URL}/api/accounts/blacklist/risk-score/${cnic}`, { headers: authHeaders() });
       const json = await res.json();
       if (json.success) setRiskLookup(json.data);
-    } catch {
-      toast.error("Failed to load risk score.");
+    } catch (err) {
+      toast.error(getErrorMessage(err, "Failed to load risk score."));
     }
   };
 
@@ -187,7 +188,7 @@ export default function BlacklistPage() {
         body: JSON.stringify({ cnic, action, reason, category: category || undefined }),
       });
       const json = await res.json();
-      if (!res.ok) throw new Error(json.message || "Action failed.");
+      if (!res.ok) throw new Error(await apiErrorMessage(res, "Action failed.", json));
       if (action === "blacklist") {
         toast.success(json.message || "Customer blacklisted.");
         setResults((prev) => prev.map((r) => (r.cnic_number === cnic ? { ...r, is_blacklisted: true } : r)));

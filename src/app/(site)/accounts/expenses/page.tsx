@@ -32,6 +32,7 @@ import PageHeader from "@/components/Accounts/PageHeader";
 import EmptyState from "@/components/Accounts/EmptyState";
 import { StatCardSkeleton, TableSkeleton } from "@/components/Accounts/Skeleton";
 import { PKR } from "@/components/Accounts/StatCard";
+import { apiErrorMessage } from "@/lib/apiErrors";
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
 const authHeaders = () => ({ Authorization: `Bearer ${Cookies.get("auth_token")}`, "Content-Type": "application/json" });
@@ -236,7 +237,7 @@ export default function AccountsExpensesPage() {
         body: JSON.stringify({ ...form, outlet_id: form.outlet_id || null, items: validItems }),
       });
       const json = await res.json();
-      if (!res.ok) throw new Error(json.message || "Failed to create expense.");
+      if (!res.ok) throw new Error(await apiErrorMessage(res, "Failed to create expense.", json));
 
       // If user selected an invoice file during creation, attach it now
       if (createFile && json.data?.id) {
@@ -294,7 +295,7 @@ export default function AccountsExpensesPage() {
   const handleDecision = async (id: number, decision: "approved" | "rejected") => {
     try {
       const res = await fetch(`${BACKEND_URL}/api/accounts/expenses/${id}/decision`, { method: "POST", headers: authHeaders(), body: JSON.stringify({ decision }) });
-      if (!res.ok) throw new Error("Decision failed.");
+      if (!res.ok) throw new Error(await apiErrorMessage(res, "Decision failed."));
       toast.success(`Expense ${decision}.`);
       fetchApprovals();
       fetchSummary(globalMonthFilter);
@@ -313,7 +314,7 @@ export default function AccountsExpensesPage() {
         headers: authHeaders(),
       });
       const json = await res.json();
-      if (!res.ok) throw new Error(json.message || "Failed to delete expense.");
+      if (!res.ok) throw new Error(await apiErrorMessage(res, "Failed to delete expense.", json));
       toast.success(json.message || "Expense deleted successfully.");
       fetchSummary(globalMonthFilter);
       fetchAllExpenses(globalMonthFilter);

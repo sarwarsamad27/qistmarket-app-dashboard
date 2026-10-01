@@ -11,6 +11,7 @@ import {
 import Loader from "@/components/common/Loader";
 import { toast } from "react-hot-toast";
 import { formatExactDate } from "@/utils/dateUtils";
+import { getErrorMessage } from "@/lib/apiErrors";
 
 const API_BASE = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
 const getAuthHeaders = () => ({
@@ -119,7 +120,7 @@ export default function CashRegisterPage() {
             if (data.success) setHistoryCategories(data.categories || []);
         } catch (e) {
             console.error(e);
-            toast.error("Failed to load transaction history.");
+            toast.error(getErrorMessage(e, "Failed to load transaction history."));
         } finally {
             setHistoryLoading(false);
         }
@@ -153,7 +154,7 @@ export default function CashRegisterPage() {
             }
         } catch (e) {
             console.error(e);
-            toast.error("Failed to load cash register data.");
+            toast.error(getErrorMessage(e, "Failed to load cash register data."));
         } finally {
             setLoading(false);
         }
@@ -183,8 +184,8 @@ export default function CashRegisterPage() {
             } else {
                 toast.error(data.message || "Failed to submit physical count.");
             }
-        } catch {
-            toast.error("Network error.");
+        } catch (err) {
+            toast.error(getErrorMessage(err, "Network error."));
         } finally {
             setReconciling(false);
         }
@@ -205,8 +206,8 @@ export default function CashRegisterPage() {
             } else {
                 toast.error(data.message || "Failed to approve register.");
             }
-        } catch {
-            toast.error("Network error.");
+        } catch (err) {
+            toast.error(getErrorMessage(err, "Network error."));
         } finally {
             setApproving(false);
         }
@@ -229,8 +230,8 @@ export default function CashRegisterPage() {
             } else {
                 toast.error(data.message || "Failed to reopen register.");
             }
-        } catch {
-            toast.error("Network error.");
+        } catch (err) {
+            toast.error(getErrorMessage(err, "Network error."));
         } finally {
             setReopening(false);
         }

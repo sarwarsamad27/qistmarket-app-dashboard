@@ -16,6 +16,7 @@ import SearchableSelect from "@/components/common/SearchableSelect";
 import toast from "react-hot-toast";
 import { cn } from "@/lib/utils";
 import SerialOrEngineChassisInput from "@/components/VendorPurchase/SerialOrEngineChassisInput";
+import { getErrorMessage } from "@/lib/apiErrors";
 
 const API_BASE = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
 const getAuthHeaders = () => ({
@@ -406,7 +407,7 @@ export default function AddVendorPurchasePage() {
                 setError(data.message || "Failed to save purchase.");
             }
         } catch (err) {
-            setError("Network error. Please try again.");
+            setError(getErrorMessage(err, "Network error. Please try again."));
             console.error(err);
         } finally {
             setSaving(false);

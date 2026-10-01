@@ -9,6 +9,7 @@ import { OfficerProfileHistory } from '@/components/OfficerProfileHistory';
 import { OfficerAttendanceHistory } from '@/components/OfficerAttendanceHistory';
 import io from 'socket.io-client';
 import { formatExactDate } from '@/utils/dateUtils';
+import { getErrorMessage } from "@/lib/apiErrors";
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5000';
 
@@ -328,7 +329,7 @@ export default function VerificationOfficersPage() {
             }
         } catch (error) {
             console.error('Fetch officers error:', error);
-            toast.error('Failed to connect to server');
+            toast.error(getErrorMessage(error, 'Failed to connect to server'));
         } finally {
             setIsLoading(false);
         }

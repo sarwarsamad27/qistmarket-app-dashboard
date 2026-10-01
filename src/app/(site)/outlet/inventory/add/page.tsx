@@ -6,6 +6,7 @@ import Cookies from "js-cookie";
 import { PlusCircle, Trash2, Save, ArrowLeft } from "lucide-react";
 import Breadcrumb from "@/components/Breadcrumbs/Breadcrumb";
 import SearchableSelect from "@/components/common/SearchableSelect";
+import { getErrorMessage } from "@/lib/apiErrors";
 
 const API_BASE = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
 const getAuthHeaders = () => ({
@@ -109,7 +110,7 @@ export default function AddInventoryBulkPage() {
                 setError(data.message || "Failed to add items.");
             }
         } catch (e) {
-            setError("Network error. Could not connect to API.");
+            setError(getErrorMessage(e, "Network error. Could not connect to API."));
         } finally {
             setLoading(false);
         }

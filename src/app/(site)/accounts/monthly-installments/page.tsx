@@ -10,6 +10,7 @@ import Breadcrumb from "@/components/Breadcrumbs/Breadcrumb";
 import PageHeader from "@/components/Accounts/PageHeader";
 import { ChartSkeleton } from "@/components/Accounts/Skeleton";
 import { PKR } from "@/components/Accounts/StatCard";
+import { apiErrorMessage } from "@/lib/apiErrors";
 
 const Chart = dynamic(() => import("react-apexcharts"), { ssr: false });
 
@@ -63,7 +64,7 @@ export default function MonthlyInstallmentsPage() {
         headers: authHeaders(),
         body: JSON.stringify({ month: targetMonth, target_amount: parseFloat(targetAmount) }),
       });
-      if (!res.ok) throw new Error("Failed to set target.");
+      if (!res.ok) throw new Error(await apiErrorMessage(res, "Failed to set target."));
       toast.success(`Target set for ${targetMonth}.`);
       setTargetAmount("");
       fetchData();

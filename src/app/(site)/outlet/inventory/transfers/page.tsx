@@ -8,6 +8,7 @@ import { useNotifications } from "../../../../../../contexts/NotificationContext
 import { useAuth } from "../../../../../../contexts/AuthContext";
 import { toast } from "react-hot-toast";
 import { useRouter } from "next/navigation";
+import { getErrorMessage } from "@/lib/apiErrors";
 
 const API_BASE = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
 const getAuthHeaders = () => ({
@@ -230,8 +231,8 @@ export default function TransfersPage() {
             } else {
                 toast.error(data.message || "Failed to cancel conflicting transfers.");
             }
-        } catch {
-            toast.error("Network error while cancelling.");
+        } catch (err) {
+            toast.error(getErrorMessage(err, "Network error while cancelling."));
         } finally {
             setCancellingConflicts(false);
         }

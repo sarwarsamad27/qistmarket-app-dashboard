@@ -7,6 +7,7 @@ import io from "socket.io-client";
 import Breadcrumb from "@/components/Breadcrumbs/Breadcrumb";
 import { formatExactDate } from "@/utils/dateUtils";
 import { DollarSign, Building, FileText, CheckCircle, XCircle, ArrowRightLeft, ArrowDownLeft, ArrowUpRight, Search } from "lucide-react";
+import { getErrorMessage } from "@/lib/apiErrors";
 
 const API_BASE = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
 const getAuthHeaders = () => ({
@@ -242,7 +243,7 @@ export default function CashDepositPage() {
                 fetchDepositHistory();
                 fetchCashInHand();
             } else { toast.error(data.message || "Failed to cancel request."); }
-        } catch (err) { toast.error("An error occurred. Please try again."); }
+        } catch (err) { toast.error(getErrorMessage(err, "An error occurred. Please try again.")); }
     };
 
     const copyText = (text: string) => {
@@ -270,7 +271,7 @@ export default function CashDepositPage() {
                 setTransferAmount(""); setReceiverOutletId(""); setTransferReceiptId(""); setTransferDesc(""); setTransferFile(null);
                 fetchTransfers();
             } else { toast.error(data.message || "Failed to submit request."); }
-        } catch (err) { toast.error("An error occurred. Please try again."); } 
+        } catch (err) { toast.error(getErrorMessage(err, "An error occurred. Please try again.")); } 
         finally { setLoading(false); }
     };
 
@@ -285,7 +286,7 @@ export default function CashDepositPage() {
                 toast.success(`Transfer ${action}ed successfully!`);
                 fetchTransfers();
             } else { toast.error(data.message || `Failed to ${action} transfer.`); }
-        } catch (err) { toast.error("An error occurred. Please try again."); }
+        } catch (err) { toast.error(getErrorMessage(err, "An error occurred. Please try again.")); }
     };
 
     const filteredDepositHistory = depositHistory.filter((dep) => {

@@ -30,6 +30,7 @@ import { createPortal } from "react-dom";
 import Pagination from "../common/Pagination";
 import { toast } from "react-hot-toast";
 import { roleLabel } from "@/lib/roleLabels";
+import { apiErrorMessage } from "@/lib/apiErrors";
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
 
@@ -692,7 +693,7 @@ const UsersTable = () => {
       const res = await fetch(`${BACKEND_URL}/api/users?${params}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (!res.ok) throw new Error("Fetch failed");
+      if (!res.ok) throw new Error(await apiErrorMessage(res, "Fetch failed"));
       const json = await res.json();
       if (json.success && json.data?.users) {
         setUsers(json.data.users);
@@ -930,7 +931,7 @@ const UsersTable = () => {
         body: fd,
       });
       const responseData = await res.json();
-      if (!res.ok) throw new Error(responseData.error?.message || "Update failed");
+      if (!res.ok) throw new Error(await apiErrorMessage(res, "Update failed", responseData));
 
       await fetchUsers();
       setEditModalOpen(false);
@@ -960,7 +961,7 @@ const UsersTable = () => {
         body: JSON.stringify({ status }),
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data?.error?.message || "Status update failed");
+      if (!res.ok) throw new Error(await apiErrorMessage(res, "Status update failed", data));
       toast.success(`${user.full_name} ${status === "active" ? "activated" : "deactivated"}`);
       if (closeDeleteModal) setDeleteModalOpen(false);
       await fetchUsers();
@@ -985,7 +986,7 @@ const UsersTable = () => {
         setDeleteBlocked(data.error.message);
         return;
       }
-      if (!res.ok) throw new Error(data?.error?.message || "Delete failed");
+      if (!res.ok) throw new Error(await apiErrorMessage(res, "Delete failed", data));
       toast.success("User deleted");
       await fetchUsers();
       setDeleteModalOpen(false);
@@ -1026,7 +1027,7 @@ const UsersTable = () => {
         ),
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data?.error?.message || data?.message || "Permissions update failed");
+      if (!res.ok) throw new Error(await apiErrorMessage(res, "Permissions update failed", data));
       if (isSubAdminTarget) toast.success("Sub Admin access updated — applies on their next action.");
       await fetchUsers();
       setPermissionsModalOpen(false);

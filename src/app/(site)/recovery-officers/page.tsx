@@ -9,6 +9,7 @@ import { OfficerAttendanceHistory } from '@/components/OfficerAttendanceHistory'
 import { SearchIcon } from '@/assets/icons';
 import io from 'socket.io-client';
 import { formatExactDate } from '@/utils/dateUtils';
+import { getErrorMessage } from "@/lib/apiErrors";
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5000';
 
@@ -273,7 +274,7 @@ export default function RecoveryOfficersPage() {
                 setFilteredOfficers(result.data.officers);
             }
         } catch (error) {
-            toast.error('Failed to load recovery officers');
+            toast.error(getErrorMessage(error, 'Failed to load recovery officers'));
         } finally {
             setIsLoading(false);
         }

@@ -17,6 +17,7 @@ import { SearchIcon, PointerUp } from '@/assets/icons'
 import ColumnFilter from '../DataTables/ColumnFilter'
 import Pagination from '../common/Pagination'
 import { Modal } from '../Modal/Modal'
+import { apiErrorMessage } from "@/lib/apiErrors";
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL
 
@@ -196,7 +197,7 @@ const CustomerList = () => {
       const res = await fetch(`${BACKEND_URL}/api/customers?${params}`, {
         headers: { Authorization: `Bearer ${token}` },
       })
-      if (!res.ok) throw new Error('Failed to fetch customers')
+      if (!res.ok) throw new Error(await apiErrorMessage(res, "Failed to fetch customers"))
       const json = await res.json()
 
       if (json.success && json.data) {

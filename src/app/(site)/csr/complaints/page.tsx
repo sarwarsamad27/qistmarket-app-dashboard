@@ -7,6 +7,7 @@ import toast from "react-hot-toast";
 import Cookies from "js-cookie";
 import { Search, Image as ImageIcon, X, CheckSquare, Clock, Grab, Eye, Link2, ExternalLink } from "lucide-react";
 import CnicSearch from "@/components/complaints/CnicSearch";
+import { apiErrorMessage, getErrorMessage } from "@/lib/apiErrors";
 
 interface LinkedOrder {
   id: number;
@@ -88,7 +89,7 @@ export default function CsrComplaintsPage() {
       }
     } catch (error) {
       console.error(error);
-      toast.error("Unable to load complaints.");
+      toast.error(getErrorMessage(error, "Unable to load complaints."));
     } finally {
       setLoading(false);
     }
@@ -138,7 +139,7 @@ export default function CsrComplaintsPage() {
         headers: { Authorization: `Bearer ${token}` },
       });
       const json = await res.json();
-      if (!res.ok) throw new Error(json.error?.message || "Failed to pick complaint.");
+      if (!res.ok) throw new Error(await apiErrorMessage(res, "Failed to pick complaint.", json));
 
       toast.success("Complaint picked successfully.");
       if (selectedComplaint?.id === id) setSelectedComplaint(null);
@@ -193,7 +194,7 @@ export default function CsrComplaintsPage() {
         body: JSON.stringify({ order_id: orderId }),
       });
       const json = await res.json();
-      if (!res.ok) throw new Error(json.error?.message || "Failed to link complaint.");
+      if (!res.ok) throw new Error(await apiErrorMessage(res, "Failed to link complaint.", json));
       setSelectedComplaint(json.data.complaint);
       toast.success("Complaint linked to the customer's order.");
       loadComplaints(page, activeTab, search);
@@ -230,7 +231,7 @@ export default function CsrComplaintsPage() {
         body: formData,
       });
       const json = await res.json();
-      if (!res.ok) throw new Error(json.message || "Failed to submit complaint.");
+      if (!res.ok) throw new Error(await apiErrorMessage(res, "Failed to submit complaint.", json));
       
       toast.success("Complaint submitted successfully.");
       setCustomerName("");
@@ -265,7 +266,7 @@ export default function CsrComplaintsPage() {
         }),
       });
       const json = await res.json();
-      if (!res.ok) throw new Error(json.message || "Failed to update complaint.");
+      if (!res.ok) throw new Error(await apiErrorMessage(res, "Failed to update complaint.", json));
       toast.success("Complaint updated successfully.");
       setSelectedComplaint(null);
       loadComplaints();

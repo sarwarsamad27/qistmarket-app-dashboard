@@ -25,6 +25,7 @@ import { useRef } from 'react'
 import Pagination from '../common/Pagination'
 import { useAuth } from '../../../contexts/AuthContext'
 import { formatExactDate } from "@/utils/dateUtils";
+import { apiErrorMessage, getErrorMessage } from "@/lib/apiErrors";
 
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL
@@ -204,7 +205,7 @@ const ApprovedOrderList = () => {
         headers: { Authorization: `Bearer ${token}` },
       })
 
-      if (!res.ok) throw new Error('Failed to fetch approved orders')
+      if (!res.ok) throw new Error(await apiErrorMessage(res, "Failed to fetch approved orders"))
 
       const json = await res.json()
 
@@ -273,7 +274,7 @@ const ApprovedOrderList = () => {
         body: JSON.stringify({ user_id: selectedDeliveryOfficerId, action: 'assign' }),
       })
 
-      if (!res.ok) throw new Error('Failed to assign delivery officer')
+      if (!res.ok) throw new Error(await apiErrorMessage(res, "Failed to assign delivery officer"))
 
       await fetchApprovedOrders()
       toast.success('Assigned delivery officer successfully')
@@ -282,7 +283,7 @@ const ApprovedOrderList = () => {
       setSelectedOrder(null)
     } catch (err) {
       console.error('Assign delivery error:', err)
-      toast.error('Failed to assign delivery officer')
+      toast.error(getErrorMessage(err, 'Failed to assign delivery officer'))
     } finally {
       setIsAssigning(false)
     }
@@ -304,7 +305,7 @@ const ApprovedOrderList = () => {
       })
 
       const data = await res.json().catch(() => ({}))
-      if (!res.ok) throw new Error(data?.message || 'Failed to unassign delivery officer')
+      if (!res.ok) throw new Error(await apiErrorMessage(res, "Failed to unassign delivery officer", data))
 
       await fetchApprovedOrders()
       toast.success('Unassigned delivery officer successfully')
@@ -338,7 +339,7 @@ const ApprovedOrderList = () => {
         body: JSON.stringify({ order_ids: ids, user_id: selectedDeliveryOfficerId, action: 'assign' }),
       })
 
-      if (!res.ok) throw new Error('Bulk assign failed')
+      if (!res.ok) throw new Error(await apiErrorMessage(res, "Bulk assign failed"))
 
       await fetchApprovedOrders()
       toast.success(`Bulk assigned delivery officer to ${ids.length} orders`)
@@ -347,7 +348,7 @@ const ApprovedOrderList = () => {
       setSelectedDeliveryOfficerId(null)
     } catch (err) {
       console.error('Bulk assign delivery error:', err)
-      toast.error('Failed to perform bulk assignment')
+      toast.error(getErrorMessage(err, 'Failed to perform bulk assignment'))
     } finally {
       setIsBulkAssigning(false)
     }
@@ -369,7 +370,7 @@ const ApprovedOrderList = () => {
       })
 
       const data = await res.json().catch(() => ({}))
-      if (!res.ok) throw new Error(data?.message || 'Bulk unassign failed')
+      if (!res.ok) throw new Error(await apiErrorMessage(res, "Bulk unassign failed", data))
 
       await fetchApprovedOrders()
       toast.success(data?.message || `Bulk unassigned delivery officer from ${ids.length} orders`)
@@ -417,7 +418,7 @@ const ApprovedOrderList = () => {
       }
     } catch (err) {
       console.error('Cancel order error:', err)
-      toast.error('Internal server error')
+      toast.error(getErrorMessage(err, 'Internal server error'))
     } finally {
       setIsSubmittingCancel(false)
     }

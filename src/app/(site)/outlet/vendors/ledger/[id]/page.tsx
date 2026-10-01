@@ -12,6 +12,7 @@ import {
 import Loader from "@/components/common/Loader";
 import toast from "react-hot-toast";
 import { formatExactDate } from "@/utils/dateUtils";
+import { getErrorMessage } from "@/lib/apiErrors";
 
 const API_BASE = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
 const getAuthHeaders = () => ({
@@ -50,7 +51,7 @@ export default function VendorLedgerPage() {
                 toast.error(data.message || "Failed to load ledger");
             }
         } catch (err) {
-            toast.error("Network error");
+            toast.error(getErrorMessage(err, "Network error"));
         } finally {
             setLoading(false);
         }
@@ -83,7 +84,7 @@ export default function VendorLedgerPage() {
                 toast.error(data.message || "Failed to record payment");
             }
         } catch (err) {
-            toast.error("Network error");
+            toast.error(getErrorMessage(err, "Network error"));
         } finally {
             setSubmittingPayment(false);
         }

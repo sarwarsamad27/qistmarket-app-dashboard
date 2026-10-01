@@ -10,6 +10,7 @@ import EmptyState from "@/components/Accounts/EmptyState";
 import { TableSkeleton } from "@/components/Accounts/Skeleton";
 import StatCard, { PKR } from "@/components/Accounts/StatCard";
 import { roleLabel } from "@/lib/roleLabels";
+import { apiErrorMessage } from "@/lib/apiErrors";
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
 const authHeaders = () => ({ Authorization: `Bearer ${Cookies.get("auth_token")}`, "Content-Type": "application/json" });
@@ -141,7 +142,7 @@ export default function AdminOutletsPage() {
         headers: authHeaders(),
         body: JSON.stringify(form),
       });
-      if (!res.ok) throw new Error("Save failed.");
+      if (!res.ok) throw new Error(await apiErrorMessage(res, "Save failed."));
       toast.success(editing ? "Outlet updated." : "Outlet created.");
       setShowForm(false);
       load();

@@ -8,6 +8,7 @@ import Link from "next/link";
 import Cookies from "js-cookie";
 import DepartmentSelect from "@/components/EmployeePortal/DepartmentSelect";
 import { roleLabel } from "@/lib/roleLabels";
+import { apiErrorMessage } from "@/lib/apiErrors";
 
 const API = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
 
@@ -102,7 +103,7 @@ export default function CreateEmployeePage() {
       fd.append("title", d.title.trim() || HIRING_DOC_TYPES.find(([v]) => v === d.doc_type)?.[1] || (d.file as File).name);
       try {
         const res = await fetch(`${API}/api/hr/employees/${employeeId}/documents`, { method: "POST", headers: { Authorization: `Bearer ${token}` }, body: fd });
-        if (!res.ok) throw new Error((await res.json().catch(() => ({}))).message || "Upload failed");
+        if (!res.ok) throw new Error(await apiErrorMessage(res, "Upload failed"));
         result.uploaded += 1;
       } catch (err) {
         result.failed.push(`${(d.file as File).name}: ${(err as Error).message}`);

@@ -11,6 +11,7 @@ import EmptyState from "@/components/Accounts/EmptyState";
 import { TableSkeleton } from "@/components/Accounts/Skeleton";
 import { PKR } from "@/components/Accounts/StatCard";
 import { formatExactDate } from "@/utils/dateUtils";
+import { apiErrorMessage } from "@/lib/apiErrors";
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
 
@@ -102,7 +103,7 @@ export default function BankAccountsPage() {
         body: JSON.stringify({ ...form, opening_balance: parseFloat(form.opening_balance) || 0 }),
       });
       const json = await res.json();
-      if (!res.ok) throw new Error(json.message || "Failed to add bank account.");
+      if (!res.ok) throw new Error(await apiErrorMessage(res, "Failed to add bank account.", json));
       toast.success("Bank account added.");
       setShowAddModal(false);
       setForm({ bank_name: "", account_title: "", account_number: "", iban: "", branch_code: "", outlet_id: "", opening_balance: "" });
@@ -128,7 +129,7 @@ export default function BankAccountsPage() {
         body: JSON.stringify({ bank_account_id: txnAccount.id, ...txnForm, amount: parseFloat(txnForm.amount) }),
       });
       const json = await res.json();
-      if (!res.ok) throw new Error(json.message || "Transaction failed.");
+      if (!res.ok) throw new Error(await apiErrorMessage(res, "Transaction failed.", json));
       toast.success(`${txnForm.type === "credit" ? "Deposit" : "Withdrawal"} recorded.`);
       setTxnAccount(null);
       setTxnForm({ type: "credit", amount: "", description: "", reference: "" });
@@ -179,7 +180,7 @@ export default function BankAccountsPage() {
         body: JSON.stringify({ ...transferForm, amount: parseFloat(transferForm.amount) }),
       });
       const json = await res.json();
-      if (!res.ok) throw new Error(json.message || "Transfer failed.");
+      if (!res.ok) throw new Error(await apiErrorMessage(res, "Transfer failed.", json));
       toast.success("Inter-bank transfer completed.");
       setShowTransferModal(false);
       setTransferForm({ from_account_id: "", to_account_id: "", amount: "", description: "" });
@@ -206,7 +207,7 @@ export default function BankAccountsPage() {
         headers: { Authorization: `Bearer ${Cookies.get("auth_token")}` },
         body: formData,
       });
-      if (!res.ok) throw new Error("Upload failed.");
+      if (!res.ok) throw new Error(await apiErrorMessage(res, "Upload failed."));
       toast.success("Statement uploaded.");
       setStatementFile(null);
       openLedger(ledgerAccount);
@@ -232,7 +233,7 @@ export default function BankAccountsPage() {
         headers: authHeaders(),
         body: JSON.stringify({ transaction_ids: selectedTxnIds }),
       });
-      if (!res.ok) throw new Error("Reconciliation failed.");
+      if (!res.ok) throw new Error(await apiErrorMessage(res, "Reconciliation failed."));
       toast.success(`${selectedTxnIds.length} transaction(s) marked reconciled.`);
       setSelectedTxnIds([]);
       if (ledgerAccount) openLedger(ledgerAccount);

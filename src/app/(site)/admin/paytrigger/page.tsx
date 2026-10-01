@@ -5,6 +5,7 @@ import Breadcrumb from "@/components/Breadcrumbs/Breadcrumb";
 import Cookies from "js-cookie";
 import toast from "react-hot-toast";
 import { Loader2, Search, Lock, Unlock, Clock, AlertTriangle, CheckCircle, XCircle, Smartphone, Key, Settings, MessageSquare, MapPin, RefreshCw, FileText, Database, Shield } from "lucide-react";
+import { getErrorMessage } from "@/lib/apiErrors";
 
 const API_BASE = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
 
@@ -130,7 +131,7 @@ export default function PayTriggerAdminPage() {
         setError(data.message || "Device not found or API error");
       }
     } catch (e) {
-      if (!silent) setError("Connection failed. Is the backend running?");
+      if (!silent) setError(getErrorMessage(e, "Connection failed. Is the backend running?"));
     }
   };
 
@@ -197,7 +198,7 @@ export default function PayTriggerAdminPage() {
         }
         toast.error(errorMsg);
       }
-    } catch (e) { toast.error("Connection failed"); }
+    } catch (e) { toast.error(getErrorMessage(e, "Connection failed")); }
     finally { setActionLoading(null); }
   };
 
@@ -252,7 +253,7 @@ export default function PayTriggerAdminPage() {
           toast.error(errorMsg);
         }
       }
-    } catch (e) { toast.error("Connection failed"); }
+    } catch (e) { toast.error(getErrorMessage(e, "Connection failed")); }
     finally { setActionLoading(null); }
   };
 

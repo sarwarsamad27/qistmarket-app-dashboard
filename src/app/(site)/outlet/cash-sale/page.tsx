@@ -10,6 +10,7 @@ import {
   Printer, Pencil, Ban, ShoppingCart,
 } from "lucide-react";
 import Breadcrumb from "@/components/Breadcrumbs/Breadcrumb";
+import { getErrorMessage } from "@/lib/apiErrors";
 
 // Edit/Delete are only allowed within 3 days of the sale (mirrors the backend
 // rule in cashSaleController.js) — used here just to grey the buttons out
@@ -419,7 +420,7 @@ export default function CashSalePage() {
       }
     } catch (err) {
       console.error("Fetch sale for edit error:", err);
-      toast.error("Failed to load sale details");
+      toast.error(getErrorMessage(err, "Failed to load sale details"));
     } finally {
       setEditLoading(false);
     }

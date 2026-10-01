@@ -1,4 +1,5 @@
 import Cookies from "js-cookie";
+import { apiErrorMessage } from "@/lib/apiErrors";
 
 const API = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
 
@@ -12,7 +13,7 @@ export async function employeeFetch(path: string, options: RequestInit = {}) {
 
   const res = await fetch(`${API}/api${path}`, { ...options, headers });
   const data = await res.json();
-  if (!res.ok) throw new Error(data.message || "Request failed");
+  if (!res.ok) throw new Error(await apiErrorMessage(res, "Request failed", data));
   return data;
 }
 
@@ -112,6 +113,6 @@ export async function hrFetch(path: string, options: RequestInit = {}) {
 
   const res = await fetch(`${API}/api/hr${path}`, { ...options, headers });
   const data = await res.json();
-  if (!res.ok) throw new Error(data.message || "Request failed");
+  if (!res.ok) throw new Error(await apiErrorMessage(res, "Request failed", data));
   return data;
 }

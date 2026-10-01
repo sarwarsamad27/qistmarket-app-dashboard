@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import Cookies from "js-cookie";
 import { toast } from "react-hot-toast";
+import { getErrorMessage } from "@/lib/apiErrors";
 
 const API_BASE = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
 
@@ -52,7 +53,7 @@ export default function OfficerDetailsPage({ params }: { params: Promise<{ id: s
                 toast.error(data.message || "Failed to load officer details");
             }
         } catch (err) {
-            toast.error("Failed to load officer details");
+            toast.error(getErrorMessage(err, "Failed to load officer details"));
         } finally {
             setLoading(false);
         }
@@ -84,7 +85,7 @@ export default function OfficerDetailsPage({ params }: { params: Promise<{ id: s
                 toast.error(data.message || "Failed to update status");
             }
         } catch (err) {
-            toast.error("Failed to update status");
+            toast.error(getErrorMessage(err, "Failed to update status"));
         } finally {
             setStatusLoading(false);
         }
@@ -103,7 +104,7 @@ export default function OfficerDetailsPage({ params }: { params: Promise<{ id: s
                 toast.error("Failed to load location history");
             }
         } catch (err) {
-            toast.error("Failed to load location history");
+            toast.error(getErrorMessage(err, "Failed to load location history"));
         } finally {
             setFetchingTrace(false);
         }

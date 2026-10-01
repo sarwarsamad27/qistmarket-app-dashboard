@@ -26,6 +26,7 @@ import ColumnFilter from "@/components/DataTables/ColumnFilter";
 import { Modal } from "@/components/Modal/Modal";
 import Pagination from "@/components/common/Pagination";
 import { createPortal } from "react-dom";
+import { getErrorMessage, extractBodyMessage } from "@/lib/apiErrors";
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
 
@@ -87,7 +88,7 @@ const ZonesPage = () => {
             if (zonesData.success) setZones(zonesData.data);
             if (citiesData.success) setCities(citiesData.data);
         } catch (err) {
-            toast.error("Error fetching data");
+            toast.error(getErrorMessage(err, "Error fetching data"));
         } finally {
             setLoading(false);
         }
@@ -292,10 +293,10 @@ const ZonesPage = () => {
                 setIsCreateModalOpen(false);
                 fetchData();
             } else {
-                toast.error(data.error || "Failed to create zone");
+                toast.error(extractBodyMessage(data) || "Failed to create zone");
             }
         } catch (err) {
-            toast.error("Error creating zone");
+            toast.error(getErrorMessage(err, "Error creating zone"));
         } finally {
             setSubmitting(false);
         }
@@ -325,10 +326,10 @@ const ZonesPage = () => {
                 setSelectedZone(null);
                 fetchData();
             } else {
-                toast.error(data.error || "Failed to update zone");
+                toast.error(extractBodyMessage(data) || "Failed to update zone");
             }
         } catch (err) {
-            toast.error("Error updating zone");
+            toast.error(getErrorMessage(err, "Error updating zone"));
         } finally {
             setSubmitting(false);
         }
@@ -353,10 +354,10 @@ const ZonesPage = () => {
                 setSelectedZone(null);
                 fetchData();
             } else {
-                toast.error(data.error || "Failed to delete zone");
+                toast.error(extractBodyMessage(data) || "Failed to delete zone");
             }
         } catch (err) {
-            toast.error("Error deleting zone");
+            toast.error(getErrorMessage(err, "Error deleting zone"));
         } finally {
             setSubmitting(false);
         }

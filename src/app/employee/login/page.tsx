@@ -9,6 +9,7 @@ import { UserIcon } from "@/assets/icons";
 import { KeyIcon } from "lucide-react";
 import { useEmployeeAuth } from "../../../../contexts/EmployeeAuthContext";
 import { useEffect } from "react";
+import { apiErrorMessage } from "@/lib/apiErrors";
 
 const API = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
 
@@ -33,7 +34,7 @@ export default function EmployeeLoginPage() {
         body: JSON.stringify({ identifier, password }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.message || "Login failed");
+      if (!res.ok) throw new Error(await apiErrorMessage(res, "Login failed", data));
 
       Cookies.set("employee_auth_token", data.token, { expires: 7 });
       setUser(data.user);

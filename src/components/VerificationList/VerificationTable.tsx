@@ -21,6 +21,7 @@ import { createPortal } from 'react-dom'
 import { useRef } from 'react'
 import Pagination from '../common/Pagination'
 import { formatExactDate } from "@/utils/dateUtils";
+import { apiErrorMessage } from "@/lib/apiErrors";
 
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL
@@ -165,7 +166,7 @@ const AssignedVerifications = () => {
         headers: { Authorization: `Bearer ${token}` },
       })
 
-      if (!res.ok) throw new Error('Failed to load verifications')
+      if (!res.ok) throw new Error(await apiErrorMessage(res, "Failed to load verifications"))
       const json = await res.json()
 
       if (json.success && json.data?.orders) {
@@ -206,7 +207,7 @@ const AssignedVerifications = () => {
         }
       )
 
-      if (!res.ok) throw new Error('Failed to save remarks')
+      if (!res.ok) throw new Error(await apiErrorMessage(res, "Failed to save remarks"))
       await fetchAssignedVerifications()
       setRemarksModalOpen(false)
       setSelectedOrder(null)

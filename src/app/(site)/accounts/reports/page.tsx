@@ -14,6 +14,7 @@ import Breadcrumb from "@/components/Breadcrumbs/Breadcrumb";
 import PageHeader from "@/components/Accounts/PageHeader";
 import EmptyState from "@/components/Accounts/EmptyState";
 import { TableSkeleton } from "@/components/Accounts/Skeleton";
+import { apiErrorMessage, getErrorMessage } from "@/lib/apiErrors";
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
 const authHeaders = () => ({ Authorization: `Bearer ${Cookies.get("auth_token")}`, "Content-Type": "application/json" });
@@ -72,7 +73,7 @@ export default function AccountsReportsPage() {
       XLSX.writeFile(wb, `${item.label.replace(/\s+/g, "_")}.xlsx`);
       toast.success(`${item.label} exported to Excel.`);
     } catch (err) {
-      toast.error("Export failed.");
+      toast.error(getErrorMessage(err, "Export failed."));
     } finally {
       setExporting(null);
     }
@@ -90,8 +91,8 @@ export default function AccountsReportsPage() {
       a.click();
       window.URL.revokeObjectURL(url);
       toast.success(`${reportType} exported to CSV.`);
-    } catch {
-      toast.error("CSV export failed.");
+    } catch (err) {
+      toast.error(getErrorMessage(err, "CSV export failed."));
     }
   };
 
@@ -101,7 +102,7 @@ export default function AccountsReportsPage() {
     setCreating(true);
     try {
       const res = await fetch(`${BACKEND_URL}/api/accounts/reports/scheduled`, { method: "POST", headers: authHeaders(), body: JSON.stringify(form) });
-      if (!res.ok) throw new Error("Failed to schedule report.");
+      if (!res.ok) throw new Error(await apiErrorMessage(res, "Failed to schedule report."));
       toast.success("Scheduled report created.");
       setForm({ report_type: "daybook", frequency: "weekly", recipients: "" });
       fetchScheduled();
@@ -116,8 +117,8 @@ export default function AccountsReportsPage() {
     try {
       await fetch(`${BACKEND_URL}/api/accounts/reports/scheduled/${id}`, { method: "PATCH", headers: authHeaders(), body: JSON.stringify({ is_active: !is_active }) });
       fetchScheduled();
-    } catch {
-      toast.error("Update failed.");
+    } catch (err) {
+      toast.error(getErrorMessage(err, "Update failed."));
     }
   };
 
@@ -126,8 +127,8 @@ export default function AccountsReportsPage() {
       await fetch(`${BACKEND_URL}/api/accounts/reports/scheduled/${id}`, { method: "DELETE", headers: authHeaders() });
       toast.success("Removed.");
       fetchScheduled();
-    } catch {
-      toast.error("Delete failed.");
+    } catch (err) {
+      toast.error(getErrorMessage(err, "Delete failed."));
     }
   };
 

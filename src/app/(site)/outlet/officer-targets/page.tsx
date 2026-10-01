@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import Loader from "@/components/common/Loader";
 import toast from "react-hot-toast";
+import { getErrorMessage } from "@/lib/apiErrors";
 
 const API_BASE = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
 
@@ -117,7 +118,7 @@ export default function OfficerTargetsPage() {
                 toast.error(data.message || "Failed to assign target");
             }
         } catch (err) {
-            toast.error("Network error");
+            toast.error(getErrorMessage(err, "Network error"));
         } finally {
             setSubmitting(false);
         }

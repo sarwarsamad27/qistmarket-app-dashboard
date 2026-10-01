@@ -6,6 +6,7 @@ import Breadcrumb from "@/components/Breadcrumbs/Breadcrumb";
 import Loader from "@/components/common/Loader";
 import Cookies from "js-cookie";
 import { formatExactDate } from "@/utils/dateUtils";
+import { apiErrorMessage, getErrorMessage } from "@/lib/apiErrors";
 
 
 const formatDateTimeUTC = (value?: string): string => {
@@ -127,7 +128,7 @@ export default function WebsiteOrderDetailsPage() {
           `${BACKEND_URL}/api/orders/website-feed?search=${params.id}`,
           { headers: { Authorization: `Bearer ${token}` } }
         );
-        if (!res.ok) throw new Error("Failed to fetch order");
+        if (!res.ok) throw new Error(await apiErrorMessage(res, "Failed to fetch order"));
         const json = await res.json();
 
         let orderData = null;
@@ -141,8 +142,8 @@ export default function WebsiteOrderDetailsPage() {
           orderData = json;
         }
         setOrder(orderData);
-      } catch {
-        setError("Failed to load order details");
+      } catch (err) {
+        setError(getErrorMessage(err, "Failed to load order details"));
       } finally {
         setLoading(false);
       }

@@ -10,6 +10,7 @@ import Cookies from "js-cookie";
 import toast from "react-hot-toast";
 import { KeyIcon } from "lucide-react";
 import { getRoleHome } from "@/lib/roleHome";
+import { apiErrorMessage } from "@/lib/apiErrors";
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
 
@@ -113,7 +114,7 @@ export default function SigninWithOTP() {
       });
 
       const result = await res.json();
-      if (!res.ok) throw new Error(result.error?.message || "Failed to send OTP.");
+      if (!res.ok) throw new Error(await apiErrorMessage(res, "Failed to send OTP.", result));
 
       toast.success(result.message || "OTP sent successfully.");
       setStep("otp");
@@ -145,7 +146,7 @@ export default function SigninWithOTP() {
       });
 
       const result = await res.json();
-      if (!res.ok) throw new Error(result.error?.message || "Login failed.");
+      if (!res.ok) throw new Error(await apiErrorMessage(res, "Login failed.", result));
 
       if (result.requires2FA) {
         setWeb2FAPrompt(true);
@@ -185,7 +186,7 @@ export default function SigninWithOTP() {
       });
 
       const result = await res.json();
-      if (!res.ok) throw new Error(result.message || "Login failed.");
+      if (!res.ok) throw new Error(await apiErrorMessage(res, "Login failed.", result));
 
       toast.success("Outlet login successful.");
       Cookies.set("auth_token", result.token, {
@@ -219,7 +220,7 @@ export default function SigninWithOTP() {
       });
 
       const result = await res.json();
-      if (!res.ok) throw new Error(result.message || "Login failed.");
+      if (!res.ok) throw new Error(await apiErrorMessage(res, "Login failed.", result));
 
       toast.success("HR login successful.");
       Cookies.set("auth_token", result.token, {
@@ -253,7 +254,7 @@ export default function SigninWithOTP() {
       });
 
       const result = await res.json();
-      if (!res.ok) throw new Error(result.message || "Login failed.");
+      if (!res.ok) throw new Error(await apiErrorMessage(res, "Login failed.", result));
 
       if (result.requires2FA) {
         setAccountant2FAPrompt(true);

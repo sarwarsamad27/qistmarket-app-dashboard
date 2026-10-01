@@ -6,6 +6,7 @@ import toast from "react-hot-toast";
 import { useAuth } from "../../../contexts/AuthContext";
 import { formatExactDate } from "@/utils/dateUtils";
 import { Modal } from "@/components/Modal/Modal";
+import { apiErrorMessage } from "@/lib/apiErrors";
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
 
@@ -64,7 +65,7 @@ export default function RecoveryVisitDetails({
                 body: formData
             });
 
-            if (!res.ok) throw new Error('Replacement failed');
+            if (!res.ok) throw new Error(await apiErrorMessage(res, "Replacement failed"));
             toast.success('Recovery visit photo replaced successfully');
             await fetchRecoveryVisits();
             if (onRefresh) await onRefresh();

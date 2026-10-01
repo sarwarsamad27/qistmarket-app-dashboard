@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import Loader from "@/components/common/Loader";
 import { formatExactDate } from "@/utils/dateUtils";
+import { extractBodyMessage } from "@/lib/apiErrors";
 
 const API_BASE = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
 const getHeaders = () => ({ Authorization: `Bearer ${Cookies.get("auth_token")}` });
@@ -116,7 +117,7 @@ export default function OutletReturnsPage() {
         }),
       });
       const d = await res.json();
-      if (!d.success) throw new Error(d.error || "Failed");
+      if (!d.success) throw new Error(extractBodyMessage(d) || "Failed");
 
       toast.success("Return processed successfully");
 
@@ -146,7 +147,7 @@ export default function OutletReturnsPage() {
         body: JSON.stringify({ record_id: record.id }),
       });
       const d = await res.json();
-      if (!d.success) throw new Error(d.error || "Failed");
+      if (!d.success) throw new Error(extractBodyMessage(d) || "Failed");
 
       toast.success(d.message || "Return cancelled");
       (d.warnings || []).forEach((w: string) => toast(w, { icon: "⚠️", duration: 6000 }));

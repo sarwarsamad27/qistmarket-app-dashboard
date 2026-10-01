@@ -13,6 +13,7 @@ import toast from "react-hot-toast";
 import Cookies from "js-cookie";
 import { useAuth } from "../../../contexts/AuthContext";
 import { jwtDecode } from "jwt-decode";
+import { getErrorMessage } from "@/lib/apiErrors";
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
 
@@ -104,7 +105,7 @@ export default function SettingBoxes() {
         toast.error("Failed to update settings");
       }
     } catch (err) {
-      toast.error("An error occurred");
+      toast.error(getErrorMessage(err, "An error occurred"));
     } finally {
       setSaving(false);
     }

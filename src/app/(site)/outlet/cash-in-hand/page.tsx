@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import Breadcrumb from "@/components/Breadcrumbs/Breadcrumb";
 import { toast } from "react-hot-toast";
+import { getErrorMessage } from "@/lib/apiErrors";
 
 const API_BASE = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
 const getAuthHeaders = () => ({
@@ -68,8 +69,8 @@ export default function PendingCashPage() {
             const res = await fetch(`${API_BASE}/api/outlet/global-cash-in-hand`, { headers: getAuthHeaders() });
             const data = await res.json();
             if (data.success) setEntries(data.data);
-        } catch {
-            toast.error("Failed to fetch pending collections");
+        } catch (err) {
+            toast.error(getErrorMessage(err, "Failed to fetch pending collections"));
         } finally {
             setLoading(false);
         }

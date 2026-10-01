@@ -8,6 +8,7 @@ import * as XLSX from 'xlsx';
 import Link from 'next/link';
 import { Upload, FileText, CheckCircle2, AlertCircle, Loader2, XCircle, Download, ArrowRight, ChevronDown } from 'lucide-react';
 import { useAuth } from "../../../../../contexts/AuthContext";
+import { apiErrorMessage, getErrorMessage } from "@/lib/apiErrors";
 
 type PayoffStatus = 'completed' | 'delivered';
 
@@ -457,7 +458,7 @@ export default function LegacyImportPage() {
       toast.success('Downloaded demo_legacy_import.xlsx successfully');
     } catch (err: any) {
       console.error(err);
-      toast.error('Failed to download demo sheet');
+      toast.error(getErrorMessage(err, 'Failed to download demo sheet'));
     }
   };
 
@@ -502,7 +503,7 @@ export default function LegacyImportPage() {
         setExcludedRows(new Set(parsedRows.filter((r) => r._issues.length > 0).map((r) => r._rowNum)));
       } catch (err) {
         console.error(err);
-        toast.error('Could not read this file — make sure it is a valid .xlsx export of the legacy sheet.');
+        toast.error(getErrorMessage(err, 'Could not read this file — make sure it is a valid .xlsx export of the legacy sheet.'));
       } finally {
         setParsing(false);
       }
@@ -562,7 +563,7 @@ export default function LegacyImportPage() {
         }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.message || 'Import failed');
+      if (!res.ok) throw new Error(await apiErrorMessage(res, "Import failed", data));
       setResults(data.results || []);
       toast.success(data.message || 'Import complete');
     } catch (err: any) {
