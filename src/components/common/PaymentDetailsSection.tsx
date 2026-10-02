@@ -70,14 +70,14 @@ const rs = (n: number) => `Rs. ${Math.round(n).toLocaleString()}`;
 // How a month's money came in — same labels as Accounts → Daily Payments
 // (backend: accountsPaymentsController.paymentChannelsByMonth). Payments
 // through the same channel/person/outlet are folded into one line.
-type ReceivedVia = { amount: number; date: string; method: string; channel: 'qr' | '1bill' | 'branch'; collected_by: string | null; outlet: string | null };
-type ViaGroup = { method: string; channel: ReceivedVia['channel']; collected_by: string | null; outlet: string | null; amount: number; count: number };
+type ReceivedVia = { amount: number; date: string; method: string; channel: 'qr' | '1bill' | 'branch'; collected_by: string | null; outlet: string | null; txn_id?: string | null };
+type ViaGroup = { method: string; channel: ReceivedVia['channel']; collected_by: string | null; outlet: string | null; amount: number; count: number; txns: string[] };
 const groupReceivedVia = (list?: ReceivedVia[]): ViaGroup[] => {
     const groups: ViaGroup[] = [];
     for (const p of list || []) {
         const g = groups.find((x) => x.method === p.method && x.collected_by === p.collected_by && x.outlet === p.outlet);
-        if (g) { g.amount += p.amount; g.count += 1; }
-        else groups.push({ method: p.method, channel: p.channel, collected_by: p.collected_by, outlet: p.outlet, amount: p.amount, count: 1 });
+        if (g) { g.amount += p.amount; g.count += 1; if (p.txn_id && !g.txns.includes(p.txn_id)) g.txns.push(p.txn_id); }
+        else groups.push({ method: p.method, channel: p.channel, collected_by: p.collected_by, outlet: p.outlet, amount: p.amount, count: 1, txns: p.txn_id ? [p.txn_id] : [] });
     }
     return groups;
 };
@@ -741,6 +741,9 @@ export const PaymentDetailsSection = ({
                                                                                 )}>
                                                                                     {g.method}
                                                                                 </span>
+                                                                                {g.txns.length > 0 && (
+                                                                                    <span className="block whitespace-nowrap text-[10px] font-normal text-gray-400">TxID {g.txns.join(', ')}</span>
+                                                                                )}
                                                                                 {viaAmountNote(g, many)}
                                                                             </div>
                                                                         ))}
