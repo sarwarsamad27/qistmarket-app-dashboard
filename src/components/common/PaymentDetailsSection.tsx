@@ -83,7 +83,7 @@ const groupReceivedVia = (list?: ReceivedVia[]): ViaGroup[] => {
 };
 const viaAmountNote = (g: ViaGroup, many: boolean) =>
     many || g.count > 1 ? (
-        <span className="block text-[10px] font-normal text-gray-400">
+        <span className="block whitespace-nowrap text-[10px] font-normal text-gray-400">
             {rs(g.amount)}{g.count > 1 ? ` · ${g.count} payments` : ''}
         </span>
     ) : null;
@@ -657,12 +657,12 @@ export const PaymentDetailsSection = ({
                                         <tbody className="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-800">
                                             {!isEditMode ? installments.map((inst: any, idx: number) => (
                                                 <tr key={idx} className="hover:bg-gray-50 dark:hover:bg-gray-700">
-                                                    <td className="px-4 py-2 text-sm text-dark dark:text-white">{inst.label || `Month ${inst.month}`}</td>
-                                                    <td className="px-4 py-2 text-sm text-gray-600 dark:text-gray-400">
+                                                    <td className="px-4 py-2 whitespace-nowrap text-sm text-dark dark:text-white">{inst.label || `Month ${inst.month}`}</td>
+                                                    <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-600 dark:text-gray-400">
                                                         {inst.due_date ? formatExactDate(inst.due_date, 'DD MMM YYYY') : '-'}
                                                     </td>
                                                     <td className="px-4 py-2 text-sm font-medium text-dark dark:text-white">
-                                                        Rs. {inst.due_amount?.toLocaleString()}
+                                                        <span className="whitespace-nowrap">Rs. {inst.due_amount?.toLocaleString()}</span>
                                                         {inst.arrears > 0 && (
                                                             returned ? (
                                                                 <div className="mt-1 inline-block rounded bg-orange-100 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-orange-700 dark:bg-orange-900/30 dark:text-orange-400">
@@ -678,7 +678,7 @@ export const PaymentDetailsSection = ({
                                                     <td className="px-4 py-2 align-top text-sm font-bold text-dark dark:text-white">
                                                         {/* What the customer actually handed over against THIS month
                                                             (collected_amount) — can be more than the month's due. */}
-                                                        {(inst.collected_amount || 0) > 0 ? rs(inst.collected_amount) : '-'}
+                                                        <span className="whitespace-nowrap">{(inst.collected_amount || 0) > 0 ? rs(inst.collected_amount) : '-'}</span>
                                                         <CarryLines carriedOut={inst.carried_out} />
                                                     </td>
                                                     <td className="px-4 py-2 align-top text-sm font-bold text-green-600 dark:text-green-400">
@@ -688,11 +688,11 @@ export const PaymentDetailsSection = ({
                                                             covering anything, it's shown on Customer Paid as needing refund. */}
                                                         {(() => {
                                                             const counted = (inst.paid_amount || 0) - (inst.unallocated_excess || 0);
-                                                            return counted > 0 ? rs(counted) : '-';
+                                                            return <span className="whitespace-nowrap">{counted > 0 ? rs(counted) : '-'}</span>;
                                                         })()}
                                                         <CarryLines carriedIn={inst.carried_in} />
                                                     </td>
-                                                    <td className="px-4 py-2 text-sm font-bold text-red-500">
+                                                    <td className="px-4 py-2 whitespace-nowrap text-sm font-bold text-red-500">
                                                         {(inst.remaining_amount > 0 || (inst.arrears || 0) > 0) ? (
                                                             (inst.arrears || 0) > 0 ? (
                                                                 <div>
@@ -716,8 +716,13 @@ export const PaymentDetailsSection = ({
                                                             {inst.paid_amount > 0 && inst.status !== 'paid' ? 'Partial' : inst.status}
                                                         </span>
                                                     </td>
-                                                    <td className="px-4 py-2 text-sm text-gray-600 dark:text-gray-400">
-                                                        {inst.paid_at && inst.paid_amount > 0 ? formatExactDate(inst.paid_at, 'DD MMM YYYY, hh:mm A') : '-'}
+                                                    <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-600 dark:text-gray-400">
+                                                        {inst.paid_at && inst.paid_amount > 0 ? (
+                                                            <>
+                                                                <span className="block">{formatExactDate(inst.paid_at, 'DD MMM YYYY')}</span>
+                                                                <span className="block text-[11px] text-gray-400">{formatExactDate(inst.paid_at, 'hh:mm A')}</span>
+                                                            </>
+                                                        ) : '-'}
                                                     </td>
                                                     {(() => {
                                                         const groups = groupReceivedVia(inst.received_via);
@@ -729,7 +734,7 @@ export const PaymentDetailsSection = ({
                                                                         {groups.map((g, i) => (
                                                                             <div key={i} className={cn(i > 0 && 'mt-1.5')}>
                                                                                 <span className={cn(
-                                                                                    'inline-block rounded-md px-2 py-0.5 text-[11px] font-bold',
+                                                                                    'inline-block whitespace-nowrap rounded-md px-2 py-0.5 text-[11px] font-bold',
                                                                                     g.channel === 'branch'
                                                                                         ? 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-200'
                                                                                         : 'bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
@@ -764,7 +769,7 @@ export const PaymentDetailsSection = ({
                                                         if (inst.paid_amount > 0 && carriedFrom.length > 0 && !(inst.collected_amount > 0)) {
                                                             return (
                                                                 <>
-                                                                    <td className="px-4 py-2 text-sm text-purple-600 dark:text-purple-400">From {carriedFrom.join(', ')} extra</td>
+                                                                    <td className="px-4 py-2 whitespace-nowrap text-sm text-purple-600 dark:text-purple-400">From {carriedFrom.join(', ')} extra</td>
                                                                     <td className="px-4 py-2 text-sm text-gray-400">-</td>
                                                                     <td className="px-4 py-2 text-sm text-gray-400">-</td>
                                                                 </>
