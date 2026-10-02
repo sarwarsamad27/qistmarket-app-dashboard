@@ -67,6 +67,27 @@ function previewCarryFlow(rows: { month: number; amount: number; collected: numb
 
 const rs = (n: number) => `Rs. ${Math.round(n).toLocaleString()}`;
 
+// How a month's money came in — same labels as Accounts → Daily Payments
+// (backend: accountsPaymentsController.paymentChannelsByMonth). Payments
+// through the same channel/person/outlet are folded into one line.
+type ReceivedVia = { amount: number; date: string; method: string; channel: 'qr' | '1bill' | 'branch'; collected_by: string | null; outlet: string | null };
+type ViaGroup = { method: string; channel: ReceivedVia['channel']; collected_by: string | null; outlet: string | null; amount: number; count: number };
+const groupReceivedVia = (list?: ReceivedVia[]): ViaGroup[] => {
+    const groups: ViaGroup[] = [];
+    for (const p of list || []) {
+        const g = groups.find((x) => x.method === p.method && x.collected_by === p.collected_by && x.outlet === p.outlet);
+        if (g) { g.amount += p.amount; g.count += 1; }
+        else groups.push({ method: p.method, channel: p.channel, collected_by: p.collected_by, outlet: p.outlet, amount: p.amount, count: 1 });
+    }
+    return groups;
+};
+const viaAmountNote = (g: ViaGroup, many: boolean) =>
+    many || g.count > 1 ? (
+        <span className="block text-[10px] font-normal text-gray-400">
+            {rs(g.amount)}{g.count > 1 ? ` · ${g.count} payments` : ''}
+        </span>
+    ) : null;
+
 // "← Rs. 3,500 from Month 1's extra" / "→ Rs. 3,500 moved to Month 4" lines,
 // shared by the view table and the edit-mode preview so both read the same.
 const CarryLines = ({ carriedIn = [], carriedOut = [] }: { carriedIn?: CarryIn[]; carriedOut?: CarryOut[] }) => (
@@ -698,33 +719,78 @@ export const PaymentDetailsSection = ({
                                                     <td className="px-4 py-2 text-sm text-gray-600 dark:text-gray-400">
                                                         {inst.paid_at && inst.paid_amount > 0 ? formatExactDate(inst.paid_at, 'DD MMM YYYY, hh:mm A') : '-'}
                                                     </td>
-                                                    <td className="px-4 py-2 text-sm text-gray-600 dark:text-gray-400">
-                                                        {inst.paid_amount > 0 ? (
-                                                            (() => {
-                                                                const m = inst.payment_method || '';
-                                                                const isOnline = m.toLowerCase().includes('tps') || m.toLowerCase().includes('smartpay') || m.toLowerCase().includes('1bill') || m.toLowerCase().includes('1link');
-                                                                return isOnline ? 'Online Payment' : (m || '-');
-                                                            })()
-                                                        ) : '-'}
-                                                     </td>
-                                                     <td className="px-4 py-2 text-sm font-semibold text-slate-800 dark:text-slate-200">
-                                                         {inst.paid_amount > 0 ? (
-                                                             (() => {
-                                                                 const m = inst.payment_method || '';
-                                                                 const isOnline = m.toLowerCase().includes('tps') || m.toLowerCase().includes('smartpay') || m.toLowerCase().includes('1bill') || m.toLowerCase().includes('1link');
-                                                                 if (isOnline) {
-                                                                     if (m.toLowerCase().includes('smartpay')) return 'SmartPay QR';
-                                                                     return '1LINK TPS';
-                                                                 }
-                                                                 return inst.received_by || inst.collected_by_name || inst.collectedByName || '-';
-                                                             })()
-                                                         ) : '-'}
-                                                     </td>
-                                                     <td className="px-4 py-2 text-sm font-semibold text-slate-800 dark:text-slate-200">
-                                                         {inst.paid_amount > 0 ? (
-                                                             inst.outlet_name || inst.outletName || '-'
-                                                         ) : '-'}
-                                                    </td>
+                                                    {(() => {
+                                                        const groups = groupReceivedVia(inst.received_via);
+                                                        const many = groups.length > 1;
+                                                        if (groups.length > 0) {
+                                                            return (
+                                                                <>
+                                                                    <td className="px-4 py-2 align-top text-sm font-semibold text-gray-700 dark:text-gray-300">
+                                                                        {groups.map((g, i) => (
+                                                                            <div key={i} className={cn(i > 0 && 'mt-1.5')}>
+                                                                                <span className={cn(
+                                                                                    'inline-block rounded-md px-2 py-0.5 text-[11px] font-bold',
+                                                                                    g.channel === 'branch'
+                                                                                        ? 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-200'
+                                                                                        : 'bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
+                                                                                )}>
+                                                                                    {g.method}
+                                                                                </span>
+                                                                                {viaAmountNote(g, many)}
+                                                                            </div>
+                                                                        ))}
+                                                                    </td>
+                                                                    <td className="px-4 py-2 align-top text-sm font-semibold text-slate-800 dark:text-slate-200">
+                                                                        {groups.map((g, i) => (
+                                                                            <div key={i} className={cn(i > 0 && 'mt-1.5')}>
+                                                                                {g.collected_by || (g.channel === 'qr' ? 'SmartPay QR' : g.channel === '1bill' ? '1Bill (1LINK)' : '-')}
+                                                                                {viaAmountNote(g, many)}
+                                                                            </div>
+                                                                        ))}
+                                                                    </td>
+                                                                    <td className="px-4 py-2 align-top text-sm font-semibold text-slate-800 dark:text-slate-200">
+                                                                        {groups.map((g, i) => (
+                                                                            <div key={i} className={cn(i > 0 && 'mt-1.5')}>
+                                                                                {g.outlet || (g.channel === 'branch' ? 'Not recorded' : 'Online')}
+                                                                                {viaAmountNote(g, many)}
+                                                                            </div>
+                                                                        ))}
+                                                                    </td>
+                                                                </>
+                                                            );
+                                                        }
+                                                        // Covered only by an earlier month's extra — no money of its own came in.
+                                                        const carriedFrom = (inst.carried_in || []).map((c: CarryIn) => `Month ${c.fromMonth}`);
+                                                        if (inst.paid_amount > 0 && carriedFrom.length > 0 && !(inst.collected_amount > 0)) {
+                                                            return (
+                                                                <>
+                                                                    <td className="px-4 py-2 text-sm text-purple-600 dark:text-purple-400">From {carriedFrom.join(', ')} extra</td>
+                                                                    <td className="px-4 py-2 text-sm text-gray-400">-</td>
+                                                                    <td className="px-4 py-2 text-sm text-gray-400">-</td>
+                                                                </>
+                                                            );
+                                                        }
+                                                        // Older data with no payment records — previous behaviour.
+                                                        const m = (inst.payment_method || '').toLowerCase();
+                                                        const isOnline = m.includes('tps') || m.includes('smartpay') || m.includes('1bill') || m.includes('1link');
+                                                        return (
+                                                            <>
+                                                                <td className="px-4 py-2 text-sm text-gray-600 dark:text-gray-400">
+                                                                    {inst.paid_amount > 0 ? (isOnline ? 'Online Payment' : (inst.payment_method || '-')) : '-'}
+                                                                </td>
+                                                                <td className="px-4 py-2 text-sm font-semibold text-slate-800 dark:text-slate-200">
+                                                                    {inst.paid_amount > 0
+                                                                        ? (isOnline
+                                                                            ? (m.includes('smartpay') ? 'SmartPay QR' : '1LINK TPS')
+                                                                            : (inst.received_by || inst.collected_by_name || inst.collectedByName || '-'))
+                                                                        : '-'}
+                                                                </td>
+                                                                <td className="px-4 py-2 text-sm font-semibold text-slate-800 dark:text-slate-200">
+                                                                    {inst.paid_amount > 0 ? (inst.outlet_name || inst.outletName || '-') : '-'}
+                                                                </td>
+                                                            </>
+                                                        );
+                                                    })()}
                                                 </tr>
                                             )) : editedRows.map((row) => (
                                                 <tr key={row.month} className="hover:bg-gray-50 dark:hover:bg-gray-700">
