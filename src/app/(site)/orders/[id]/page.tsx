@@ -337,6 +337,8 @@ export default function OrderDetailsPage() {
     const { id } = useParams();
     const router = useRouter();
     const [order, setOrder] = useState<Order | null>(null);
+    // Same "Account Status" the customer ledger page shows (Regular / Overdue / Defaulter / …)
+    const [accountStatus, setAccountStatus] = useState<{ key: string; label: string; color: string; bg: string } | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     // --- Verification State ---
@@ -444,7 +446,10 @@ export default function OrderDetailsPage() {
             });
             if (!res.ok) throw new Error(await apiErrorMessage(res, "Order not found"));
             const json = await res.json();
-            if (json.success) setOrder(json.data.order);
+            if (json.success) {
+                setOrder(json.data.order);
+                setAccountStatus(json.data.accountStatus || null);
+            }
             else throw new Error(json.message || 'Failed to fetch order');
         } catch (err: any) {
             setError(err.message);
@@ -1361,6 +1366,17 @@ export default function OrderDetailsPage() {
                         <div>
                             <p className="text-sm text-gray-500 dark:text-gray-400">Reference Number</p>
                             <p className="font-semibold">{order.order_ref}</p>
+                            {accountStatus && (
+                                <div className="mt-3">
+                                    <p className="text-sm text-gray-500 dark:text-gray-400">Account Status</p>
+                                    <span
+                                        className="inline-block px-3 py-1 rounded-full text-xs font-bold uppercase mt-1"
+                                        style={{ backgroundColor: accountStatus.bg, color: accountStatus.color }}
+                                    >
+                                        {accountStatus.label}
+                                    </span>
+                                </div>
+                            )}
                         </div>
                         <div>
                             <p className="text-sm text-gray-500 dark:text-gray-400">Outlet</p>
