@@ -656,7 +656,7 @@ export const PaymentDetailsSection = ({
                                         </thead>
                                         <tbody className="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-800">
                                             {!isEditMode ? installments.map((inst: any, idx: number) => (
-                                                <tr key={idx} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+                                                <tr key={idx} className="align-top hover:bg-gray-50 dark:hover:bg-gray-700">
                                                     <td className="px-4 py-2 whitespace-nowrap text-sm text-dark dark:text-white">{inst.label || `Month ${inst.month}`}</td>
                                                     <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-600 dark:text-gray-400">
                                                         {inst.due_date ? formatExactDate(inst.due_date, 'DD MMM YYYY') : '-'}
