@@ -11,6 +11,14 @@
 //       `message` (generic "Internal server error", leaked internals, HTML
 //       proxy error pages and empty bodies are replaced with the real reason
 //       for that status), keeping the body's existing `error` field shape.
+// * A READ request (GET/HEAD) that fails at the network level is retried
+//   automatically a few times before any error is shown. After the tab sits
+//   idle (or the laptop sleeps / Wi-Fi reconnects) the browser's first request
+//   often goes out on a connection that is already dead and fails instantly,
+//   while the very next attempt works — which used to show "Unable to connect
+//   to the server" and leave the page empty until a manual refresh. Writes
+//   (POST/PUT/PATCH/DELETE) are never retried: they might have reached the
+//   server, and repeating them could save something twice.
 // * Same treatment for axios.
 // * Shows a persistent banner while the device is offline, and a single
 //   (de-duplicated) toast when the server is unreachable / back.
@@ -61,6 +69,21 @@ function dedupeErrorToasts() {
 
 const isReadRequest = (input: RequestInfo | URL, init?: RequestInit) =>
   ((init?.method || (input instanceof Request ? input.method : "GET")) || "GET").toUpperCase() === "GET";
+
+const isRetryableMethod = (method?: string) => ["GET", "HEAD"].includes((method || "GET").toUpperCase());
+
+// Waits between automatic retries of a read request that failed at the network level.
+const NETWORK_RETRY_DELAYS_MS = [400, 1200, 3000];
+
+const sleep = (ms: number, signal?: AbortSignal | null) =>
+  new Promise<void>((resolve, reject) => {
+    if (signal?.aborted) return reject(new DOMException("Aborted", "AbortError"));
+    const t = setTimeout(resolve, ms);
+    signal?.addEventListener("abort", () => {
+      clearTimeout(t);
+      reject(new DOMException("Aborted", "AbortError"));
+    }, { once: true });
+  });
 
 // Many pages only handle `data.success` and silently ignore a failure, so a
 // failed *load* would leave an empty screen with no reason. Server-side
@@ -137,12 +160,22 @@ function installFetchInterceptor() {
     const url = requestUrl(input);
     if (!isApiRequest(url)) return originalFetch(input, init);
 
-    let res: Response;
-    try {
-      res = await originalFetch(input, init);
-    } catch (err: any) {
-      if (err?.name === "AbortError") throw err;
-      throw networkError(err);
+    const method = init?.method || (input instanceof Request ? input.method : "GET");
+    const retries = isRetryableMethod(method) ? NETWORK_RETRY_DELAYS_MS : [];
+    const signal = init?.signal || (input instanceof Request ? input.signal : null);
+
+    let res: Response | undefined;
+    for (let attempt = 0; !res; attempt++) {
+      try {
+        res = await originalFetch(input, init);
+      } catch (err: any) {
+        if (err?.name === "AbortError") throw err;
+        if (attempt < retries.length && !isOffline()) {
+          await sleep(retries[attempt], signal);
+          continue;
+        }
+        throw networkError(err);
+      }
     }
     if (res.ok) {
       markServerUp();
@@ -167,8 +200,22 @@ function installAxiosInterceptor() {
       markServerUp();
       return response;
     },
-    (error) => {
+    async (error) => {
       if (axios.isCancel(error)) return Promise.reject(error);
+      // Same automatic retry as fetch above, for read requests only.
+      const config = error.config as any;
+      if (!error.response && config && isRetryableMethod(config.method) && !isOffline()) {
+        const attempt = config.__qmRetry || 0;
+        if (attempt < NETWORK_RETRY_DELAYS_MS.length) {
+          config.__qmRetry = attempt + 1;
+          try {
+            await sleep(NETWORK_RETRY_DELAYS_MS[attempt], config.signal);
+          } catch {
+            return Promise.reject(error);
+          }
+          return axios.request(config);
+        }
+      }
       if (!error.response) {
         const net = networkError(error);
         error.message = net.message;
