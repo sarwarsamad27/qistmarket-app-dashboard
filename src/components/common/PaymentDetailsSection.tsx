@@ -70,29 +70,24 @@ const rs = (n: number) => `Rs. ${Math.round(n).toLocaleString()}`;
 // How a month's money came in — same labels as Accounts → Daily Payments
 // (backend: accountsPaymentsController.paymentChannelsByMonth). Payments
 // through the same channel/person/outlet are folded into one line.
-type ReceivedVia = { amount: number; date: string; method: string; channel: 'qr' | '1bill' | 'branch'; collected_by: string | null; outlet: string | null; txn_id?: string | null; payment_id?: number | null; uncounted?: boolean };
-type ViaGroup = { method: string; channel: ReceivedVia['channel']; collected_by: string | null; outlet: string | null; amount: number; count: number; txns: string[]; uncounted: boolean; ids: Array<number | null | undefined> };
+type ReceivedVia = { amount: number; date: string; method: string; channel: 'qr' | '1bill' | 'branch'; collected_by: string | null; outlet: string | null; txn_id?: string | null; payment_id?: number | null; receipt_total?: number; uncounted?: boolean };
+// One line per payment: records of the same payment (same method + paid time, e.g.
+// one QR saved as two records, or a receipt split over months) are folded together.
+type ViaGroup = { method: string; channel: ReceivedVia['channel']; collected_by: string | null; outlet: string | null; date: string; amount: number; total: number; txn: string | null; uncounted: boolean };
 const groupReceivedVia = (list?: ReceivedVia[]): ViaGroup[] => {
     const groups: ViaGroup[] = [];
     for (const p of list || []) {
-        const g = groups.find((x) => x.method === p.method && x.collected_by === p.collected_by && x.outlet === p.outlet && x.uncounted === !!p.uncounted);
-        // A receipt split over months (or one QR posted as two records) counts once.
-        const sameReceipt = (g: ViaGroup) => (p.payment_id != null && g.ids.includes(p.payment_id)) || (!!p.txn_id && g.txns.includes(p.txn_id));
-        if (g) {
-            if (!sameReceipt(g)) g.count += 1;
-            g.amount += p.amount;
-            g.ids.push(p.payment_id);
-            if (p.txn_id && !g.txns.includes(p.txn_id)) g.txns.push(p.txn_id);
-        } else groups.push({ method: p.method, channel: p.channel, collected_by: p.collected_by, outlet: p.outlet, amount: p.amount, count: 1, txns: p.txn_id ? [p.txn_id] : [], uncounted: !!p.uncounted, ids: [p.payment_id] });
+        const g = groups.find((x) => x.method === p.method && x.date === p.date && x.uncounted === !!p.uncounted);
+        if (g) g.amount += p.amount;
+        else groups.push({
+            method: p.method, channel: p.channel, collected_by: p.collected_by, outlet: p.outlet, date: p.date,
+            amount: p.amount, total: p.receipt_total ?? p.amount, txn: p.txn_id || null, uncounted: !!p.uncounted,
+        });
     }
     return groups;
 };
-const viaAmountNote = (g: ViaGroup, many: boolean) =>
-    many || g.count > 1 ? (
-        <span className="block whitespace-nowrap text-[10px] font-normal text-gray-400">
-            {rs(g.amount)}{g.count > 1 ? ` · ${g.count} payments` : ''}
-        </span>
-    ) : null;
+// "Rs. 5,500", or "Rs. 67 of 28,801" when this month holds only part of the payment.
+const viaAmount = (g: ViaGroup) => (g.total - g.amount > 0.5 ? `${rs(g.amount)} of ${Math.round(g.total).toLocaleString()}` : rs(g.amount));
 
 // "← Rs. 3,500 from Month 1's extra" / "→ Rs. 3,500 moved to Month 4" lines,
 // shared by the view table and the edit-mode preview so both read the same.
@@ -715,8 +710,8 @@ export const PaymentDetailsSection = ({
                                                         <span className="whitespace-nowrap">{(inst.collected_amount || 0) > 0 ? rs(inst.collected_amount) : '-'}</span>
                                                         <CarryLines carriedOut={inst.carried_out} />
                                                         {uncountedByMonth.get(inst.month) ? (
-                                                            <div className="mt-0.5 max-w-[220px] text-[11px] font-bold text-orange-600 dark:text-orange-400">
-                                                                ⚠ {rs(uncountedByMonth.get(inst.month) as number)} received (see Method, &quot;not counted&quot;) but counted on no month — a Super Admin edit set the ledger lower. Fix it in Edit Ledger if it&apos;s the customer&apos;s money.
+                                                            <div className="mt-0.5 whitespace-nowrap text-[11px] font-bold text-orange-600 dark:text-orange-400" title="Received but counted on no month (a Super Admin edit set the ledger lower). Fix in Edit Ledger if it's the customer's money.">
+                                                                ⚠ +{rs(uncountedByMonth.get(inst.month) as number)} not counted
                                                             </div>
                                                         ) : null}
                                                     </td>
@@ -765,44 +760,42 @@ export const PaymentDetailsSection = ({
                                                     </td>
                                                     {(() => {
                                                         const groups = groupReceivedVia(inst.received_via);
-                                                        const many = groups.length > 1;
+                                                        // Same fixed height per payment in all three columns, so a
+                                                        // payment's method, receiver and outlet stay on one line.
+                                                        const line = (i: number) => cn('min-h-[2.75rem]', i > 0 && 'mt-1');
                                                         if (groups.length > 0) {
                                                             return (
                                                                 <>
                                                                     <td className="px-4 py-2 align-top text-sm font-semibold text-gray-700 dark:text-gray-300">
                                                                         {groups.map((g, i) => (
-                                                                            <div key={i} className={cn(i > 0 && 'mt-1.5')}>
+                                                                            <div key={i} className={line(i)}>
                                                                                 <span className={cn(
                                                                                     'inline-block whitespace-nowrap rounded-md px-2 py-0.5 text-[11px] font-bold',
-                                                                                    g.channel === 'branch'
-                                                                                        ? 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-200'
-                                                                                        : 'bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
+                                                                                    g.uncounted
+                                                                                        ? 'bg-orange-50 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300'
+                                                                                        : g.channel === 'branch'
+                                                                                            ? 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-200'
+                                                                                            : 'bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
                                                                                 )}>
                                                                                     {g.method}
                                                                                 </span>
-                                                                                {g.txns.length > 0 && (
-                                                                                    <span className="block whitespace-nowrap text-[10px] font-normal text-gray-400">TxID {g.txns.join(', ')}</span>
-                                                                                )}
-                                                                                {g.uncounted && (
-                                                                                    <span className="block whitespace-nowrap text-[10px] font-bold text-orange-600 dark:text-orange-400">{rs(g.amount)} not counted</span>
-                                                                                )}
-                                                                                {viaAmountNote(g, many)}
+                                                                                <span className={cn('block whitespace-nowrap text-[10px]', g.uncounted ? 'font-bold text-orange-600 dark:text-orange-400' : 'font-normal text-gray-500 dark:text-gray-400')}>
+                                                                                    {viaAmount(g)}{g.uncounted ? ' · not counted' : ''}{g.txn ? ` · TxID ${g.txn}` : ''}
+                                                                                </span>
                                                                             </div>
                                                                         ))}
                                                                     </td>
                                                                     <td className="px-4 py-2 align-top text-sm font-semibold text-slate-800 dark:text-slate-200">
                                                                         {groups.map((g, i) => (
-                                                                            <div key={i} className={cn(i > 0 && 'mt-1.5')}>
+                                                                            <div key={i} className={cn(line(i), 'whitespace-nowrap')}>
                                                                                 {g.collected_by || (g.channel === 'qr' ? 'SmartPay QR' : g.channel === '1bill' ? '1Bill (1LINK)' : '-')}
-                                                                                {viaAmountNote(g, many)}
                                                                             </div>
                                                                         ))}
                                                                     </td>
                                                                     <td className="px-4 py-2 align-top text-sm font-semibold text-slate-800 dark:text-slate-200">
                                                                         {groups.map((g, i) => (
-                                                                            <div key={i} className={cn(i > 0 && 'mt-1.5')}>
+                                                                            <div key={i} className={cn(line(i), 'whitespace-nowrap')}>
                                                                                 {g.outlet || (g.channel === 'branch' ? 'Not recorded' : 'Online')}
-                                                                                {viaAmountNote(g, many)}
                                                                             </div>
                                                                         ))}
                                                                     </td>
