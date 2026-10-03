@@ -19,38 +19,6 @@ export function Sidebar() {
   const { user } = useAuth(); // Get current user
   const userRole = user?.role?.toLowerCase() || "";
 
-  // Expand all sidebar menu sections by default
-  const [expandedItems, setExpandedItems] = useState<string[]>(() =>
-    NAV_DATA.flatMap((section) =>
-      section.items
-        .filter((item: any) => item.items && item.items.length > 0)
-        .map((item: any) => item.title),
-    ),
-  );
-
-  const toggleExpanded = (title: string) => {
-    setExpandedItems((prev) =>
-      prev.includes(title)
-        ? prev.filter((t) => t !== title)
-        : [...prev, title],
-    );
-  };
-
-  useEffect(() => {
-    // Ensure active page section stays open
-    NAV_DATA.forEach((section: any) => {
-      section.items.forEach((item: any) => {
-        item.items?.forEach((subItem: any) => {
-          if (subItem.url === pathname) {
-            setExpandedItems((prev) =>
-              prev.includes(item.title) ? prev : [...prev, item.title],
-            );
-          }
-        });
-      });
-    });
-  }, [pathname]);
-
   // Filter navigation data based on user role
   // Any field/outlet-affiliated role (not just "Branch User") can actually
   // authenticate through /api/outlet/login — outletController.js's
@@ -192,48 +160,31 @@ export function Sidebar() {
                     {section.items.map((item) => (
                       <li key={item.title}>
                         {(item as any).items && (item as any).items.length ? (
-                          <div>
-                            <MenuItem
-                              isActive={(item as any).items.some(
-                                ({ url }: any) => url === pathname,
-                              )}
-                              onClick={() => toggleExpanded(item.title)}
-                            >
+                          <div className="mb-3">
+                            <div className="flex items-center gap-3 px-3.5 py-2 text-xs font-bold uppercase tracking-wider text-dark-4 dark:text-dark-6">
                               <item.icon
-                                className="size-6 shrink-0"
+                                className="size-5 shrink-0 text-primary"
                                 aria-hidden="true"
                               />
-
                               <span>{item.title}</span>
+                            </div>
 
-                              <ChevronUp
-                                className={cn(
-                                  "ml-auto rotate-180 transition-transform duration-200",
-                                  expandedItems.includes(item.title) &&
-                                    "rotate-0",
-                                )}
-                                aria-hidden="true"
-                              />
-                            </MenuItem>
-
-                            {(item as any).items && expandedItems.includes(item.title) && (
-                              <ul
-                                className="ml-9 mr-0 space-y-1.5 pb-[15px] pr-0 pt-2"
-                                role="menu"
-                              >
-                                {(item as any).items.map((subItem: any) => (
-                                  <li key={subItem.title} role="none">
-                                    <MenuItem
-                                      as="link"
-                                      href={subItem.url}
-                                      isActive={pathname === subItem.url}
-                                    >
-                                      <span>{subItem.title}</span>
-                                    </MenuItem>
-                                  </li>
-                                ))}
-                              </ul>
-                            )}
+                            <ul
+                              className="ml-6 space-y-1 pt-1"
+                              role="menu"
+                            >
+                              {(item as any).items.map((subItem: any) => (
+                                <li key={subItem.title} role="none">
+                                  <MenuItem
+                                    as="link"
+                                    href={subItem.url}
+                                    isActive={pathname === subItem.url}
+                                  >
+                                    <span>{subItem.title}</span>
+                                  </MenuItem>
+                                </li>
+                              ))}
+                            </ul>
                           </div>
                         ) : (
                           (() => {
