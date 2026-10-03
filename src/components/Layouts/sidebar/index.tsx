@@ -16,17 +16,31 @@ import { getRoleHome, OUTLET_ONLY_ROLES } from "@/lib/roleHome";
 export function Sidebar() {
   const pathname = usePathname();
   const { setIsOpen, isOpen, isMobile, toggleSidebar } = useSidebarContext();
+  const [expandedItems, setExpandedItems] = useState<string[]>([]);
   const { user } = useAuth(); // Get current user
   const userRole = user?.role?.toLowerCase() || "";
 
+  const toggleExpanded = (title: string) => {
+    setExpandedItems((prev) => (prev.includes(title) ? [] : [title]));
+  };
+
+  useEffect(() => {
+    // Keep collapsible open when its subpage is active (for standard sections)
+    NAV_DATA.some((section: any) => {
+      return section.items.some((item: any) => {
+        return item.items?.some((subItem: any) => {
+          if (subItem.url === pathname) {
+            if (!expandedItems.includes(item.title)) {
+              toggleExpanded(item.title);
+            }
+            return true;
+          }
+        });
+      });
+    });
+  }, [pathname]);
+
   // Filter navigation data based on user role
-  // Any field/outlet-affiliated role (not just "Branch User") can actually
-  // authenticate through /api/outlet/login — outletController.js's
-  // loginOutletUser only checks username+outlet_id, not role — so a Recovery
-  // Officer, Verification Officer, Delivery Agent, or Stock Manager logging
-  // in that way previously matched none of the exclusions below and fell
-  // through to seeing MAIN MENU + CSR PORTAL + OUTLET PORTAL all at once.
-  // These all belong in the same "outlet portal only" bucket as Branch User.
   const outletOnlyRoles = OUTLET_ONLY_ROLES;
 
   const filteredNavData = NAV_DATA.filter((section) => {
@@ -36,12 +50,10 @@ export function Sidebar() {
       return section.label === "CSR PORTAL";
     }
 
-    // HR role sees only HR PORTAL
     if (userRole === "hr") {
       return section.label === "HR PORTAL";
     }
 
-    // Hide Outlet Portal from Admin and Super Admin
     if (section.label === "OUTLET PORTAL" && (userRole === "admin" || userRole === "super admin")) {
       return false;
     }
@@ -49,23 +61,14 @@ export function Sidebar() {
       return false;
     }
 
-    // HR PORTAL: HR (exclusive) + Admin (head-office oversight, matches backend
-    // requireHRAdmin). Deliberately excluded for Super Admin — mixing HR into
-    // Super Admin's already-large menu caused confusion, so Super Admin no
-    // longer sees HR at all (Admin's own view is unaffected).
     if (section.label === "HR PORTAL" && userRole !== "hr" && userRole !== "admin") {
       return false;
     }
 
-    // ACCOUNTS PORTAL: Accountant exclusive. Deliberately excluded for Super
-    // Admin — mixing Accounts into Super Admin's already-large menu caused
-    // confusion (same reasoning as HR PORTAL above), so Super Admin no
-    // longer sees Accounts at all (Accountant's own view is unaffected).
     if (section.label === "ACCOUNTS PORTAL" && userRole !== "accountant") {
       return false;
     }
 
-    // Accountant only sees ACCOUNTS PORTAL
     if (section.label !== "ACCOUNTS PORTAL" && userRole === "accountant") {
       return false;
     }
@@ -77,11 +80,8 @@ export function Sidebar() {
     return true;
   }).map((section) => {
 
-    // Filter inner items
     const filteredItems = section.items.filter((item) => {
-      // Logic for Form Analyzer "Orders for Approval"
       if (item.title === "Orders for Approval") {
-         // Form Analyzer can see it
          if (userRole === "formanalyzer" || userRole === "form analyzer" || userRole === "form_analyzer" || userRole === "admin" || userRole === "super admin") {
            return true;
          }
@@ -90,7 +90,6 @@ export function Sidebar() {
 
       return true;
     })
-      // Sub Admin: only the pages a Super Admin granted; a group with none left disappears.
       .map((item: any) => {
         if (!isSubAdmin(user)) return item;
         if (item.items && item.items.length > 0) {
@@ -157,10 +156,14 @@ export function Sidebar() {
 
                 <nav role="navigation" aria-label={section.label}>
                   <ul className="space-y-2">
-                    {section.items.map((item) => (
-                      <li key={item.title}>
-                        {(item as any).items && (item as any).items.length ? (
-                          <div className="mb-3">
+                    {section.items.map((item) => {
+                      const isAccountsSection = section.label === "ACCOUNTS PORTAL";
+                      const hasSubItems = (item as any).items && (item as any).items.length > 0;
+
+                      if (hasSubItems && isAccountsSection) {
+                        // ACCOUNTS PORTAL: Permanently open all items
+                        return (
+                          <li key={item.title} className="mb-3">
                             <div className="flex items-center gap-3 px-3.5 py-2 text-xs font-bold uppercase tracking-wider text-dark-4 dark:text-dark-6">
                               <item.icon
                                 className="size-5 shrink-0 text-primary"
@@ -169,10 +172,7 @@ export function Sidebar() {
                               <span>{item.title}</span>
                             </div>
 
-                            <ul
-                              className="ml-6 space-y-1 pt-1"
-                              role="menu"
-                            >
+                            <ul className="ml-6 space-y-1 pt-1" role="menu">
                               {(item as any).items.map((subItem: any) => (
                                 <li key={subItem.title} role="none">
                                   <MenuItem
@@ -185,21 +185,20 @@ export function Sidebar() {
                                 </li>
                               ))}
                             </ul>
-                          </div>
-                        ) : (
-                          (() => {
-                            const href =
-                              "url" in item
-                                ? item.url + ""
-                                : "/" +
-                                  item.title.toLowerCase().split(" ").join("-");
+                          </li>
+                        );
+                      }
 
-                            return (
+                      if (hasSubItems) {
+                        // OTHER SECTIONS: Standard collapsible dropdown accordion
+                        return (
+                          <li key={item.title}>
+                            <div>
                               <MenuItem
-                                className="flex items-center gap-3 py-3"
-                                as="link"
-                                href={href}
-                                isActive={pathname === href}
+                                isActive={(item as any).items.some(
+                                  ({ url }: any) => url === pathname,
+                                )}
+                                onClick={() => toggleExpanded(item.title)}
                               >
                                 <item.icon
                                   className="size-6 shrink-0"
@@ -207,12 +206,65 @@ export function Sidebar() {
                                 />
 
                                 <span>{item.title}</span>
+
+                                <ChevronUp
+                                  className={cn(
+                                    "ml-auto rotate-180 transition-transform duration-200",
+                                    expandedItems.includes(item.title) &&
+                                      "rotate-0",
+                                  )}
+                                  aria-hidden="true"
+                                />
                               </MenuItem>
-                            );
-                          })()
-                        )}
-                      </li>
-                    ))}
+
+                              {expandedItems.includes(item.title) && (
+                                <ul
+                                  className="ml-9 mr-0 space-y-1.5 pb-[15px] pr-0 pt-2"
+                                  role="menu"
+                                >
+                                  {(item as any).items.map((subItem: any) => (
+                                    <li key={subItem.title} role="none">
+                                      <MenuItem
+                                        as="link"
+                                        href={subItem.url}
+                                        isActive={pathname === subItem.url}
+                                      >
+                                        <span>{subItem.title}</span>
+                                      </MenuItem>
+                                    </li>
+                                  ))}
+                                </ul>
+                              )}
+                            </div>
+                          </li>
+                        );
+                      }
+
+                      // Single item link
+                      const href =
+                        "url" in item
+                          ? item.url + ""
+                          : "/" +
+                            item.title.toLowerCase().split(" ").join("-");
+
+                      return (
+                        <li key={item.title}>
+                          <MenuItem
+                            className="flex items-center gap-3 py-3"
+                            as="link"
+                            href={href}
+                            isActive={pathname === href}
+                          >
+                            <item.icon
+                              className="size-6 shrink-0"
+                              aria-hidden="true"
+                            />
+
+                            <span>{item.title}</span>
+                          </MenuItem>
+                        </li>
+                      );
+                    })}
                   </ul>
                 </nav>
               </div>
