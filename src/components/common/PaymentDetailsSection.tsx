@@ -61,22 +61,6 @@ function previewCarryFlow(rows: { month: number; amount: number; collected: numb
             if (chunk.remaining <= 0.01) queue.shift();
         }
     });
-    // Pass 3: a month still short pulls from the newest later month's own collection
-    // (money settles the oldest balance first, whichever month it was tagged to).
-    rows.forEach((row, i) => {
-        const r = result[i];
-        let room = Math.max(0, row.amount - r.ownApplied - r.received);
-        for (let j = rows.length - 1; j > i && room > 0.01; j--) {
-            const src = result[j];
-            const take = Math.min(src.ownApplied, room);
-            if (take <= 0.01) continue;
-            src.ownApplied -= take;
-            room -= take;
-            r.received += take;
-            r.carriedIn.push({ fromMonth: rows[j].month, amount: take });
-            src.carriedOut.push({ toMonth: row.month, amount: take });
-        }
-    });
     queue.forEach((chunk) => result[chunk.sourceIndex].carriedOut.push({ toMonth: null, amount: chunk.remaining }));
     return result;
 }
