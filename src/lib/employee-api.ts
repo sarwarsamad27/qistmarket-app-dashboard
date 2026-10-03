@@ -49,6 +49,11 @@ async function fetchAuthedBlob(path: string, who: "employee" | "hr"): Promise<Bl
   return blob;
 }
 
+/** An authenticated file as an object URL (e.g. a profile photo for an <img>). Revoke it when done. */
+export async function fetchAuthedObjectUrl(path: string, who: "employee" | "hr" = "employee") {
+  return URL.createObjectURL(await fetchAuthedBlob(path, who));
+}
+
 export async function downloadAuthedFile(path: string, filename: string, who: "employee" | "hr" = "employee") {
   const url = URL.createObjectURL(await fetchAuthedBlob(path, who));
   const a = document.createElement("a");

@@ -85,17 +85,17 @@ export default function EmployeePerformancePage() {
     <div>
       <div className="mb-6 flex flex-wrap items-end justify-between gap-2">
         <h1 className="text-2xl font-bold text-dark dark:text-white">Performance</h1>
-        {current && <p className="text-sm text-gray-500">{MONTHS[current.month - 1]} {current.year} review</p>}
+        {current && <p className="text-sm text-gray-500">{MONTHS[current.month - 1]} {current.year} · updated automatically</p>}
       </div>
 
       <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {scoreCard("KPI Score", current?.kpi_score ?? 0, "text-primary", "bg-primary", current ? undefined : "Published after HR's monthly review")}
-        {scoreCard("Attendance Score", attendance, "text-green", "bg-green", !current && liveAttendance != null ? "From this month's attendance so far" : undefined)}
+        {scoreCard("KPI Score", current?.kpi_score ?? 0, "text-primary", "bg-primary", "From attendance and targets achieved")}
+        {scoreCard("Attendance Score", attendance, "text-green", "bg-green", "From this month's attendance so far")}
         {scoreCard("Recovery %", current?.recovery_pct ?? 0, "text-dark dark:text-white", "bg-dark dark:bg-white")}
         <div className="rounded-xl border border-stroke bg-white p-5 dark:border-stroke-dark dark:bg-dark-2">
           <p className="text-sm text-gray-500">Team Rank</p>
           <p className="mt-2 text-3xl font-bold text-dark dark:text-white">{ranking ? `#${ranking.rank}` : "—"}</p>
-          <p className="mt-3 text-xs text-gray-500">{ranking ? `of ${ranking.team_size} in ${ranking.department || "your team"}` : "Published after HR's monthly review"}</p>
+          <p className="mt-3 text-xs text-gray-500">{ranking ? `of ${ranking.team_size} in ${ranking.department || "your team"}` : "Not ranked this month"}</p>
         </div>
       </div>
 

@@ -44,6 +44,15 @@ export default function CreateEmployeePage() {
   docsRef.current = docs;
   // Free the image previews when leaving the page.
   useEffect(() => () => docsRef.current.forEach((d) => d.preview && URL.revokeObjectURL(d.preview)), []);
+  // Profile photo — shown beside the employee's name in the portal and HR profile.
+  const [photo, setPhoto] = useState<{ file: File; preview: string } | null>(null);
+  useEffect(() => () => { if (photo) URL.revokeObjectURL(photo.preview); }, [photo]);
+  const pickPhoto = (file?: File) => {
+    if (!file) return;
+    if (!/^image\/(jpeg|png|webp)$/.test(file.type)) { toast.error("Profile photo must be a JPG, PNG or WEBP image."); return; }
+    if (file.size > MAX_MB * 1024 * 1024) { toast.error(`Photo is larger than ${MAX_MB} MB.`); return; }
+    setPhoto({ file, preview: URL.createObjectURL(file) });
+  };
   const [docResult, setDocResult] = useState<{ uploaded: number; failed: string[] } | null>(null);
   const [credentials, setCredentials] = useState<{ id: number; username: string; password: string; employee_id: string } | null>(null);
   const [form, setForm] = useState({
@@ -96,7 +105,11 @@ export default function CreateEmployeePage() {
   const uploadDocs = async (employeeId: number) => {
     const token = Cookies.get("auth_token");
     const result = { uploaded: 0, failed: [] as string[] };
-    for (const d of docs.filter((r) => r.file)) {
+    const uploads = [
+      ...(photo ? [{ doc_type: "photo", title: "Profile Photo", file: photo.file }] : []),
+      ...docs.filter((r) => r.file),
+    ];
+    for (const d of uploads) {
       const fd = new FormData();
       fd.append("file", d.file as File);
       fd.append("doc_type", d.doc_type);
@@ -125,7 +138,7 @@ export default function CreateEmployeePage() {
           user_id: form.user_id ? parseInt(form.user_id) : null,
         }),
       });
-      setDocResult(docs.some((d) => d.file) ? await uploadDocs(data.employee.id) : null);
+      setDocResult(photo || docs.some((d) => d.file) ? await uploadDocs(data.employee.id) : null);
       setCredentials({ ...data.credentials, id: data.employee.id });
       toast.success("Employee created with portal credentials");
     } catch (err: unknown) {
@@ -201,6 +214,23 @@ export default function CreateEmployeePage() {
       </div>
 
       <form onSubmit={handleSubmit} className="rounded-xl border border-stroke bg-white p-6 dark:border-stroke-dark dark:bg-dark-2">
+        <div className="mb-6 flex items-center gap-4">
+          <label className="relative flex h-24 w-24 shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-full border-2 border-dashed border-stroke bg-gray-2 text-center text-xs text-gray-500 hover:border-primary dark:border-stroke-dark dark:bg-dark-3">
+            {photo ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={photo.preview} alt="Profile" className="h-full w-full object-cover" />
+            ) : (
+              <span>Add<br />photo</span>
+            )}
+            <input type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={(e) => { pickPhoto(e.target.files?.[0]); e.target.value = ""; }} />
+          </label>
+          <div>
+            <p className="text-sm font-medium text-dark dark:text-white">Profile Photo</p>
+            <p className="text-xs text-gray-500">Shown beside the employee&apos;s name in the Employee Portal and HR profile. JPG, PNG or WEBP.</p>
+            {photo && <button type="button" onClick={() => setPhoto(null)} className="mt-1 text-xs text-red hover:underline">Remove</button>}
+          </div>
+        </div>
+
         <div className="grid gap-4 sm:grid-cols-2">
           {field("full_name", "Full Name *")}
           {field("cnic", "CNIC")}

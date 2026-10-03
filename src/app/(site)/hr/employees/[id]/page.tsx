@@ -8,7 +8,10 @@ import Cookies from "js-cookie";
 import DepartmentSelect from "@/components/EmployeePortal/DepartmentSelect";
 import toast from "react-hot-toast";
 import Image from "next/image";
-import { User, FileText, DollarSign, Activity, Star, ClipboardList, Calendar, Upload, Search, Trash2, Download } from "lucide-react";
+import { User, FileText, DollarSign, Activity, Star, ClipboardList, Calendar, Upload, Search, Trash2, Download, ShoppingBag, Camera } from "lucide-react";
+import EmployeeAvatar from "@/components/EmployeePortal/EmployeeAvatar";
+import EmployeeOrders from "@/components/EmployeePortal/EmployeeOrders";
+import { apiErrorMessage } from "@/lib/apiErrors";
 import { roleLabel } from "@/lib/roleLabels";
 
 interface Employee {
@@ -42,6 +45,7 @@ const TABS = [
   { key: "payroll", label: "Payroll", icon: ClipboardList },
   { key: "performance", label: "Performance", icon: Star },
   { key: "leaves", label: "Leaves", icon: Calendar },
+  { key: "orders", label: "Orders & Qist", icon: ShoppingBag },
 ];
 
 export default function HrEmployeeDetailPage() {
@@ -61,7 +65,25 @@ export default function HrEmployeeDetailPage() {
   const [appUsers, setAppUsers] = useState<{ id: number; full_name: string; username: string; role: string | null }[]>([]);
   const [deviceUsers, setDeviceUsers] = useState<{ user_id: string; name: string | null; employee: { id: number; full_name: string } | null }[]>([]);
 
+  const [photoVersion, setPhotoVersion] = useState(0);
   const load = () => hrFetch(`/employees/${id}`).then((r) => setEmployee(r.employee));
+
+  // Profile photo = newest image uploaded as a "Photograph" document.
+  const uploadPhoto = async (file?: File) => {
+    if (!file) return;
+    if (!/^image\/(jpeg|png|webp)$/.test(file.type)) return toast.error("Choose a JPG, PNG or WEBP image.");
+    const fd = new FormData();
+    fd.append("file", file);
+    fd.append("doc_type", "photo");
+    fd.append("title", "Profile Photo");
+    try {
+      const res = await fetch(`${API}/api/hr/employees/${id}/documents`, { method: "POST", headers: { Authorization: `Bearer ${Cookies.get("auth_token")}` }, body: fd });
+      if (!res.ok) throw new Error(await apiErrorMessage(res, "Upload failed"));
+      toast.success("Profile photo updated");
+      setPhotoVersion((v) => v + 1);
+      load();
+    } catch (err) { toast.error((err as Error).message); }
+  };
   useEffect(() => { load(); }, [id]);
 
   const loadAttendance = () => {
@@ -115,14 +137,6 @@ export default function HrEmployeeDetailPage() {
       await hrFetch(`/employees/${id}/events`, { method: "POST", body: JSON.stringify(body) });
       toast.success("Timeline event added — employee notified");
       setEventOpen(false); load();
-    } catch (err) { toast.error((err as Error).message); }
-  };
-
-  const markPaid = async (slipId: number) => {
-    if (!confirm("Mark this salary as paid? Loan installments on the slip will be deducted and the employee notified.")) return;
-    try {
-      await hrFetch(`/payroll/${slipId}`, { method: "PATCH", body: JSON.stringify({ status: "paid" }) });
-      toast.success("Salary marked paid"); load();
     } catch (err) { toast.error((err as Error).message); }
   };
 
@@ -196,9 +210,16 @@ export default function HrEmployeeDetailPage() {
     <div>
       <Link href="/hr/employees" className="text-sm text-primary hover:underline">← Back to Employees</Link>
       <div className="mt-2 flex flex-wrap items-center justify-between gap-4">
-        <div>
+        <div className="flex items-center gap-4">
+          <label className="group relative cursor-pointer" title="Change profile photo">
+            <EmployeeAvatar path={`/hr/employees/${id}/photo`} who="hr" name={employee.full_name} className="h-16 w-16 text-lg" version={photoVersion} />
+            <span className="absolute -bottom-1 -right-1 rounded-full bg-primary p-1.5 text-white shadow"><Camera className="h-3 w-3" /></span>
+            <input type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={(e) => { uploadPhoto(e.target.files?.[0]); e.target.value = ""; }} />
+          </label>
+          <div>
           <h1 className="text-2xl font-bold text-dark dark:text-white">{employee.full_name}</h1>
           <p className="text-sm text-gray-500">{employee.employee_id} · {employee.department} · {employee.designation}{employee.status && employee.status !== "active" ? <span className="ml-2 rounded-full bg-red/10 px-2 py-0.5 text-xs capitalize text-red">{employee.status}</span> : null}</p>
+          </div>
         </div>
         <div className="flex flex-wrap gap-2">
           <button onClick={openEdit} className="rounded-lg border border-primary px-3 py-1.5 text-xs text-primary">Edit Profile</button>
@@ -227,6 +248,8 @@ export default function HrEmployeeDetailPage() {
       </div>
 
       <div className="mt-6">
+        {tab === "orders" && <EmployeeOrders employeeId={id} />}
+
         {/* PROFILE */}
         {tab === "profile" && (
           <div className="grid gap-6 lg:grid-cols-2">
@@ -463,7 +486,6 @@ export default function HrEmployeeDetailPage() {
                       <td className="px-4 py-3 text-right font-semibold">Rs.{slip.net_payable.toLocaleString()}</td>
                       <td className="px-4 py-3 text-center"><span className={`rounded-full px-2 py-0.5 text-xs ${slip.status === "paid" ? "bg-green/10 text-green" : slip.status === "pending" ? "bg-yellow-light-4/20 text-yellow-dark" : "bg-red/10 text-red"}`}>{slip.status}</span></td>
                       <td className="px-4 py-3 text-center whitespace-nowrap">
-                        {slip.status !== "paid" && <button onClick={() => markPaid(slip.id)} className="mr-2 text-xs text-green hover:underline">Mark Paid</button>}
                         <button onClick={() => downloadSlip(slip)} className="text-xs text-primary hover:underline">PDF</button>
                       </td>
                     </tr>

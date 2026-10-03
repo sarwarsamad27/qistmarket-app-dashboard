@@ -8,6 +8,8 @@ import {
   FileText, Bell, TrendingUp, History, LogOut, Menu, X,
 } from "lucide-react";
 import { useEmployeeAuth } from "../../../contexts/EmployeeAuthContext";
+import { Logo } from "@/components/logo";
+import EmployeeAvatar from "./EmployeeAvatar";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
@@ -38,10 +40,18 @@ export function EmployeeSidebar() {
   const NavContent = () => (
     <>
       <div className="border-b border-stroke px-6 py-5 dark:border-stroke-dark">
-        <p className="text-xs font-medium uppercase tracking-wider text-gray-500">QIST Market</p>
-        <p className="mt-1 text-lg font-bold text-dark dark:text-white">Employee Portal</p>
+        <Link href="/employee/dashboard" onClick={() => setOpen(false)} className="block">
+          <Logo />
+        </Link>
+        <p className="mt-3 text-xs font-semibold uppercase tracking-wider text-gray-500">Employee Portal</p>
         {user && (
-          <p className="mt-2 truncate text-sm text-gray-500">{user.full_name}</p>
+          <div className="mt-3 flex items-center gap-3 rounded-lg bg-gray-2 p-2 dark:bg-dark-3">
+            <EmployeeAvatar path="/employee/photo" who="employee" name={user.full_name} className="h-10 w-10 text-sm" />
+            <div className="min-w-0">
+              <p className="truncate text-sm font-semibold text-dark dark:text-white">{user.full_name}</p>
+              <p className="truncate text-xs text-gray-500">{[user.designation, user.employee_id].filter(Boolean).join(" · ")}</p>
+            </div>
+          </div>
         )}
       </div>
       <nav className="flex-1 space-y-1 px-3 py-4">

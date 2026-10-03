@@ -770,6 +770,7 @@ export const NAV_DATA = [
         items: [
           { title: "Expenses", url: "/accounts/expenses" },
           { title: "Vendors & Payables", url: "/accounts/vendors" },
+          { title: "Salary Payments", url: "/accounts/salary-payments" },
         ],
       },
       {

@@ -35,30 +35,45 @@ export default function GlobalSalesReportPage() {
   const [outletId, setOutletId] = useState('all')
   const token = useMemo(() => Cookies.get('auth_token'), [])
 
-  const fetchSales = async () => {
-    if (!token) return
-    setLoading(true)
-    try {
-      let url = `${BACKEND_URL}/api/outlet-reports/sales?outletId=${outletId}`
-      if (dateRange.start) url += `&startDate=${dateRange.start}`
-      if (dateRange.end) url += `&endDate=${dateRange.end}`
-      
-      const res = await fetch(url, {
-        headers: { Authorization: `Bearer ${token}` }
-      })
-      const json = await res.json()
-      if (json.success) {
-        setData(json.data)
-      }
-    } catch (err) {
-      console.error('Failed to fetch sales summary:', err)
-    } finally {
-      setLoading(false)
-    }
-  }
+  // Rendering thousands of rows at once freezes the page after the data arrives,
+  // so each table shows a page of rows and grows on demand.
+  const PAGE_SIZE = 100
+  const [visibleOrders, setVisibleOrders] = useState(PAGE_SIZE)
+  const [visibleCollections, setVisibleCollections] = useState(PAGE_SIZE)
 
   useEffect(() => {
+    if (!token) return
+    // Abort the previous request when filters change, so a slow older response
+    // can't overwrite (or keep the spinner on for) the latest one.
+    const controller = new AbortController()
+
+    const fetchSales = async () => {
+      setLoading(true)
+      try {
+        let url = `${BACKEND_URL}/api/outlet-reports/sales?outletId=${outletId}`
+        if (dateRange.start) url += `&startDate=${dateRange.start}`
+        if (dateRange.end) url += `&endDate=${dateRange.end}`
+
+        const res = await fetch(url, {
+          headers: { Authorization: `Bearer ${token}` },
+          signal: controller.signal
+        })
+        const json = await res.json()
+        if (json.success) {
+          setData(json.data)
+          setVisibleOrders(PAGE_SIZE)
+          setVisibleCollections(PAGE_SIZE)
+        }
+      } catch (err: any) {
+        if (err?.name === 'AbortError') return
+        console.error('Failed to fetch sales summary:', err)
+      } finally {
+        if (!controller.signal.aborted) setLoading(false)
+      }
+    }
+
     fetchSales()
+    return () => controller.abort()
   }, [dateRange, outletId, token])
 
   return (
@@ -90,6 +105,10 @@ export default function GlobalSalesReportPage() {
           </div>
         </div>
       </div>
+
+      {loading && data && (
+        <div className="mb-3 text-xs font-medium text-gray-400">Refreshing…</div>
+      )}
 
       {loading && !data ? <Loader /> : (
         data && (
@@ -140,7 +159,7 @@ export default function GlobalSalesReportPage() {
                         </tr>
                       </thead>
                       <tbody className="text-sm">
-                        {data.orders.map((o: any) => (
+                        {data.orders.slice(0, visibleOrders).map((o: any) => (
                           <tr key={o.id} className="border-b border-stroke last:border-0 dark:border-dark-3 hover:bg-gray-50/50 dark:hover:bg-dark-3/30 transition-colors">
                             <td className="px-6 py-4">
                               <div className="font-bold text-dark dark:text-white font-mono">{o.order_ref}</div>
@@ -163,6 +182,13 @@ export default function GlobalSalesReportPage() {
                         ))}
                       </tbody>
                     </table>
+                    {data.orders.length > visibleOrders && (
+                      <ShowMoreButton
+                        shown={visibleOrders}
+                        total={data.orders.length}
+                        onClick={() => setVisibleOrders(v => v + PAGE_SIZE)}
+                      />
+                    )}
                   </div>
                 )}
               </div>
@@ -199,7 +225,7 @@ export default function GlobalSalesReportPage() {
                           </tr>
                         </thead>
                         <tbody className="text-sm divide-y divide-stroke dark:divide-dark-3">
-                          {collections.map((c: InstallmentCollection) => (
+                          {collections.slice(0, visibleCollections).map((c: InstallmentCollection) => (
                             <tr key={c.id} className="hover:bg-purple-50/40 dark:hover:bg-purple-900/10 transition-colors">
                               <td className="px-6 py-3">
                                 <span className="font-mono font-bold text-dark dark:text-white text-xs">{c.order_ref}</span>
@@ -231,6 +257,13 @@ export default function GlobalSalesReportPage() {
                           </tr>
                         </tfoot>
                       </table>
+                      {collections.length > visibleCollections && (
+                        <ShowMoreButton
+                          shown={visibleCollections}
+                          total={collections.length}
+                          onClick={() => setVisibleCollections(v => v + PAGE_SIZE)}
+                        />
+                      )}
                     </div>
                   </div>
                 </div>
@@ -240,6 +273,18 @@ export default function GlobalSalesReportPage() {
         )
       )}
     </>
+  )
+}
+
+function ShowMoreButton({ shown, total, onClick }: { shown: number; total: number; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="w-full border-t border-stroke py-3 text-xs font-semibold text-gray-500 hover:bg-gray-50 hover:text-[#ff3d3d] dark:border-dark-3 dark:hover:bg-dark-3/30"
+    >
+      Showing {shown.toLocaleString()} of {total.toLocaleString()} — Show more
+    </button>
   )
 }
 

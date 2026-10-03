@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { hrFetch } from "@/lib/employee-api";
 import Link from "next/link";
-import { Search, Fingerprint, RefreshCw, Clock, CalendarOff, Trash2 } from "lucide-react";
+import { Search, Fingerprint, RefreshCw, Clock, CalendarOff, Trash2, Plus } from "lucide-react";
 import toast from "react-hot-toast";
 import BulkAttendance from "@/components/EmployeePortal/BulkAttendance";
 
@@ -32,7 +32,20 @@ interface Settings {
   weekly_off_day: number;
   lates_per_off: number;
   biometric_day_start?: string;
+  department_timings?: Record<string, DeptTiming>;
 }
+
+interface DeptTiming {
+  shift_start?: string;
+  shift_end?: string;
+  grace_minutes?: number;
+  weekly_off_day?: number;
+}
+
+interface DeptRow { department: string; shift_start: string; shift_end: string; grace_minutes: number; weekly_off_day: number }
+
+// Suggested departments; every department already in use is added too.
+const DEFAULT_DEPARTMENTS = ["Accounts", "Delivery", "HR", "IT", "Operations", "Recovery", "Sales", "Verification"];
 
 interface Holiday {
   id: number | null;
@@ -58,6 +71,13 @@ const STATUS_STYLE: Record<string, string> = {
   unpaid_leave: "border-blue-DEFAULT/30 bg-blue-light-5/10",
 };
 const DEFAULT_SETTINGS: Settings = { shift_start: "09:00", shift_end: "18:00", grace_minutes: 15, weekly_off_day: 0, lates_per_off: 3, biometric_day_start: "06:00" };
+
+/** The timings that apply to a department: its own entry over the global settings. */
+const timingsFor = (settings: Settings, department?: string | null): Settings => {
+  const key = (department || "").trim().toLowerCase();
+  const own = key ? Object.entries(settings.department_timings || {}).find(([name]) => name.toLowerCase() === key)?.[1] : undefined;
+  return own ? { ...settings, ...own } : settings;
+};
 
 const cleanNotes = (n?: string) => (n || "").replace(/\[method:\w+\]\s*/g, "");
 const methodOf = (n?: string) => n?.match(/\[method:(\w+)\]/)?.[1] || "";
@@ -89,6 +109,8 @@ export default function HrAttendancePage() {
   const [deviceLastSync, setDeviceLastSync] = useState<string | null>(null);
   const [syncing, setSyncing] = useState(false);
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
+  const [deptRows, setDeptRows] = useState<DeptRow[]>([]);
+  const [empHolidays, setEmpHolidays] = useState<Holiday[] | null>(null);
   const [editDay, setEditDay] = useState<{ date: string; rec?: AttendanceRecord } | null>(null);
   const [editStatus, setEditStatus] = useState("present");
   const [saving, setSaving] = useState(false);
@@ -123,6 +145,8 @@ export default function HrAttendancePage() {
     const r = await hrFetch(`/employees/${selectedEmp}/attendance?month=${month}&year=${year}`);
     setRecords(r.records);
     setSummary(r.summary || null);
+    // The employee's own off days (their department may have its own weekly off).
+    setEmpHolidays(r.holidays || null);
   };
 
   const loadHolidays = () =>
@@ -194,7 +218,7 @@ export default function HrAttendancePage() {
   };
   const daysInMonth = new Date(year, month, 0).getDate();
   const recordMap = new Map(records.map((r) => [getDay(r.date), r]));
-  const holidayMap = new Map(holidays.map((h) => [getDay(h.date), h.title]));
+  const holidayMap = new Map((selectedEmp && empHolidays ? empHolidays : holidays).map((h) => [getDay(h.date), h.title]));
 
   const openDay = (day: number) => {
     const rec = recordMap.get(day);
@@ -223,7 +247,7 @@ export default function HrAttendancePage() {
           method: "manual",
         }),
       });
-      toast.success(r.auto_late ? `Saved — marked Late (check-in after ${to12h(settings.shift_start)} + ${settings.grace_minutes} min)` : "Attendance saved");
+      toast.success(r.auto_late ? `Saved — marked Late (check-in after ${to12h(empTimings.shift_start)} + ${empTimings.grace_minutes} min)` : "Attendance saved");
       setEditDay(null);
       await loadRecords();
     } catch (err) {
@@ -258,6 +282,9 @@ export default function HrAttendancePage() {
           weekly_off_day: fd.get("weekly_off_day"),
           lates_per_off: fd.get("lates_per_off"),
           biometric_day_start: fd.get("biometric_day_start"),
+          department_timings: Object.fromEntries(
+            deptRows.filter((d) => d.department.trim()).map(({ department, ...t }) => [department.trim(), t]),
+          ),
         }),
       });
       setSettings(r.settings);
@@ -270,6 +297,25 @@ export default function HrAttendancePage() {
   };
 
   const selectedEmployee = employees.find((e) => e.id === selectedEmp);
+  // Timings that apply to the selected employee (department-specific if HR set any).
+  const empTimings = timingsFor(settings, selectedEmployee?.department);
+
+  const openSettings = () => {
+    if (!showSettings) {
+      setDeptRows(Object.entries(settings.department_timings || {}).map(([department, t]) => ({
+        department,
+        shift_start: t.shift_start || settings.shift_start,
+        shift_end: t.shift_end || settings.shift_end,
+        grace_minutes: t.grace_minutes ?? settings.grace_minutes,
+        weekly_off_day: t.weekly_off_day ?? settings.weekly_off_day,
+      })));
+    }
+    setShowSettings(!showSettings);
+  };
+  const departmentOptions = [...new Set([...DEFAULT_DEPARTMENTS, ...employees.map((e) => e.department?.trim()).filter(Boolean) as string[]])]
+    .sort((a, b) => a.localeCompare(b));
+  const updateDeptRow = (i: number, patch: Partial<DeptRow>) =>
+    setDeptRows((rows) => rows.map((r, idx) => (idx === i ? { ...r, ...patch } : r)));
   const input = "w-full rounded-lg border border-stroke px-3 py-2 text-sm dark:border-stroke-dark dark:bg-dark-3";
 
   return (
@@ -279,10 +325,11 @@ export default function HrAttendancePage() {
           <h1 className="text-2xl font-bold text-dark dark:text-white">Attendance Management</h1>
           <p className="text-xs text-gray-500">
             Office timings: {to12h(settings.shift_start)} – {to12h(settings.shift_end)} · Late after {settings.grace_minutes} min · Weekly off: {DAYS[settings.weekly_off_day]} + HR holidays · {settings.lates_per_off} lates = 1 off
+            {Object.keys(settings.department_timings || {}).length > 0 && ` · Own timings: ${Object.keys(settings.department_timings || {}).join(", ")}`}
           </p>
         </div>
         <div className="flex gap-2">
-          <button onClick={() => setShowSettings(!showSettings)} className="rounded-lg border border-stroke px-3 py-2 text-sm dark:border-stroke-dark">
+          <button onClick={openSettings} className="rounded-lg border border-stroke px-3 py-2 text-sm dark:border-stroke-dark">
             <Clock className="mr-1 inline h-4 w-4" /> Office Timings
           </button>
           <button onClick={() => setShowHolidays(!showHolidays)} className="rounded-lg border border-stroke px-3 py-2 text-sm dark:border-stroke-dark">
@@ -324,6 +371,61 @@ export default function HrAttendancePage() {
               <span className="mt-1 block text-[10px] text-gray-400">Device punches before this time count as the previous day&apos;s check-out</span>
             </label>
           </div>
+
+          <div className="mt-6 border-t border-stroke pt-4 dark:border-stroke-dark">
+            <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
+              <h4 className="font-semibold">Department-wise Timings</h4>
+              <button
+                type="button"
+                onClick={() => setDeptRows((rows) => [...rows, {
+                  department: "", shift_start: settings.shift_start, shift_end: settings.shift_end,
+                  grace_minutes: settings.grace_minutes, weekly_off_day: settings.weekly_off_day,
+                }])}
+                className="flex items-center gap-1 rounded-lg border border-stroke px-3 py-1.5 text-xs dark:border-stroke-dark"
+              >
+                <Plus className="h-3.5 w-3.5" /> Add department
+              </button>
+            </div>
+            <p className="mb-3 text-xs text-gray-500">
+              A department listed here uses its own start/end time, grace and weekly off instead of the office timings above — for late marking, overtime, absences and payroll. Departments not listed follow the office timings.
+            </p>
+            {deptRows.length === 0 && <p className="text-xs text-gray-400">No department has its own timings — everyone follows the office timings.</p>}
+            {deptRows.map((row, i) => {
+              const taken = new Set(deptRows.filter((_, idx) => idx !== i).map((r) => r.department.toLowerCase()));
+              return (
+                <div key={i} className="mb-3 grid items-end gap-3 rounded-lg bg-gray-2 p-3 sm:grid-cols-3 lg:grid-cols-6 dark:bg-dark-3">
+                  <label className="text-xs text-gray-500">Department
+                    <select value={row.department} onChange={(e) => updateDeptRow(i, { department: e.target.value })} required className={`mt-1 ${input}`}>
+                      <option value="">— Select —</option>
+                      {departmentOptions.filter((d) => !taken.has(d.toLowerCase())).map((d) => <option key={d} value={d}>{d}</option>)}
+                    </select>
+                  </label>
+                  <label className="text-xs text-gray-500">Start time
+                    <input type="time" value={row.shift_start} onChange={(e) => updateDeptRow(i, { shift_start: e.target.value })} required className={`mt-1 ${input}`} />
+                  </label>
+                  <label className="text-xs text-gray-500">End time
+                    <input type="time" value={row.shift_end} onChange={(e) => updateDeptRow(i, { shift_end: e.target.value })} required className={`mt-1 ${input}`} />
+                  </label>
+                  <label className="text-xs text-gray-500">Grace (minutes)
+                    <input type="number" min={0} max={240} value={row.grace_minutes} onChange={(e) => updateDeptRow(i, { grace_minutes: +e.target.value })} className={`mt-1 ${input}`} />
+                  </label>
+                  <label className="text-xs text-gray-500">Weekly off day
+                    <select value={row.weekly_off_day} onChange={(e) => updateDeptRow(i, { weekly_off_day: +e.target.value })} className={`mt-1 ${input}`}>
+                      {DAYS.map((d, idx) => <option key={d} value={idx}>{d}</option>)}
+                    </select>
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setDeptRows((rows) => rows.filter((_, idx) => idx !== i))}
+                    className="flex items-center justify-center gap-1 rounded-lg border border-red/30 px-3 py-2 text-xs text-red"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" /> Remove
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+
           <button type="submit" className="mt-4 rounded-lg bg-primary px-4 py-2 text-sm text-white">Save</button>
         </form>
       )}
@@ -524,7 +626,7 @@ export default function HrAttendancePage() {
                   <span className="text-xs text-gray-400">(flagged automatically when check-in or check-out is missing)</span>
                 </label>
                 <p className="mb-3 rounded bg-gray-2 px-3 py-2 text-xs text-gray-500 dark:bg-dark-3">
-                  Check-in after {to12h(settings.shift_start)} + {settings.grace_minutes} min is marked <strong>Late</strong> automatically.
+                  Check-in after {to12h(empTimings.shift_start)} + {empTimings.grace_minutes} min is marked <strong>Late</strong> automatically.
                 </p>
               </>
             )}

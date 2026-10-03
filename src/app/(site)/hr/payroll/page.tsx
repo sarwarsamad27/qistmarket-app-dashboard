@@ -55,15 +55,6 @@ export default function HrPayrollPage() {
     finally { setGenerating(false); }
   };
 
-  const markPaid = async (slip: PayrollSlip) => {
-    if (!confirm("Mark this salary as paid? Loan installments on the slip will be deducted and the employee notified (Salary Credited).")) return;
-    try {
-      await hrFetch(`/payroll/${slip.id}`, { method: "PATCH", body: JSON.stringify({ status: "paid" }) });
-      toast.success("Salary marked paid");
-      reloadSlips();
-    } catch (err) { toast.error((err as Error).message); }
-  };
-
   const downloadPdf = async (slip: PayrollSlip) => {
     try {
       const emp = employees.find((e) => e.id === selectedEmp);
@@ -149,7 +140,7 @@ export default function HrPayrollPage() {
 
       <div className="mb-6 rounded-xl border border-stroke bg-white p-4 dark:border-stroke-dark dark:bg-dark-2">
         <h2 className="font-semibold">Generate Monthly Payroll</h2>
-        <p className="mb-3 text-xs text-gray-500">Creates a pending slip for every active employee from their basic salary, minus attendance deductions (absent, off, 3 lates = 1 off, Sat/Mon penalty, unpaid leave) and loan/advance installments due that month. Review, add bonuses/commissions, then Mark Paid.</p>
+        <p className="mb-3 text-xs text-gray-500">Creates a pending slip for every active employee from their basic salary, minus attendance deductions (absent, off, 3 lates = 1 off, Sat/Mon penalty, unpaid leave) and loan/advance installments due that month. Review and add bonuses/commissions — the Accounts department then pays the salary and marks it paid (Accounts → Salary Payments).</p>
         <div className="flex flex-wrap items-center gap-3">
           <select value={genMonth} onChange={(e) => setGenMonth(+e.target.value)} className="rounded-lg border border-stroke px-3 py-2 text-sm dark:border-stroke-dark dark:bg-dark-2">
             {["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"].map((m, i) => <option key={m} value={i + 1}>{m}</option>)}
@@ -207,7 +198,6 @@ export default function HrPayrollPage() {
                   <label className="text-xs text-gray-500">Status
                     <select name="status" defaultValue={editSlip.status} className="mt-1 w-full rounded-lg border border-stroke px-3 py-2 text-sm dark:border-stroke-dark dark:bg-dark-2">
                       <option value="pending">Pending</option>
-                      <option value="paid">Paid</option>
                       <option value="cancelled">Cancelled</option>
                     </select>
                   </label>
@@ -267,7 +257,7 @@ export default function HrPayrollPage() {
                       <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${
                         slip.status === "paid" ? "bg-green/10 text-green" :
                         slip.status === "pending" ? "bg-yellow-light-4/20 text-yellow-dark" : "bg-red/10 text-red"
-                      }`}>{slip.status}</span>
+                      }`}>{slip.status === "pending" ? "awaiting accounts" : slip.status}</span>
                       {(slip.slip_data?.revisions?.length || 0) > 0 && (() => {
                         const last = slip.slip_data!.revisions![slip.slip_data!.revisions!.length - 1];
                         return (
@@ -284,9 +274,6 @@ export default function HrPayrollPage() {
                       <button onClick={() => { setShowCreate(false); setEditSlip(slip); }} className="mr-2 text-xs text-primary hover:underline">
                         <Edit3 className="mr-1 inline h-3 w-3" /> Edit
                       </button>
-                      {slip.status !== "paid" && (
-                        <button onClick={() => markPaid(slip)} className="mr-2 text-xs text-green hover:underline">Mark Paid</button>
-                      )}
                       <button onClick={() => downloadPdf(slip)} className="text-xs text-primary hover:underline">PDF</button>
                     </td>
                   </tr>

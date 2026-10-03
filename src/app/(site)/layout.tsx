@@ -14,6 +14,7 @@ import { CashSubmissionPopup } from "@/components/CashSubmissionPopup";
 import { ReturnExchangePopup } from "@/components/ReturnExchangePopup";
 import { StockTransferOTPPopup } from "@/components/StockTransferOTPPopup";
 import { ProfileModalProvider } from "../../../contexts/ProfileModalContext";
+import { DeletedMarker } from "@/components/DeletedMarker";
 
 export default function Layout({ children }: PropsWithChildren) {
   const { socket: socketInstance } = useNotifications();
@@ -40,6 +41,8 @@ export default function Layout({ children }: PropsWithChildren) {
               <ReturnExchangePopup socket={socketInstance} />
               {/* Global OTP Popup for Stock Transfer */}
               <StockTransferOTPPopup />
+              {/* Greys out every "(Deleted)" staff / outlet name on every page */}
+              <DeletedMarker />
             </div>
           </ProfileModalProvider>
         </SidebarProvider>
