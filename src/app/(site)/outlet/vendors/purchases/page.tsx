@@ -223,9 +223,15 @@ export default function VendorPurchasesPage() {
     };
 
     const filteredPurchases = useMemo(() => {
-        return purchases.filter(p => 
-            p.vendor_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            p.invoice_number.toLowerCase().includes(searchTerm.toLowerCase())
+        const term = searchTerm.toLowerCase().trim();
+        if (!term) return purchases;
+        return purchases.filter(p =>
+            p.vendor_name.toLowerCase().includes(term) ||
+            p.invoice_number.toLowerCase().includes(term) ||
+            p.items?.some(item =>
+                (item.imei_serial && item.imei_serial.toLowerCase().includes(term)) ||
+                (item.product_name && item.product_name.toLowerCase().includes(term))
+            )
         );
     }, [purchases, searchTerm]);
 
@@ -387,7 +393,7 @@ export default function VendorPurchasesPage() {
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
                         <input 
                             type="text" 
-                            placeholder="Search by vendor or invoice..."
+                            placeholder="Search by vendor, invoice, product or IMEI/serial..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
                             className="w-full pl-10 pr-4 py-2 rounded-xl bg-gray-50 dark:bg-meta-4 border border-stroke dark:border-strokedark focus:border-primary outline-none text-sm transition-all"
