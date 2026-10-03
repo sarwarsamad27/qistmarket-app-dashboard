@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import {
   LayoutDashboard, User, Clock, Calendar, Wallet, Banknote,
-  FileText, Bell, TrendingUp, History, LogOut, Menu, X,
+  FileText, Bell, TrendingUp, History, LogOut, Menu, X, ShoppingBag,
 } from "lucide-react";
 import { useEmployeeAuth } from "../../../contexts/EmployeeAuthContext";
 import { Logo } from "@/components/logo";
@@ -24,6 +24,7 @@ const NAV = [
   { title: "Notifications", url: "/employee/notifications", icon: Bell },
   { title: "Documents", url: "/employee/documents", icon: FileText },
   { title: "Performance", url: "/employee/performance", icon: TrendingUp },
+  { title: "Orders & Qist", url: "/employee/orders", icon: ShoppingBag },
 ];
 
 export function EmployeeSidebar() {

@@ -6,7 +6,7 @@ import { employeeFetch } from "@/lib/employee-api";
 import { StatCard } from "@/components/EmployeePortal/StatCard";
 import {
   Clock, Calendar, Wallet, Banknote, Bell, TrendingUp,
-  User, FileText, History, ArrowRight,
+  User, FileText, History, ArrowRight, ShoppingBag,
 } from "lucide-react";
 import { useEmployeeAuth } from "../../../../../contexts/EmployeeAuthContext";
 
@@ -20,6 +20,7 @@ const QUICK_LINKS = [
   { title: "Notifications", url: "/employee/notifications", desc: "View alerts", icon: Bell, color: "from-rose-500 to-rose-600" },
   { title: "Documents", url: "/employee/documents", desc: "Uploads & records", icon: FileText, color: "from-indigo-500 to-indigo-600" },
   { title: "Performance", url: "/employee/performance", desc: "KPI & reviews", icon: TrendingUp, color: "from-orange-500 to-orange-600" },
+  { title: "Orders & Qist", url: "/employee/orders", desc: "My installments", icon: ShoppingBag, color: "from-red-500 to-rose-600" },
 ];
 
 export default function EmployeeDashboardPage() {
