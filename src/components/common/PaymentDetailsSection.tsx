@@ -70,14 +70,20 @@ const rs = (n: number) => `Rs. ${Math.round(n).toLocaleString()}`;
 // How a month's money came in — same labels as Accounts → Daily Payments
 // (backend: accountsPaymentsController.paymentChannelsByMonth). Payments
 // through the same channel/person/outlet are folded into one line.
-type ReceivedVia = { amount: number; date: string; method: string; channel: 'qr' | '1bill' | 'branch'; collected_by: string | null; outlet: string | null; txn_id?: string | null };
-type ViaGroup = { method: string; channel: ReceivedVia['channel']; collected_by: string | null; outlet: string | null; amount: number; count: number; txns: string[] };
+type ReceivedVia = { amount: number; date: string; method: string; channel: 'qr' | '1bill' | 'branch'; collected_by: string | null; outlet: string | null; txn_id?: string | null; payment_id?: number | null; uncounted?: boolean };
+type ViaGroup = { method: string; channel: ReceivedVia['channel']; collected_by: string | null; outlet: string | null; amount: number; count: number; txns: string[]; uncounted: boolean; ids: Array<number | null | undefined> };
 const groupReceivedVia = (list?: ReceivedVia[]): ViaGroup[] => {
     const groups: ViaGroup[] = [];
     for (const p of list || []) {
-        const g = groups.find((x) => x.method === p.method && x.collected_by === p.collected_by && x.outlet === p.outlet);
-        if (g) { g.amount += p.amount; g.count += 1; if (p.txn_id && !g.txns.includes(p.txn_id)) g.txns.push(p.txn_id); }
-        else groups.push({ method: p.method, channel: p.channel, collected_by: p.collected_by, outlet: p.outlet, amount: p.amount, count: 1, txns: p.txn_id ? [p.txn_id] : [] });
+        const g = groups.find((x) => x.method === p.method && x.collected_by === p.collected_by && x.outlet === p.outlet && x.uncounted === !!p.uncounted);
+        // A receipt split over months (or one QR posted as two records) counts once.
+        const sameReceipt = (g: ViaGroup) => (p.payment_id != null && g.ids.includes(p.payment_id)) || (!!p.txn_id && g.txns.includes(p.txn_id));
+        if (g) {
+            if (!sameReceipt(g)) g.count += 1;
+            g.amount += p.amount;
+            g.ids.push(p.payment_id);
+            if (p.txn_id && !g.txns.includes(p.txn_id)) g.txns.push(p.txn_id);
+        } else groups.push({ method: p.method, channel: p.channel, collected_by: p.collected_by, outlet: p.outlet, amount: p.amount, count: 1, txns: p.txn_id ? [p.txn_id] : [], uncounted: !!p.uncounted, ids: [p.payment_id] });
     }
     return groups;
 };
@@ -162,20 +168,13 @@ export const PaymentDetailsSection = ({
     // i.e. delivery completed but the ledger write failed afterwards.
     const ledgerMissing = !!paymentDetails.ledger_missing && !ledgerId;
 
-    // Money that really came in (received_via: QR / 1Bill / branch receipts) but the
-    // ledger doesn't count anywhere — only when the WHOLE ledger is short, so a branch
-    // receipt tagged to one month but applied to another isn't flagged as missing.
+    // Money that really came in (QR / 1Bill / branch receipt) but the ledger counts on
+    // no month — the backend lays receipts over each month's counted amount and flags
+    // whatever is left over (accountsPaymentsController.paymentChannelsByMonth).
     const uncountedByMonth = new Map<number, number>();
-    {
-        const received = (inst: any) => (inst.received_via || []).reduce((s: number, p: ReceivedVia) => s + (Number(p.amount) || 0), 0);
-        const totalReceived = installments.reduce((s: number, inst: any) => s + received(inst), 0);
-        const totalCounted = installments.reduce((s: number, inst: any) => s + (Number(inst.collected_amount) || 0), 0);
-        if (totalReceived - totalCounted > 1) {
-            for (const inst of installments) {
-                const gap = received(inst) - (Number(inst.collected_amount) || 0);
-                if (gap > 1) uncountedByMonth.set(inst.month, gap);
-            }
-        }
+    for (const inst of installments) {
+        const gap = (inst.received_via || []).filter((p: ReceivedVia) => p.uncounted).reduce((s: number, p: ReceivedVia) => s + (Number(p.amount) || 0), 0);
+        if (gap > 1) uncountedByMonth.set(inst.month, gap);
     }
 
     const handleRebuildLedger = async () => {
@@ -717,7 +716,7 @@ export const PaymentDetailsSection = ({
                                                         <CarryLines carriedOut={inst.carried_out} />
                                                         {uncountedByMonth.get(inst.month) ? (
                                                             <div className="mt-0.5 max-w-[220px] text-[11px] font-bold text-orange-600 dark:text-orange-400">
-                                                                ⚠ {rs(uncountedByMonth.get(inst.month) as number)} received here (see Method) but not counted — a Super Admin edit set this month lower. Fix it in Edit Ledger.
+                                                                ⚠ {rs(uncountedByMonth.get(inst.month) as number)} received (see Method, &quot;not counted&quot;) but counted on no month — a Super Admin edit set the ledger lower. Fix it in Edit Ledger if it&apos;s the customer&apos;s money.
                                                             </div>
                                                         ) : null}
                                                     </td>
@@ -783,6 +782,9 @@ export const PaymentDetailsSection = ({
                                                                                 </span>
                                                                                 {g.txns.length > 0 && (
                                                                                     <span className="block whitespace-nowrap text-[10px] font-normal text-gray-400">TxID {g.txns.join(', ')}</span>
+                                                                                )}
+                                                                                {g.uncounted && (
+                                                                                    <span className="block whitespace-nowrap text-[10px] font-bold text-orange-600 dark:text-orange-400">{rs(g.amount)} not counted</span>
                                                                                 )}
                                                                                 {viaAmountNote(g, many)}
                                                                             </div>
