@@ -141,9 +141,8 @@ export default function AccountsDashboardPage() {
     const fetchData = async () => {
       setLoading(true);
       try {
-        const headers = { Authorization: `Bearer ${token}` };
-        const [summaryRes, recoveryRes, flowRes, stockRes, deviceRes, alertsRes] = await Promise.all([
-          fetch(`${BACKEND_URL}/api/accounts/dashboard-summary`, { headers }),
+        const headers = { Authorization: `Bearer ${token}` };        const [summaryRes, recoveryRes, flowRes, stockRes, deviceRes, alertsRes] = await Promise.all([
+          fetch(`${BACKEND_URL}/api/accounts/dashboard-summary?range=${range}`, { headers }),
           fetch(`${BACKEND_URL}/api/accounts/recovery-analytics?range=${range}`, { headers }),
           fetch(`${BACKEND_URL}/api/accounts/installment-flow?range=${range}`, { headers }),
           fetch(`${BACKEND_URL}/api/outlet-reports/stock-summary?outletId=all`, { headers }),
@@ -222,18 +221,26 @@ export default function AccountsDashboardPage() {
         title="Accounts Dashboard"
         subtitle="Centralized financial snapshot across all outlets, updated in real time."
         actions={
-          <div className="flex gap-1 rounded-xl bg-gray-100 p-1 dark:bg-dark-3">
-            {RANGES.map((r) => (
-              <button
-                key={r}
-                onClick={() => setRange(r)}
-                className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
-                  range === r ? "bg-white text-[#ff3d3d] shadow-sm dark:bg-boxdark" : "text-gray-500 hover:text-gray-700 dark:text-gray-400"
-                }`}
-              >
-                {r}
-              </button>
-            ))}
+          <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-stroke bg-white p-1.5 shadow-sm dark:border-stroke-dark dark:bg-dark-2">
+            <div className="flex items-center gap-1.5 px-3 text-xs font-bold text-gray-500 dark:text-gray-400">
+              <CalendarRange className="size-4 text-primary" />
+              <span className="hidden sm:inline">Filter Period:</span>
+            </div>
+            <div className="flex flex-wrap gap-1">
+              {RANGES.map((r) => (
+                <button
+                  key={r}
+                  onClick={() => setRange(r)}
+                  className={`rounded-xl px-4 py-2 text-sm font-bold transition-all duration-200 ${
+                    range === r
+                      ? "bg-primary text-white shadow-md shadow-primary/25"
+                      : "text-gray-600 hover:bg-gray-100 hover:text-dark dark:text-gray-300 dark:hover:bg-dark-3"
+                  }`}
+                >
+                  {r}
+                </button>
+              ))}
+            </div>
           </div>
         }
       />
@@ -260,10 +267,10 @@ export default function AccountsDashboardPage() {
           <>
             <StatCard icon={Wallet} label="Total Cash In Hand" value={PKR(summary?.totalCashInHand || 0)} accent="text-emerald-600" bg="bg-emerald-50 dark:bg-emerald-500/10" bar="bg-emerald-500" onClick={() => router.push(`/accounts/cash-in-hand${getFilterQueryParams()}`)} />
             <StatCard icon={Clock} label="Pending Cash In Hand" value={PKR(summary?.pendingCashInHand || 0)} accent="text-amber-600" bg="bg-amber-50 dark:bg-amber-500/10" bar="bg-amber-500" onClick={() => router.push(`/accounts/cash-in-hand${getFilterQueryParams()}`)} />
-            <StatCard icon={Wifi} label="Online Payments Today" value={PKR(summary?.onlinePaymentsToday || 0)} accent="text-blue-600" bg="bg-blue-50 dark:bg-blue-500/10" bar="bg-blue-500" onClick={() => router.push(`/accounts/online-payments${getFilterQueryParams()}`)} />
+            <StatCard icon={Wifi} label={`Online Payments (${range})`} value={PKR(summary?.onlinePaymentsToday || 0)} accent="text-blue-600" bg="bg-blue-50 dark:bg-blue-500/10" bar="bg-blue-500" onClick={() => router.push(`/accounts/online-payments${getFilterQueryParams()}`)} />
             <StatCard icon={TrendingUp} label={`Total Recovery (${range})`} value={PKR(recovery?.totalRecovered || 0)} accent="text-emerald-600" bg="bg-emerald-50 dark:bg-emerald-500/10" bar="bg-emerald-500" onClick={() => router.push(`/accounts/recovery-analytics${getFilterQueryParams()}`)} />
             <StatCard icon={Landmark} label="Bank Balance" value={PKR(summary?.bankBalance || 0)} accent="text-indigo-600" bg="bg-indigo-50 dark:bg-indigo-500/10" bar="bg-indigo-500" onClick={() => router.push("/accounts/bank-accounts")} />
-            <StatCard icon={Receipt} label="Today's Expense" value={PKR(summary?.todaysExpense || 0)} accent="text-rose-600" bg="bg-rose-50 dark:bg-rose-500/10" bar="bg-rose-500" onClick={() => router.push(`/accounts/expenses${getFilterQueryParams()}`)} />
+            <StatCard icon={Receipt} label={`Expense (${range})`} value={PKR(summary?.todaysExpense || 0)} accent="text-rose-600" bg="bg-rose-50 dark:bg-rose-500/10" bar="bg-rose-500" onClick={() => router.push(`/accounts/expenses${getFilterQueryParams()}`)} />
             <StatCard icon={HandCoins} label="Vendor Payables" value={PKR(summary?.vendorPayables || 0)} accent="text-orange-600" bg="bg-orange-50 dark:bg-orange-500/10" bar="bg-orange-500" onClick={() => router.push("/accounts/vendors")} />
             <StatCard icon={Users} label="Customer Receivables" value={PKR(summary?.customerReceivables || 0)} accent="text-purple-600" bg="bg-purple-50 dark:bg-purple-500/10" bar="bg-purple-500" onClick={() => router.push(`/accounts/receivables${getFilterQueryParams()}`)} />
             <StatCard icon={Package} label="Stock Valuation" value={PKR(stockValuation)} accent="text-teal-600" bg="bg-teal-50 dark:bg-teal-500/10" bar="bg-teal-500" onClick={() => router.push("/accounts/stock-summary")} />

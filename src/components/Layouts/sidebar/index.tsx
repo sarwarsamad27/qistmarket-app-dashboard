@@ -16,24 +16,35 @@ import { getRoleHome, OUTLET_ONLY_ROLES } from "@/lib/roleHome";
 export function Sidebar() {
   const pathname = usePathname();
   const { setIsOpen, isOpen, isMobile, toggleSidebar } = useSidebarContext();
-  const [expandedItems, setExpandedItems] = useState<string[]>([]);
   const { user } = useAuth(); // Get current user
   const userRole = user?.role?.toLowerCase() || "";
 
+  // Expand all sidebar menu sections by default
+  const [expandedItems, setExpandedItems] = useState<string[]>(() =>
+    NAV_DATA.flatMap((section) =>
+      section.items
+        .filter((item: any) => item.items && item.items.length > 0)
+        .map((item: any) => item.title),
+    ),
+  );
+
   const toggleExpanded = (title: string) => {
-    setExpandedItems((prev) => (prev.includes(title) ? [] : [title]));
+    setExpandedItems((prev) =>
+      prev.includes(title)
+        ? prev.filter((t) => t !== title)
+        : [...prev, title],
+    );
   };
 
   useEffect(() => {
-    // Keep collapsible open, when it's subpage is active
-    NAV_DATA.some((section: any) => {
-      return section.items.some((item: any) => {
-        return item.items?.some((subItem: any) => {
+    // Ensure active page section stays open
+    NAV_DATA.forEach((section: any) => {
+      section.items.forEach((item: any) => {
+        item.items?.forEach((subItem: any) => {
           if (subItem.url === pathname) {
-            if (!expandedItems.includes(item.title)) {
-              toggleExpanded(item.title);
-            }
-            return true;
+            setExpandedItems((prev) =>
+              prev.includes(item.title) ? prev : [...prev, item.title],
+            );
           }
         });
       });
