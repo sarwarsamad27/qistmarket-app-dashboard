@@ -117,6 +117,7 @@ type EditableRow = {
     due_date: string;
     amount: string; // kept as string while editing, parsed on save
     paid_amount: string;
+    original_paid_amount: string; // what paid_amount was pre-filled with — unchanged = "don't touch this month"
     payment_method: string;
     paid_at: string; // datetime-local string ('' = leave as auto-set by the backend)
 };
@@ -160,6 +161,22 @@ export const PaymentDetailsSection = ({
     // Set by the API when the order has a delivery but no ledger row at all —
     // i.e. delivery completed but the ledger write failed afterwards.
     const ledgerMissing = !!paymentDetails.ledger_missing && !ledgerId;
+
+    // Money that really came in (received_via: QR / 1Bill / branch receipts) but the
+    // ledger doesn't count anywhere — only when the WHOLE ledger is short, so a branch
+    // receipt tagged to one month but applied to another isn't flagged as missing.
+    const uncountedByMonth = new Map<number, number>();
+    {
+        const received = (inst: any) => (inst.received_via || []).reduce((s: number, p: ReceivedVia) => s + (Number(p.amount) || 0), 0);
+        const totalReceived = installments.reduce((s: number, inst: any) => s + received(inst), 0);
+        const totalCounted = installments.reduce((s: number, inst: any) => s + (Number(inst.collected_amount) || 0), 0);
+        if (totalReceived - totalCounted > 1) {
+            for (const inst of installments) {
+                const gap = received(inst) - (Number(inst.collected_amount) || 0);
+                if (gap > 1) uncountedByMonth.set(inst.month, gap);
+            }
+        }
+    }
 
     const handleRebuildLedger = async () => {
         if (!orderId) return;
@@ -228,6 +245,7 @@ export const PaymentDetailsSection = ({
             // lets an overpayment (or its correction) ripple onto later installments; see
             // ledgerController.editLedgerRows / cascadeLedgerPayments on the backend.
             paid_amount: String(inst.collected_amount ?? inst.paid_amount ?? 0),
+            original_paid_amount: String(inst.collected_amount ?? inst.paid_amount ?? 0),
             payment_method: inst.payment_method || '',
             paid_at: toDatetimeLocal(inst.paid_at),
         })));
@@ -242,7 +260,7 @@ export const PaymentDetailsSection = ({
         setEditedRows((rows) => rows.map((r) => (r.month === month ? { ...r, [field]: value } : r)));
     };
 
-    const handleSaveRows = async () => {
+    const handleSaveRows = async (confirmBelowPayments = false) => {
         if (!ledgerId) return;
         const token = Cookies.get('auth_token');
         if (!token) {
@@ -255,12 +273,16 @@ export const PaymentDetailsSection = ({
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
                 body: JSON.stringify({
+                    // Lets the backend refuse a save from a form opened before a payment came in.
+                    ledger_updated_at: paymentDetails.installment_plan?.ledger_updated_at || null,
+                    confirm_below_payments: confirmBelowPayments,
                     rows: editedRows.map((r) => ({
                         month: r.month,
                         label: r.label,
                         due_date: r.due_date,
                         amount: parseFloat(r.amount) || 0,
                         paid_amount: parseFloat(r.paid_amount) || 0,
+                        original_paid_amount: parseFloat(r.original_paid_amount) || 0,
                         payment_method: r.payment_method || null,
                         // '' means "leave it to the backend" (defaults to now() on a paid-amount
                         // change); a value here is the admin explicitly picking the payment date.
@@ -269,6 +291,19 @@ export const PaymentDetailsSection = ({
                 }),
             });
             const json = await res.json();
+            if (res.status === 409 && json.code === 'LEDGER_CHANGED') {
+                toast.error(json.message, { duration: 8000 });
+                setIsEditMode(false);
+                if (onSaved) await onSaved();
+                return;
+            }
+            if (res.status === 409 && json.code === 'BELOW_PAYMENTS') {
+                if (window.confirm(json.message)) {
+                    setSavingRows(false);
+                    await handleSaveRows(true);
+                }
+                return;
+            }
             if (!res.ok || !json.success) throw new Error(json.message || 'Failed to save ledger');
             toast.success('Ledger updated successfully');
             setIsEditMode(false);
@@ -680,6 +715,11 @@ export const PaymentDetailsSection = ({
                                                             (collected_amount) — can be more than the month's due. */}
                                                         <span className="whitespace-nowrap">{(inst.collected_amount || 0) > 0 ? rs(inst.collected_amount) : '-'}</span>
                                                         <CarryLines carriedOut={inst.carried_out} />
+                                                        {uncountedByMonth.get(inst.month) ? (
+                                                            <div className="mt-0.5 max-w-[220px] text-[11px] font-bold text-orange-600 dark:text-orange-400">
+                                                                ⚠ {rs(uncountedByMonth.get(inst.month) as number)} received here (see Method) but not counted — a Super Admin edit set this month lower. Fix it in Edit Ledger.
+                                                            </div>
+                                                        ) : null}
                                                     </td>
                                                     <td className="px-4 py-2 align-top text-sm font-bold text-green-600 dark:text-green-400">
                                                         {/* How much of this month's installment is covered: its own
@@ -884,7 +924,7 @@ export const PaymentDetailsSection = ({
                             {isEditMode && (
                                 <div className="mt-4 flex items-center gap-3">
                                     <button
-                                        onClick={handleSaveRows}
+                                        onClick={() => handleSaveRows()}
                                         disabled={savingRows}
                                         className="rounded-lg bg-primary px-4 py-2 text-sm font-bold text-white disabled:opacity-50"
                                     >
