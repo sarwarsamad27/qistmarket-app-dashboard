@@ -61,6 +61,22 @@ function previewCarryFlow(rows: { month: number; amount: number; collected: numb
             if (chunk.remaining <= 0.01) queue.shift();
         }
     });
+    // Pass 3: a month still short pulls from the newest later month's own collection
+    // (money settles the oldest balance first, whichever month it was tagged to).
+    rows.forEach((row, i) => {
+        const r = result[i];
+        let room = Math.max(0, row.amount - r.ownApplied - r.received);
+        for (let j = rows.length - 1; j > i && room > 0.01; j--) {
+            const src = result[j];
+            const take = Math.min(src.ownApplied, room);
+            if (take <= 0.01) continue;
+            src.ownApplied -= take;
+            room -= take;
+            r.received += take;
+            r.carriedIn.push({ fromMonth: rows[j].month, amount: take });
+            src.carriedOut.push({ toMonth: row.month, amount: take });
+        }
+    });
     queue.forEach((chunk) => result[chunk.sourceIndex].carriedOut.push({ toMonth: null, amount: chunk.remaining }));
     return result;
 }
@@ -95,13 +111,13 @@ const CarryLines = ({ carriedIn = [], carriedOut = [] }: { carriedIn?: CarryIn[]
     <>
         {carriedIn.map((c, i) => (
             <div key={`in-${i}`} className="mt-0.5 whitespace-nowrap text-[11px] font-semibold text-purple-600 dark:text-purple-400">
-                ← {rs(c.amount)} from Month {c.fromMonth}&apos;s extra payment
+                ← {rs(c.amount)} from Month {c.fromMonth}&apos;s payment
             </div>
         ))}
         {carriedOut.map((c, i) => (
             c.toMonth ? (
                 <div key={`out-${i}`} className="mt-0.5 whitespace-nowrap text-[11px] font-semibold text-blue-600 dark:text-blue-400">
-                    → {rs(c.amount)} extra moved to Month {c.toMonth}
+                    → {rs(c.amount)} moved to Month {c.toMonth}
                 </div>
             ) : (
                 <div key={`out-${i}`} className="mt-0.5 text-[11px] font-bold text-orange-600 dark:text-orange-400">
@@ -660,8 +676,8 @@ export const PaymentDetailsSection = ({
                                 <div className="mb-3 flex flex-wrap gap-x-5 gap-y-1 rounded-lg bg-white px-4 py-2 text-[11px] text-gray-500 shadow-sm dark:bg-gray-800 dark:text-gray-400">
                                     <span><strong className="text-dark dark:text-white">Customer paid</strong> = what the customer actually paid against that month</span>
                                     <span><strong className="text-green-600">Counted for month</strong> = how much of that month&apos;s installment is covered</span>
-                                    <span className="text-blue-600 dark:text-blue-400">→ extra moved to another unpaid month (oldest first)</span>
-                                    <span className="text-purple-600 dark:text-purple-400">← received from an earlier month&apos;s extra</span>
+                                    <span className="text-blue-600 dark:text-blue-400">→ moved to another unpaid month (oldest first)</span>
+                                    <span className="text-purple-600 dark:text-purple-400">← received from another month&apos;s payment</span>
                                 </div>
                             )}
 
@@ -807,7 +823,7 @@ export const PaymentDetailsSection = ({
                                                         if (inst.paid_amount > 0 && carriedFrom.length > 0 && !(inst.collected_amount > 0)) {
                                                             return (
                                                                 <>
-                                                                    <td className="px-4 py-2 whitespace-nowrap text-sm text-purple-600 dark:text-purple-400">From {carriedFrom.join(', ')} extra</td>
+                                                                    <td className="px-4 py-2 whitespace-nowrap text-sm text-purple-600 dark:text-purple-400">From {carriedFrom.join(', ')} payment</td>
                                                                     <td className="px-4 py-2 text-sm text-gray-400">-</td>
                                                                     <td className="px-4 py-2 text-sm text-gray-400">-</td>
                                                                 </>
