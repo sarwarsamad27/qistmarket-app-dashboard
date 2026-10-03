@@ -8,7 +8,7 @@ import Cookies from "js-cookie";
 import DepartmentSelect from "@/components/EmployeePortal/DepartmentSelect";
 import toast from "react-hot-toast";
 import Image from "next/image";
-import { User, FileText, DollarSign, Activity, Star, ClipboardList, Calendar, Upload, Search, Trash2, Download, ShoppingBag, Camera } from "lucide-react";
+import { User, FileText, DollarSign, Activity, Star, ClipboardList, Calendar, Upload, Search, Trash2, Download, ShoppingBag, Camera, RotateCcw, Pencil } from "lucide-react";
 import EmployeeAvatar from "@/components/EmployeePortal/EmployeeAvatar";
 import EmployeeOrders from "@/components/EmployeePortal/EmployeeOrders";
 import { apiErrorMessage } from "@/lib/apiErrors";
@@ -29,6 +29,20 @@ interface HrDocument { id: number; doc_type: string; title: string; file_url: st
 interface HrLoan { id: number; loan_type: string; total_amount: number; deducted_amount: number; monthly_installment: number; start_date: string; status: string; schedule_json?: string; }
 interface PayrollSlip { id: number; month: number; year: number; basic_salary: number; allowances: number; bonuses: number; commissions: number; deductions: number; net_payable: number; status: string; paid_date?: string; }
 interface LeaveRequest { id: number; leave_type: string; from_date: string; to_date: string; days?: number; status: string; reason?: string; }
+interface PerformanceRecord {
+  id: number;
+  month: number;
+  year: number;
+  kpi_score: number;
+  attendance_score: number;
+  recovery_pct?: number | null;
+  targets?: { sales?: number; recovery?: number; customers?: number };
+  achieved?: { sales?: number; recovery?: number; customers?: number };
+  team_rank?: number | null;
+  team_size?: number;
+  remarks?: string | null;
+  overrides?: any;
+}
 
 const API = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
 interface AttendanceRec {
@@ -64,9 +78,22 @@ export default function HrEmployeeDetailPage() {
   const [outlets, setOutlets] = useState<{ id: number; name: string; code: string }[]>([]);
   const [appUsers, setAppUsers] = useState<{ id: number; full_name: string; username: string; role: string | null }[]>([]);
   const [deviceUsers, setDeviceUsers] = useState<{ user_id: string; name: string | null; employee: { id: number; full_name: string } | null }[]>([]);
+  const [perfRecords, setPerfRecords] = useState<PerformanceRecord[]>([]);
+  const [perfLoading, setPerfLoading] = useState(false);
+  const [showOverrideForm, setShowOverrideForm] = useState(false);
 
   const [photoVersion, setPhotoVersion] = useState(0);
   const load = () => hrFetch(`/employees/${id}`).then((r) => setEmployee(r.employee));
+
+  const loadPerformance = () => {
+    if (!id) return;
+    setPerfLoading(true);
+    hrFetch(`/employees/${id}/performance`)
+      .then((r) => setPerfRecords(r.records || []))
+      .catch(() => {})
+      .finally(() => setPerfLoading(false));
+  };
+  useEffect(() => { if (id && tab === "performance") loadPerformance(); }, [id, tab]);
 
   // Profile photo = newest image uploaded as a "Photograph" document.
   const uploadPhoto = async (file?: File) => {
@@ -184,9 +211,60 @@ export default function HrEmployeeDetailPage() {
   };
 
   const submitPerformance = async (e: React.FormEvent) => {
-    e.preventDefault(); const fd = new FormData(e.target as HTMLFormElement);
-    await hrFetch(`/employees/${id}/performance`, { method: "POST", body: JSON.stringify({ month: fd.get("month"), year: fd.get("year"), kpi_score: fd.get("kpi_score"), attendance_score: fd.get("attendance_score"), targets: { sales: parseFloat(fd.get("target_sales") as string) || 0, recovery: parseFloat(fd.get("target_recovery") as string) || 0 }, achieved: { sales: parseFloat(fd.get("achieved_sales") as string) || 0, recovery: parseFloat(fd.get("achieved_recovery") as string) || 0 }, team_rank: fd.get("team_rank") || null, recovery_pct: fd.get("recovery_pct") || null, remarks: fd.get("remarks") }) });
-    toast.success("Performance saved"); load();
+    e.preventDefault();
+    const fd = new FormData(e.target as HTMLFormElement);
+    const val = (k: string) => (fd.get(k) as string) ?? "";
+    try {
+      await hrFetch(`/employees/${id}/performance`, {
+        method: "POST",
+        body: JSON.stringify({
+          month: val("month"),
+          year: val("year"),
+          kpi_score: val("kpi_score"),
+          attendance_score: val("attendance_score"),
+          recovery_pct: val("recovery_pct"),
+          team_rank: val("team_rank"),
+          targets: {
+            sales: val("target_sales"),
+            recovery: val("target_recovery"),
+          },
+          achieved: {
+            sales: val("achieved_sales"),
+            recovery: val("achieved_recovery"),
+          },
+          remarks: val("remarks"),
+        }),
+      });
+      toast.success("Performance overrides saved");
+      setShowOverrideForm(false);
+      loadPerformance();
+    } catch (err) {
+      toast.error((err as Error).message);
+    }
+  };
+
+  const resetPerformance = async (m: number, y: number) => {
+    const MONTHS_LIST = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    if (!confirm(`Reset ${MONTHS_LIST[m - 1]} ${y} performance to auto-calculated figures?`)) return;
+    try {
+      await hrFetch(`/employees/${id}/performance`, {
+        method: "POST",
+        body: JSON.stringify({
+          month: m,
+          year: y,
+          kpi_score: "",
+          attendance_score: "",
+          recovery_pct: "",
+          team_rank: "",
+          targets: { sales: "", recovery: "", customers: "" },
+          achieved: { sales: "", recovery: "", customers: "" },
+        }),
+      });
+      toast.success("Reset to auto-calculated figures");
+      loadPerformance();
+    } catch (err) {
+      toast.error((err as Error).message);
+    }
   };
 
   const uploadDoc = async (e: React.FormEvent) => {
@@ -498,24 +576,198 @@ export default function HrEmployeeDetailPage() {
 
         {/* PERFORMANCE */}
         {tab === "performance" && (
-          <div>
-            <form onSubmit={submitPerformance} className="mb-6 rounded-xl border border-stroke bg-white p-4 dark:border-stroke-dark dark:bg-dark-2">
-              <h3 className="mb-3 font-semibold">Record Performance</h3>
-              <div className="flex flex-wrap gap-3">
-                <input name="month" type="number" min="1" max="12" placeholder="Month" required className="rounded-lg border border-stroke px-3 py-2 text-sm dark:border-stroke-dark dark:bg-dark-2 w-20" />
-                <input name="year" type="number" placeholder="Year" required className="rounded-lg border border-stroke px-3 py-2 text-sm dark:border-stroke-dark dark:bg-dark-2 w-20" />
-                <input name="kpi_score" type="number" step="0.1" min={0} max={100} placeholder="KPI % (0-100)" className="rounded-lg border border-stroke px-3 py-2 text-sm dark:border-stroke-dark dark:bg-dark-2" />
-                <input name="attendance_score" type="number" step="0.1" min={0} max={100} placeholder="Attendance % (auto if blank)" className="rounded-lg border border-stroke px-3 py-2 text-sm dark:border-stroke-dark dark:bg-dark-2" />
-                <input name="target_sales" type="number" step="0.01" placeholder="Target Sales" className="rounded-lg border border-stroke px-3 py-2 text-sm dark:border-stroke-dark dark:bg-dark-2" />
-                <input name="target_recovery" type="number" step="0.01" placeholder="Target Recovery" className="rounded-lg border border-stroke px-3 py-2 text-sm dark:border-stroke-dark dark:bg-dark-2" />
-                <input name="achieved_sales" type="number" step="0.01" placeholder="Achieved Sales" className="rounded-lg border border-stroke px-3 py-2 text-sm dark:border-stroke-dark dark:bg-dark-2" />
-                <input name="achieved_recovery" type="number" step="0.01" placeholder="Achieved Recovery" className="rounded-lg border border-stroke px-3 py-2 text-sm dark:border-stroke-dark dark:bg-dark-2" />
-                <input name="recovery_pct" type="number" step="0.1" min={0} max={100} placeholder="Recovery %" className="rounded-lg border border-stroke px-3 py-2 text-sm dark:border-stroke-dark dark:bg-dark-2" />
-                <input name="team_rank" type="number" min={1} placeholder="Team Rank (auto if blank)" className="rounded-lg border border-stroke px-3 py-2 text-sm dark:border-stroke-dark dark:bg-dark-2" />
-                <input name="remarks" placeholder="Remarks" className="rounded-lg border border-stroke px-3 py-2 text-sm dark:border-stroke-dark dark:bg-dark-2" />
-                <button type="submit" className="rounded-lg bg-primary px-4 py-2 text-sm text-white">Save</button>
+          <div className="space-y-6">
+            {/* Header Info Banner */}
+            <div className="rounded-xl border border-blue-100 bg-gradient-to-r from-blue-50/70 via-indigo-50/50 to-white p-5 dark:border-stroke-dark dark:bg-dark-2">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex items-start gap-3">
+                  <div className="mt-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                    <Activity className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-base font-bold text-dark dark:text-white">Monthly Performance Records</h3>
+                      <span className="rounded-full bg-green/10 px-2.5 py-0.5 text-xs font-semibold text-green">
+                        Auto-Calculated System
+                      </span>
+                    </div>
+                    <p className="mt-1 text-xs text-gray-600 dark:text-gray-400">
+                      KPI Score, Attendance %, Target & Achieved Sales/Recovery, and Team Ranks are automatically calculated from biometric attendance, orders, and field visits. HR can override figures if needed.
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowOverrideForm(!showOverrideForm)}
+                  className="inline-flex shrink-0 items-center gap-2 rounded-lg border border-primary/20 bg-white px-3.5 py-2 text-xs font-semibold text-primary shadow-sm hover:bg-primary/5 dark:bg-dark-3"
+                >
+                  <Pencil className="h-3.5 w-3.5" />
+                  {showOverrideForm ? "Hide Override Form" : "Override Figures / Manual Edit"}
+                </button>
               </div>
-            </form>
+            </div>
+
+            {/* Optional Collapsible Manual Override Form */}
+            {showOverrideForm && (
+              <form onSubmit={submitPerformance} className="rounded-xl border border-stroke bg-white p-5 shadow-sm dark:border-stroke-dark dark:bg-dark-2">
+                <div className="mb-4 flex items-center justify-between border-b border-stroke pb-3 dark:border-stroke-dark">
+                  <h4 className="font-semibold text-dark dark:text-white">Override Performance Figures (HR Edit)</h4>
+                  <span className="text-xs text-gray-500">Leave any field blank to use system auto-calculated value</span>
+                </div>
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                  <div>
+                    <label className="text-xs font-medium text-gray-600 dark:text-gray-400">Month *</label>
+                    <input name="month" type="number" min="1" max="12" defaultValue={new Date().getMonth() + 1} required className="mt-1 w-full rounded-lg border border-stroke px-3 py-2 text-sm dark:border-stroke-dark dark:bg-dark-3" />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-gray-600 dark:text-gray-400">Year *</label>
+                    <input name="year" type="number" defaultValue={new Date().getFullYear()} required className="mt-1 w-full rounded-lg border border-stroke px-3 py-2 text-sm dark:border-stroke-dark dark:bg-dark-3" />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-gray-600 dark:text-gray-400">KPI Score % (0-100)</label>
+                    <input name="kpi_score" type="number" step="0.1" min={0} max={100} placeholder="Auto if blank" className="mt-1 w-full rounded-lg border border-stroke px-3 py-2 text-sm dark:border-stroke-dark dark:bg-dark-3" />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-gray-600 dark:text-gray-400">Attendance Score %</label>
+                    <input name="attendance_score" type="number" step="0.1" min={0} max={100} placeholder="Auto if blank" className="mt-1 w-full rounded-lg border border-stroke px-3 py-2 text-sm dark:border-stroke-dark dark:bg-dark-3" />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-gray-600 dark:text-gray-400">Target Sales (Rs.)</label>
+                    <input name="target_sales" type="number" step="0.01" placeholder="Auto if blank" className="mt-1 w-full rounded-lg border border-stroke px-3 py-2 text-sm dark:border-stroke-dark dark:bg-dark-3" />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-gray-600 dark:text-gray-400">Target Recovery (Rs.)</label>
+                    <input name="target_recovery" type="number" step="0.01" placeholder="Auto if blank" className="mt-1 w-full rounded-lg border border-stroke px-3 py-2 text-sm dark:border-stroke-dark dark:bg-dark-3" />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-gray-600 dark:text-gray-400">Achieved Sales (Rs.)</label>
+                    <input name="achieved_sales" type="number" step="0.01" placeholder="Auto if blank" className="mt-1 w-full rounded-lg border border-stroke px-3 py-2 text-sm dark:border-stroke-dark dark:bg-dark-3" />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-gray-600 dark:text-gray-400">Achieved Recovery (Rs.)</label>
+                    <input name="achieved_recovery" type="number" step="0.01" placeholder="Auto if blank" className="mt-1 w-full rounded-lg border border-stroke px-3 py-2 text-sm dark:border-stroke-dark dark:bg-dark-3" />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-gray-600 dark:text-gray-400">Recovery %</label>
+                    <input name="recovery_pct" type="number" step="0.1" min={0} max={100} placeholder="Auto if blank" className="mt-1 w-full rounded-lg border border-stroke px-3 py-2 text-sm dark:border-stroke-dark dark:bg-dark-3" />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-gray-600 dark:text-gray-400">Team Rank</label>
+                    <input name="team_rank" type="number" min={1} placeholder="Auto if blank" className="mt-1 w-full rounded-lg border border-stroke px-3 py-2 text-sm dark:border-stroke-dark dark:bg-dark-3" />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <label className="text-xs font-medium text-gray-600 dark:text-gray-400">Remarks / Notes</label>
+                    <input name="remarks" placeholder="Optional remarks..." className="mt-1 w-full rounded-lg border border-stroke px-3 py-2 text-sm dark:border-stroke-dark dark:bg-dark-3" />
+                  </div>
+                </div>
+                <div className="mt-4 flex justify-end gap-2">
+                  <button type="button" onClick={() => setShowOverrideForm(false)} className="rounded-lg border border-stroke px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 dark:border-stroke-dark dark:text-gray-300">
+                    Cancel
+                  </button>
+                  <button type="submit" className="rounded-lg bg-primary px-5 py-2 text-sm font-semibold text-white shadow hover:bg-primary/90">
+                    Save Overrides
+                  </button>
+                </div>
+              </form>
+            )}
+
+            {/* Performance Cards Grid */}
+            {perfLoading ? (
+              <div className="rounded-xl border border-stroke bg-white p-8 text-center text-gray-500 dark:border-stroke-dark dark:bg-dark-2">
+                Loading performance records...
+              </div>
+            ) : perfRecords.length === 0 ? (
+              <div className="rounded-xl border border-stroke bg-white p-8 text-center text-gray-500 dark:border-stroke-dark dark:bg-dark-2">
+                <Star className="mx-auto mb-2 h-8 w-8 text-gray-400" />
+                <p className="font-medium text-dark dark:text-white">No performance records found yet.</p>
+                <p className="mt-1 text-xs text-gray-400">Monthly performance will automatically compute when the active month completes or when metrics are logged.</p>
+              </div>
+            ) : (
+              <div className="grid gap-4 sm:grid-cols-1 md:grid-cols-2">
+                {perfRecords.map((r) => {
+                  const MONTHS_LIST = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+                  const mName = MONTHS_LIST[(r.month || 1) - 1];
+                  const hasOverridden = r.overrides && Object.keys(r.overrides).length > 0;
+                  const kpiVal = r.kpi_score ?? 0;
+                  const kpiColor = kpiVal >= 80 ? "bg-green/10 text-green border-green/20" : kpiVal >= 50 ? "bg-amber-500/10 text-amber-600 border-amber-500/20" : "bg-red/10 text-red border-red/20";
+
+                  return (
+                    <div key={r.id || `${r.year}-${r.month}`} className="rounded-xl border border-stroke bg-white p-5 shadow-sm dark:border-stroke-dark dark:bg-dark-2">
+                      <div className="flex items-center justify-between border-b border-stroke pb-3 dark:border-stroke-dark">
+                        <div>
+                          <h4 className="text-base font-bold text-dark dark:text-white">
+                            {mName} {r.year}
+                          </h4>
+                          <div className="mt-0.5 flex items-center gap-2">
+                            {hasOverridden ? (
+                              <span className="rounded-full bg-amber-500/10 px-2.5 py-0.5 text-[11px] font-semibold text-amber-600">
+                                Edited by HR
+                              </span>
+                            ) : (
+                              <span className="rounded-full bg-blue-500/10 px-2.5 py-0.5 text-[11px] font-semibold text-blue-600">
+                                Auto Computed
+                              </span>
+                            )}
+                            {r.team_rank && (
+                              <span className="text-xs text-gray-500">
+                                Rank #{r.team_rank} {r.team_size ? `of ${r.team_size}` : ""}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className={`rounded-xl border px-3 py-1.5 text-center ${kpiColor}`}>
+                          <div className="text-[10px] font-bold tracking-wider uppercase">KPI Score</div>
+                          <div className="text-lg font-black">{r.kpi_score != null ? `${r.kpi_score}%` : "—"}</div>
+                        </div>
+                      </div>
+
+                      <div className="mt-4 grid grid-cols-2 gap-3 text-xs">
+                        <div className="rounded-lg bg-gray-50 p-2.5 dark:bg-dark-3">
+                          <span className="text-gray-500">Attendance Score</span>
+                          <p className="mt-0.5 font-bold text-dark dark:text-white">{r.attendance_score != null ? `${r.attendance_score}%` : "—"}</p>
+                        </div>
+                        <div className="rounded-lg bg-gray-50 p-2.5 dark:bg-dark-3">
+                          <span className="text-gray-500">Recovery %</span>
+                          <p className="mt-0.5 font-bold text-dark dark:text-white">{r.recovery_pct != null ? `${r.recovery_pct}%` : "—"}</p>
+                        </div>
+
+                        <div className="rounded-lg bg-gray-50 p-2.5 dark:bg-dark-3">
+                          <span className="text-gray-500">Sales (Achieved / Target)</span>
+                          <p className="mt-0.5 font-bold text-dark dark:text-white">
+                            Rs. {(r.achieved?.sales || 0).toLocaleString()} / Rs. {(r.targets?.sales || 0).toLocaleString()}
+                          </p>
+                        </div>
+                        <div className="rounded-lg bg-gray-50 p-2.5 dark:bg-dark-3">
+                          <span className="text-gray-500">Recovery (Achieved / Target)</span>
+                          <p className="mt-0.5 font-bold text-dark dark:text-white">
+                            Rs. {(r.achieved?.recovery || 0).toLocaleString()} / Rs. {(r.targets?.recovery || 0).toLocaleString()}
+                          </p>
+                        </div>
+                      </div>
+
+                      {r.remarks && (
+                        <p className="mt-3 rounded-md bg-gray-50 px-2.5 py-1.5 text-xs text-gray-600 dark:bg-dark-3 dark:text-gray-400">
+                          <span className="font-semibold">Note:</span> {r.remarks}
+                        </p>
+                      )}
+
+                      {hasOverridden && (
+                        <div className="mt-3 flex justify-end">
+                          <button
+                            type="button"
+                            onClick={() => resetPerformance(r.month, r.year)}
+                            className="inline-flex items-center gap-1 text-xs font-medium text-red hover:underline"
+                          >
+                            <RotateCcw className="h-3 w-3" /> Reset to Auto
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         )}
 
