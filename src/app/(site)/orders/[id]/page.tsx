@@ -220,9 +220,9 @@ const shouldDisplay = (value: any): boolean => {
     return true;
 };
 // --- Verification Section Components (Field, Modal, etc.) ---
-const Field = ({ label, value, className = "" }: { label: string; value: any; className?: string }) => {
-    if (!shouldDisplay(value)) return null;
-    const displayValue = typeof value === 'boolean' ? (value ? 'Yes' : 'No') : value;
+const Field = ({ label, value, className = "", showEmpty = false }: { label: string; value: any; className?: string; showEmpty?: boolean }) => {
+    if (!shouldDisplay(value) && !showEmpty) return null;
+    const displayValue = !shouldDisplay(value) ? <span className="text-gray-400">—</span> : typeof value === 'boolean' ? (value ? 'Yes' : 'No') : value;
     return (
         <div className={className}>
             <label className="block text-sm font-medium text-gray-500 dark:text-gray-400">{label}</label>
@@ -357,6 +357,12 @@ export default function OrderDetailsPage() {
         location_type: '', label: '', person_type: '', address: '', latitude: '', longitude: '',
     });
     const [savingLocationEdit, setSavingLocationEdit] = useState(false);
+    // Missing location slot (purchaser / grantor1 / grantor2) being filled in, keyed by slot key
+    const [creatingLocationSlot, setCreatingLocationSlot] = useState<string | null>(null);
+    // GPS tracking row being edited: a row id, or 'new' for a missing start location
+    const [editingTrackingId, setEditingTrackingId] = useState<number | 'new' | null>(null);
+    const [trackingForm, setTrackingForm] = useState({ label: '', latitude: '', longitude: '', accuracy: '' });
+    const [savingTracking, setSavingTracking] = useState(false);
     const [editingCustomerInfo, setEditingCustomerInfo] = useState(false);
     const [customerInfoForm, setCustomerInfoForm] = useState({
         customer_name: '', whatsapp_number: '', alternate_contact: '', address: '', city: '', area: '', zone: '', block: '', house_no: '', street: '', gender: '', residential_type: '', order_notes: '',
@@ -598,6 +604,87 @@ export default function OrderDetailsPage() {
             toast.error(err.message || 'Failed to save location');
         } finally {
             setSavingLocationEdit(false);
+        }
+    };
+
+    // Creates a location for a slot the app never captured. Photos are optional,
+    // so a slot can be filled with just coordinates/address, or just photos.
+    const createSlotLocation = async (slot: { label: string; person_type: string; person_id: number | null }, fields: typeof locationEditForm | null, photos?: FileList) => {
+        if (!verification) return;
+        const token = Cookies.get('auth_token');
+        const formData = new FormData();
+        formData.append('location_type', fields?.location_type || 'captured');
+        formData.append('label', fields?.label || slot.label);
+        formData.append('person_type', fields?.person_type || slot.person_type);
+        if (slot.person_id) formData.append('person_id', String(slot.person_id));
+        if (fields?.address) formData.append('address', fields.address);
+        if (fields?.latitude) formData.append('latitude', fields.latitude);
+        if (fields?.longitude) formData.append('longitude', fields.longitude);
+        if (photos) Array.from(photos).slice(0, 5).forEach((file) => formData.append('photos', file));
+        if (photos && photos.length > 5) toast('Only the first 5 photos were uploaded — use "+ Add Photos" for the rest.');
+
+        setSavingLocationEdit(true);
+        try {
+            const res = await fetch(`${BACKEND_URL}/api/verification/${verification.id}/location/new`, {
+                method: 'POST',
+                headers: { Authorization: `Bearer ${token}` },
+                body: formData,
+            });
+            const json = await res.json();
+            if (!res.ok || !json.success) throw new Error(extractBodyMessage(json) || 'Failed to save location');
+            toast.success('Location saved');
+            setCreatingLocationSlot(null);
+            await fetchVerification();
+        } catch (err: any) {
+            toast.error(err.message || 'Failed to save location');
+        } finally {
+            setSavingLocationEdit(false);
+        }
+    };
+
+    const openCreateSlotLocation = (slot: { key: string; label: string; person_type: string }) => {
+        setLocationEditForm({ location_type: 'captured', label: slot.label, person_type: slot.person_type, address: '', latitude: '', longitude: '' });
+        setEditingLocationId(null);
+        setCreatingLocationSlot(slot.key);
+    };
+
+    const openEditTracking = (loc: any | null) => {
+        setTrackingForm({
+            label: loc?.label || 'Verification Start Location',
+            latitude: loc?.latitude != null ? String(loc.latitude) : '',
+            longitude: loc?.longitude != null ? String(loc.longitude) : '',
+            accuracy: loc?.accuracy != null ? String(loc.accuracy) : '',
+        });
+        setEditingTrackingId(loc ? loc.id : 'new');
+    };
+
+    const handleSaveTracking = async () => {
+        if (!verification || editingTrackingId === null) return;
+        if (!trackingForm.latitude.trim() || !trackingForm.longitude.trim()) {
+            toast.error('Latitude and longitude are required');
+            return;
+        }
+        const token = Cookies.get('auth_token');
+        const isNew = editingTrackingId === 'new';
+        setSavingTracking(true);
+        try {
+            const res = await fetch(
+                isNew ? `${BACKEND_URL}/api/verification/${verification.id}/location` : `${BACKEND_URL}/api/verification/tracking/${editingTrackingId}`,
+                {
+                    method: isNew ? 'POST' : 'PATCH',
+                    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                    body: JSON.stringify(trackingForm),
+                }
+            );
+            const json = await res.json();
+            if (!res.ok || !json.success) throw new Error(json.error?.message || json.message || 'Failed to save GPS location');
+            toast.success('GPS location saved');
+            setEditingTrackingId(null);
+            await fetchVerification();
+        } catch (err: any) {
+            toast.error(err.message || 'Failed to save GPS location');
+        } finally {
+            setSavingTracking(false);
         }
     };
 
@@ -2434,12 +2521,231 @@ export default function OrderDetailsPage() {
                             </div>
                         )}
 
-                        {/* Locations (view-only, verification page order/logic) */}
-                        {(verification.locations.length > 0 || verification.verification_locations.length > 0) && (
-                            <div className="mb-12">
-                                <h2 className="mb-4 text-2xl font-semibold text-dark dark:text-white">Location Tracking</h2>
+                        {/* Locations — always shown. Every expected slot (GPS start location,
+                            Purchaser / Guarantor 1 / Guarantor 2 capture) renders even when the
+                            app never captured it, so Super Admin can fill it in later. */}
+                        {(() => {
+                            const isSuperAdmin = user?.role === 'Super Admin';
+                            const gpsLocations = verification.locations || [];
+                            const allLocations = verification.verification_locations || [];
+                            const grantorId = (n: number) => (verification.grantors || []).find((g: any) => g.grantor_number === n)?.id ?? null;
+                            const slots = [
+                                { key: 'purchaser', label: 'Purchaser', person_type: 'purchaser', person_id: verification.purchaser?.id ?? null },
+                                { key: 'grantor1', label: 'Guarantor 1', person_type: 'grantor1', person_id: grantorId(1) },
+                                { key: 'grantor2', label: 'Guarantor 2', person_type: 'grantor2', person_id: grantorId(2) },
+                            ];
+                            const matchedIds = new Set<number>();
+                            const slotGroups = slots.map((slot) => {
+                                const matches = allLocations.filter((l: any) =>
+                                    l.location_type !== 'home' &&
+                                    (l.person_type === slot.person_type || (!l.person_type && l.label === slot.label))
+                                );
+                                matches.forEach((l: any) => matchedIds.add(l.id));
+                                return { slot, matches };
+                            });
+                            // Home location and anything else that doesn't fit a standard slot
+                            const extraLocations = allLocations.filter((l: any) => !matchedIds.has(l.id));
+                            const hasStartLocation = gpsLocations.some((l: any) => l.label === 'Verification Start Location');
 
-                                {verification.locations.length > 0 && (
+                            const coordinatesField = (lat: any, lng: any) => (
+                                <div className="flex flex-col">
+                                    <label className="block text-sm font-medium text-gray-500 dark:text-gray-400">Coordinates</label>
+                                    <div className="mt-1 flex items-center gap-3 rounded-lg bg-gray-100 px-4 py-2.5 dark:bg-dark-3">
+                                        <span className="dark:text-gray-300">
+                                            {lat != null && lng != null ? `${lat}, ${lng}` : <span className="text-gray-400">—</span>}
+                                        </span>
+                                        {lat != null && lng != null && (
+                                            <a
+                                                href={`https://www.google.com/maps/search/?api=1&query=${lat},${lng}`}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="text-xs font-bold text-primary hover:underline ml-auto"
+                                            >
+                                                VIEW ON GOOGLE MAP
+                                            </a>
+                                        )}
+                                    </div>
+                                </div>
+                            );
+
+                            const locationForm = (onSave: () => void, onCancel: () => void) => (
+                                <div className="mb-4 space-y-4">
+                                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                                        <LabeledInput label="Location Type" value={locationEditForm.location_type} onChange={(v) => setLocationEditForm((f) => ({ ...f, location_type: v }))} />
+                                        <LabeledInput label="Label" value={locationEditForm.label} onChange={(v) => setLocationEditForm((f) => ({ ...f, label: v }))} />
+                                        <LabeledInput label="Person Type" value={locationEditForm.person_type} onChange={(v) => setLocationEditForm((f) => ({ ...f, person_type: v }))} />
+                                        <LabeledInput label="Address" value={locationEditForm.address} onChange={(v) => setLocationEditForm((f) => ({ ...f, address: v }))} />
+                                        <LabeledInput label="Latitude" value={locationEditForm.latitude} onChange={(v) => setLocationEditForm((f) => ({ ...f, latitude: v }))} />
+                                        <LabeledInput label="Longitude" value={locationEditForm.longitude} onChange={(v) => setLocationEditForm((f) => ({ ...f, longitude: v }))} />
+                                    </div>
+                                    <div className="flex gap-3">
+                                        <button
+                                            onClick={onSave}
+                                            disabled={savingLocationEdit}
+                                            className="rounded-lg bg-primary px-4 py-2 text-sm font-bold text-white disabled:opacity-50"
+                                        >
+                                            {savingLocationEdit ? 'Saving...' : 'Save Changes'}
+                                        </button>
+                                        <button
+                                            onClick={onCancel}
+                                            disabled={savingLocationEdit}
+                                            className="rounded-lg border border-stroke px-4 py-2 text-sm dark:border-dark-3 dark:text-gray-300"
+                                        >
+                                            Cancel
+                                        </button>
+                                    </div>
+                                </div>
+                            );
+
+                            const renderLocationCard = (loc: any) => (
+                                <div key={loc.id} className="rounded-lg border border-stroke p-4 dark:border-dark-3">
+                                    <div className="mb-4 flex items-center justify-between">
+                                        <span className="text-xs font-bold uppercase tracking-wide text-gray-400">Location #{loc.id}</span>
+                                        {isSuperAdmin && editingLocationId !== loc.id && (
+                                            <button
+                                                onClick={() => { setCreatingLocationSlot(null); openEditLocation(loc); }}
+                                                className="text-xs font-bold text-primary hover:underline"
+                                            >
+                                                Edit
+                                            </button>
+                                        )}
+                                    </div>
+
+                                    {editingLocationId === loc.id ? (
+                                        locationForm(handleSaveLocationEdit, () => setEditingLocationId(null))
+                                    ) : (
+                                        <div className="mb-4 grid grid-cols-1 gap-4 md:grid-cols-2">
+                                            <Field showEmpty label="Location Type" value={loc.location_type} />
+                                            <Field showEmpty label="Label" value={loc.label} />
+                                            <Field showEmpty label="Person Type" value={loc.person_type} />
+                                            {coordinatesField(loc.latitude, loc.longitude)}
+                                            <Field showEmpty label="Address" value={loc.address} />
+                                            <Field showEmpty label="Captured At" value={loc.created_at ? formatExactDate(loc.created_at) : null} />
+                                        </div>
+                                    )}
+
+                                    <div>
+                                        <div className="mb-3 flex items-center justify-between">
+                                            <h4 className="font-medium text-gray-700 dark:text-gray-300">Photos</h4>
+                                            <label className="cursor-pointer rounded-md bg-primary px-3 py-1.5 text-xs font-semibold text-white hover:bg-opacity-90">
+                                                + Add Photos
+                                                <input
+                                                    type="file"
+                                                    accept="image/*"
+                                                    multiple
+                                                    className="hidden"
+                                                    onChange={(e) => {
+                                                        if (e.target.files && e.target.files.length > 0) {
+                                                            handleAddLocationPhotos(e.target.files, loc.id);
+                                                        }
+                                                        e.target.value = '';
+                                                    }}
+                                                />
+                                            </label>
+                                        </div>
+                                        {loc.photos && loc.photos.length > 0 ? (
+                                            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                                                {loc.photos.map((photo: any) => (
+                                                    <MediaCard
+                                                        key={photo.id}
+                                                        id={photo.id}
+                                                        title={`${loc.label} - Photo`}
+                                                        fileUrl={photo.file_url}
+                                                        uploadedAt={photo.uploaded_at}
+                                                        isEditable={isSuperAdmin}
+                                                        onEdit={(file) => handleLocationMediaReplace(file, photo.id)}
+                                                        onDelete={isSuperAdmin ? () => handleDeleteLocationPhoto(photo.id) : undefined}
+                                                        editHistory={verification?.edit_history}
+                                                        historyFilter={(h) => h.entity_type === 'location_photo' && h.entity_id === photo.id}
+                                                    />
+                                                ))}
+                                            </div>
+                                        ) : (
+                                            <p className="text-sm text-gray-400">No photos yet.</p>
+                                        )}
+                                    </div>
+                                </div>
+                            );
+
+                            const renderMissingSlot = (slot: typeof slots[number]) => (
+                                <div key={`missing-${slot.key}`} className="rounded-lg border-2 border-dashed border-gray-200 p-4 dark:border-dark-3">
+                                    <div className="mb-4 flex items-center justify-between">
+                                        <span className="text-xs font-bold uppercase tracking-wide text-gray-400">
+                                            {slot.label} Location · <span className="text-yellow-600 dark:text-yellow-400">Not captured</span>
+                                        </span>
+                                        {isSuperAdmin && creatingLocationSlot !== slot.key && (
+                                            <button
+                                                onClick={() => openCreateSlotLocation(slot)}
+                                                className="text-xs font-bold text-primary hover:underline"
+                                            >
+                                                Fill In
+                                            </button>
+                                        )}
+                                    </div>
+
+                                    {creatingLocationSlot === slot.key ? (
+                                        locationForm(() => createSlotLocation(slot, locationEditForm), () => setCreatingLocationSlot(null))
+                                    ) : (
+                                        <div className="mb-4 grid grid-cols-1 gap-4 md:grid-cols-2">
+                                            <Field showEmpty label="Location Type" value={null} />
+                                            <Field showEmpty label="Label" value={slot.label} />
+                                            <Field showEmpty label="Person Type" value={slot.person_type} />
+                                            {coordinatesField(null, null)}
+                                            <Field showEmpty label="Address" value={null} />
+                                            <Field showEmpty label="Captured At" value={null} />
+                                        </div>
+                                    )}
+
+                                    <div>
+                                        <div className="mb-3 flex items-center justify-between">
+                                            <h4 className="font-medium text-gray-700 dark:text-gray-300">Photos</h4>
+                                            {isSuperAdmin && (
+                                                <label className="cursor-pointer rounded-md bg-primary px-3 py-1.5 text-xs font-semibold text-white hover:bg-opacity-90">
+                                                    + Add Photos
+                                                    <input
+                                                        type="file"
+                                                        accept="image/*"
+                                                        multiple
+                                                        className="hidden"
+                                                        onChange={(e) => {
+                                                            if (e.target.files && e.target.files.length > 0) {
+                                                                // Saves the location together with its photos; uses the
+                                                                // open form's values if Super Admin already typed some in.
+                                                                createSlotLocation(slot, creatingLocationSlot === slot.key ? locationEditForm : null, e.target.files);
+                                                            }
+                                                            e.target.value = '';
+                                                        }}
+                                                    />
+                                                </label>
+                                            )}
+                                        </div>
+                                        <p className="text-sm text-gray-400">No photos yet.</p>
+                                    </div>
+                                </div>
+                            );
+
+                            const trackingInputs = (
+                                <>
+                                    <td className="px-4 py-2"><input className="w-full rounded border border-stroke px-2 py-1 text-sm dark:border-dark-3 dark:bg-dark-3 dark:text-white" value={trackingForm.label} onChange={(e) => setTrackingForm((f) => ({ ...f, label: e.target.value }))} /></td>
+                                    <td className="px-4 py-2"><input className="w-full rounded border border-stroke px-2 py-1 text-sm dark:border-dark-3 dark:bg-dark-3 dark:text-white" placeholder="24.9..." value={trackingForm.latitude} onChange={(e) => setTrackingForm((f) => ({ ...f, latitude: e.target.value }))} /></td>
+                                    <td className="px-4 py-2"><input className="w-full rounded border border-stroke px-2 py-1 text-sm dark:border-dark-3 dark:bg-dark-3 dark:text-white" placeholder="67.0..." value={trackingForm.longitude} onChange={(e) => setTrackingForm((f) => ({ ...f, longitude: e.target.value }))} /></td>
+                                    <td className="px-4 py-2"><input className="w-full rounded border border-stroke px-2 py-1 text-sm dark:border-dark-3 dark:bg-dark-3 dark:text-white" placeholder="meters" value={trackingForm.accuracy} onChange={(e) => setTrackingForm((f) => ({ ...f, accuracy: e.target.value }))} /></td>
+                                    <td className="px-4 py-2 text-gray-400">—</td>
+                                    <td className="px-4 py-2 whitespace-nowrap">
+                                        <button onClick={handleSaveTracking} disabled={savingTracking} className="mr-3 font-medium text-primary hover:underline disabled:opacity-50">
+                                            {savingTracking ? 'Saving...' : 'Save'}
+                                        </button>
+                                        <button onClick={() => setEditingTrackingId(null)} disabled={savingTracking} className="font-medium text-gray-500 hover:underline">
+                                            Cancel
+                                        </button>
+                                    </td>
+                                </>
+                            );
+
+                            return (
+                                <div className="mb-12">
+                                    <h2 className="mb-4 text-2xl font-semibold text-dark dark:text-white">Location Tracking</h2>
+
                                     <div className="mb-8">
                                         <h3 className="mb-3 text-xl font-semibold text-dark dark:text-white">GPS Locations</h3>
                                         <div className="overflow-x-auto">
@@ -2455,151 +2761,74 @@ export default function OrderDetailsPage() {
                                                     </tr>
                                                 </thead>
                                                 <tbody>
-                                                    {verification.locations.map((loc) => (
+                                                    {gpsLocations.map((loc: any) => (
                                                         <tr key={loc.id} className="border-b border-stroke dark:border-dark-3">
-                                                            <td className="px-4 py-2">{loc.label}</td>
-                                                            <td className="px-4 py-2">{loc.latitude}</td>
-                                                            <td className="px-4 py-2">{loc.longitude}</td>
-                                                            <td className="px-4 py-2">{loc.accuracy ? `${loc.accuracy} meters` : '—'}</td>
-                                                            <td className="px-4 py-2">{formatExactDate(loc.timestamp)}</td>
-                                                            <td className="px-4 py-2">
-                                                                <a
-                                                                    href={`https://www.google.com/maps/search/?api=1&query=${loc.latitude},${loc.longitude}`}
-                                                                    target="_blank"
-                                                                    rel="noopener noreferrer"
-                                                                    className="text-primary hover:underline font-medium"
-                                                                >
-                                                                    View on Map
-                                                                </a>
-                                                            </td>
-                                                        </tr>
-                                                    ))}
-                                                </tbody>
-                                            </table>
-                                        </div>
-                                    </div>
-                                )}
-
-                                {verification.verification_locations.length > 0 && (
-                                    <div>
-                                        <h3 className="mb-3 text-xl font-semibold text-dark dark:text-white">Location Photos</h3>
-                                        <div className="space-y-6">
-                                            {verification.verification_locations.map((loc) => (
-                                                <div key={loc.id} className="rounded-lg border border-stroke p-4 dark:border-dark-3">
-                                                    <div className="mb-4 flex items-center justify-between">
-                                                        <span className="text-xs font-bold uppercase tracking-wide text-gray-400">Location #{loc.id}</span>
-                                                        {user?.role === 'Super Admin' && editingLocationId !== loc.id && (
-                                                            <button
-                                                                onClick={() => openEditLocation(loc)}
-                                                                className="text-xs font-bold text-primary hover:underline"
-                                                            >
-                                                                Edit
-                                                            </button>
-                                                        )}
-                                                    </div>
-
-                                                    {editingLocationId === loc.id ? (
-                                                        <div className="mb-4 space-y-4">
-                                                            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                                                                <LabeledInput label="Location Type" value={locationEditForm.location_type} onChange={(v) => setLocationEditForm((f) => ({ ...f, location_type: v }))} />
-                                                                <LabeledInput label="Label" value={locationEditForm.label} onChange={(v) => setLocationEditForm((f) => ({ ...f, label: v }))} />
-                                                                <LabeledInput label="Person Type" value={locationEditForm.person_type} onChange={(v) => setLocationEditForm((f) => ({ ...f, person_type: v }))} />
-                                                                <LabeledInput label="Address" value={locationEditForm.address} onChange={(v) => setLocationEditForm((f) => ({ ...f, address: v }))} />
-                                                                <LabeledInput label="Latitude" value={locationEditForm.latitude} onChange={(v) => setLocationEditForm((f) => ({ ...f, latitude: v }))} />
-                                                                <LabeledInput label="Longitude" value={locationEditForm.longitude} onChange={(v) => setLocationEditForm((f) => ({ ...f, longitude: v }))} />
-                                                            </div>
-                                                            <div className="flex gap-3">
-                                                                <button
-                                                                    onClick={handleSaveLocationEdit}
-                                                                    disabled={savingLocationEdit}
-                                                                    className="rounded-lg bg-primary px-4 py-2 text-sm font-bold text-white disabled:opacity-50"
-                                                                >
-                                                                    {savingLocationEdit ? 'Saving...' : 'Save Changes'}
-                                                                </button>
-                                                                <button
-                                                                    onClick={() => setEditingLocationId(null)}
-                                                                    disabled={savingLocationEdit}
-                                                                    className="rounded-lg border border-stroke px-4 py-2 text-sm dark:border-dark-3 dark:text-gray-300"
-                                                                >
-                                                                    Cancel
-                                                                </button>
-                                                            </div>
-                                                        </div>
-                                                    ) : (
-                                                        <div className="mb-4 grid grid-cols-1 gap-4 md:grid-cols-2">
-                                                            <Field label="Location Type" value={loc.location_type} />
-                                                            <Field label="Label" value={loc.label} />
-                                                            <Field label="Person Type" value={loc.person_type} />
-                                                            <div className="flex flex-col">
-                                                                <label className="block text-sm font-medium text-gray-500 dark:text-gray-400">Coordinates</label>
-                                                                <div className="mt-1 flex items-center gap-3 rounded-lg bg-gray-100 px-4 py-2.5 dark:bg-dark-3">
-                                                                    <span className="dark:text-gray-300">
-                                                                        {loc.latitude && loc.longitude ? `${loc.latitude}, ${loc.longitude}` : '—'}
-                                                                    </span>
-                                                                    {loc.latitude && loc.longitude && (
+                                                            {editingTrackingId === loc.id ? trackingInputs : (
+                                                                <>
+                                                                    <td className="px-4 py-2">{loc.label}</td>
+                                                                    <td className="px-4 py-2">{loc.latitude}</td>
+                                                                    <td className="px-4 py-2">{loc.longitude}</td>
+                                                                    <td className="px-4 py-2">{loc.accuracy ? `${loc.accuracy} meters` : '—'}</td>
+                                                                    <td className="px-4 py-2">{formatExactDate(loc.timestamp)}</td>
+                                                                    <td className="px-4 py-2 whitespace-nowrap">
                                                                         <a
                                                                             href={`https://www.google.com/maps/search/?api=1&query=${loc.latitude},${loc.longitude}`}
                                                                             target="_blank"
                                                                             rel="noopener noreferrer"
-                                                                            className="text-xs font-bold text-primary hover:underline ml-auto"
+                                                                            className="text-primary hover:underline font-medium"
                                                                         >
-                                                                            VIEW ON GOOGLE MAP
+                                                                            View on Map
                                                                         </a>
-                                                                    )}
-                                                                </div>
-                                                            </div>
-                                                            <Field label="Address" value={loc.address} />
-                                                            <Field label="Captured At" value={loc.created_at ? formatExactDate(loc.created_at) : null} />
-                                                        </div>
+                                                                        {isSuperAdmin && (
+                                                                            <button onClick={() => openEditTracking(loc)} className="ml-3 font-medium text-primary hover:underline">
+                                                                                Edit
+                                                                            </button>
+                                                                        )}
+                                                                    </td>
+                                                                </>
+                                                            )}
+                                                        </tr>
+                                                    ))}
+                                                    {!hasStartLocation && (
+                                                        <tr className="border-b border-dashed border-stroke dark:border-dark-3">
+                                                            {editingTrackingId === 'new' ? trackingInputs : (
+                                                                <>
+                                                                    <td className="px-4 py-2">
+                                                                        Verification Start Location
+                                                                        <span className="ml-2 text-xs font-semibold text-yellow-600 dark:text-yellow-400">Not captured</span>
+                                                                    </td>
+                                                                    <td className="px-4 py-2 text-gray-400">—</td>
+                                                                    <td className="px-4 py-2 text-gray-400">—</td>
+                                                                    <td className="px-4 py-2 text-gray-400">—</td>
+                                                                    <td className="px-4 py-2 text-gray-400">—</td>
+                                                                    <td className="px-4 py-2">
+                                                                        {isSuperAdmin && (
+                                                                            <button onClick={() => openEditTracking(null)} className="font-medium text-primary hover:underline">
+                                                                                Fill In
+                                                                            </button>
+                                                                        )}
+                                                                    </td>
+                                                                </>
+                                                            )}
+                                                        </tr>
                                                     )}
-
-                                                    <div>
-                                                        <div className="mb-3 flex items-center justify-between">
-                                                            <h4 className="font-medium text-gray-700 dark:text-gray-300">Photos</h4>
-                                                            <label className="cursor-pointer rounded-md bg-primary px-3 py-1.5 text-xs font-semibold text-white hover:bg-opacity-90">
-                                                                + Add Photos
-                                                                <input
-                                                                    type="file"
-                                                                    accept="image/*"
-                                                                    multiple
-                                                                    className="hidden"
-                                                                    onChange={(e) => {
-                                                                        if (e.target.files && e.target.files.length > 0) {
-                                                                            handleAddLocationPhotos(e.target.files, loc.id);
-                                                                        }
-                                                                        e.target.value = '';
-                                                                    }}
-                                                                />
-                                                            </label>
-                                                        </div>
-                                                        {loc.photos && loc.photos.length > 0 ? (
-                                                            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                                                                {loc.photos.map((photo: any) => (
-                                                                    <MediaCard
-                                                                        key={photo.id}
-                                                                        id={photo.id}
-                                                                        title={`${loc.label} - Photo`}
-                                                                        fileUrl={photo.file_url}
-                                                                        uploadedAt={photo.uploaded_at}
-                                                                        isEditable={user?.role === 'Super Admin'}
-                                                                        onEdit={(file) => handleLocationMediaReplace(file, photo.id)}
-                                                                        onDelete={user?.role === 'Super Admin' ? () => handleDeleteLocationPhoto(photo.id) : undefined}
-                                                                        editHistory={verification?.edit_history}
-                                                                        historyFilter={(h) => h.entity_type === 'location_photo' && h.entity_id === photo.id}
-                                                                    />
-                                                                ))}
-                                                            </div>
-                                                        ) : (
-                                                            <p className="text-sm text-gray-400">No photos yet.</p>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                            ))}
+                                                </tbody>
+                                            </table>
                                         </div>
                                     </div>
-                                )}
-                            </div>
-                        )}
+
+                                    <div>
+                                        <h3 className="mb-3 text-xl font-semibold text-dark dark:text-white">Location Photos</h3>
+                                        <div className="space-y-6">
+                                            {slotGroups.map(({ slot, matches }) =>
+                                                matches.length > 0 ? matches.map(renderLocationCard) : renderMissingSlot(slot)
+                                            )}
+                                            {extraLocations.map(renderLocationCard)}
+                                        </div>
+                                    </div>
+                                </div>
+                            );
+                        })()}
                     </div>
                 )}
             </div>
