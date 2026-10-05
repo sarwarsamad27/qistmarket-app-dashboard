@@ -785,7 +785,7 @@ export const PaymentDetailsSection = ({
                                                                                             ? 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-200'
                                                                                             : 'bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
                                                                                 )}>
-                                                                                    {g.method}
+                                                                                    {(inst.admin_edited && inst.payment_method) ? inst.payment_method : g.method}
                                                                                 </span>
                                                                                 <span className={cn('block whitespace-nowrap text-[10px]', g.uncounted ? 'font-bold text-orange-600 dark:text-orange-400' : 'font-normal text-gray-500 dark:text-gray-400')}>
                                                                                     {viaAmount(g)}{g.uncounted ? ' · not counted' : ''}{g.txn ? ` · TxID ${g.txn}` : ''}
@@ -827,7 +827,7 @@ export const PaymentDetailsSection = ({
                                                         return (
                                                             <>
                                                                 <td className="px-4 py-2 text-sm text-gray-600 dark:text-gray-400">
-                                                                    {inst.paid_amount > 0 ? (isOnline ? 'Online Payment' : (inst.payment_method || '-')) : '-'}
+                                                                    {inst.paid_amount > 0 ? (inst.payment_method || (isOnline ? 'Online Payment' : '-')) : '-'}
                                                                 </td>
                                                                 <td className="px-4 py-2 text-sm font-semibold text-slate-800 dark:text-slate-200">
                                                                     {inst.paid_amount > 0
