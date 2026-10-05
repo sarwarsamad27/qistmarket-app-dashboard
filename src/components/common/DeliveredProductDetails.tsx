@@ -838,6 +838,7 @@ export default function DeliveredProductDetails({
                     paymentDetails={deliveredProduct.payment_details}
                     title={deliveredProduct.archived_deliveries?.length > 0 ? "Payment Details (New Product After Exchange)" : "Payment Details (Current Delivery)"}
                     editable={user?.role === 'Super Admin'}
+                    showAdminEdits={user?.role === 'Super Admin' || user?.role === 'Admin'}
                     orderId={deliveredProduct.order_info?.id}
                     onSaved={fetchDeliveredProductDetails}
                 />

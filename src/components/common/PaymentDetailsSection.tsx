@@ -130,6 +130,7 @@ export const PaymentDetailsSection = ({
     orderId,
     onSaved,
     returned = false,
+    showAdminEdits = false,
 }: {
     paymentDetails: any,
     title?: string,
@@ -141,6 +142,8 @@ export const PaymentDetailsSection = ({
      * arrears is where collection actually stopped, not an active "still
      * owed" balance, so it gets a clearer label than the live-ledger "arr" badge. */
     returned?: boolean,
+    /** Admin-only: tag months a Super Admin changed via Edit Ledger. */
+    showAdminEdits?: boolean,
 }) => {
     const [expandedInstallments, setExpandedInstallments] = useState(true);
     const [isEditMode, setIsEditMode] = useState(false);
@@ -686,7 +689,17 @@ export const PaymentDetailsSection = ({
                                         <tbody className="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-800">
                                             {!isEditMode ? installments.map((inst: any, idx: number) => (
                                                 <tr key={idx} className="align-top hover:bg-gray-50 dark:hover:bg-gray-700">
-                                                    <td className="px-4 py-2 whitespace-nowrap text-sm text-dark dark:text-white">{inst.label || `Month ${inst.month}`}</td>
+                                                    <td className="px-4 py-2 whitespace-nowrap text-sm text-dark dark:text-white">
+                                                        {inst.label || `Month ${inst.month}`}
+                                                        {showAdminEdits && inst.admin_edited && (
+                                                            <div
+                                                                className="mt-1 w-fit rounded bg-amber-100 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
+                                                                title={inst.admin_edited_at ? `Edited in Edit Ledger on ${formatExactDate(inst.admin_edited_at, 'DD MMM YYYY, hh:mm A')}` : 'Edited in Edit Ledger'}
+                                                            >
+                                                                Edited
+                                                            </div>
+                                                        )}
+                                                    </td>
                                                     <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-600 dark:text-gray-400">
                                                         {inst.due_date ? formatExactDate(inst.due_date, 'DD MMM YYYY') : '-'}
                                                     </td>
