@@ -6,6 +6,7 @@ import toast from "react-hot-toast";
 import Cookies from "js-cookie";
 import { useAuth } from "../../../contexts/AuthContext";
 import { apiErrorMessage } from "@/lib/apiErrors";
+import { useInstallmentFormula, calculateInstallmentPlans, findTier, roundAmount } from "@/lib/emiCalculator";
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
 
@@ -240,64 +241,13 @@ const CreateOrders: React.FC = () => {
     return () => clearTimeout(timer);
   }, [formData.alternate_contact]);
 
-  // Round up logic
-  const roundUp = (val: number) => Math.ceil(val / 50) * 50;
+  // Admin-editable formula (EMI Calculator page) — tiers, profit/advance % and rounding.
+  const installmentFormula = useInstallmentFormula();
+  const roundUp = (val: number) => roundAmount(val, installmentFormula?.rounding);
+  const formulaMonths = Array.from(new Set((installmentFormula?.tiers || []).flatMap(t => t.plans.map(p => p.months)))).sort((a, b) => a - b);
 
   const calculateInstallments = (category: string, price: number) => {
-    const cat = category.toLowerCase().trim();
-    let plans = [];
-
-    if (cat === 'mobiles' && price <= 60000) {
-      plans = [
-        { months: 3, profit: 0.20, advance: 0.35 },
-        { months: 6, profit: 0.35, advance: 0.25 },
-        { months: 9, profit: 0.45, advance: 0.20 },
-        { months: 11, profit: 0.52, advance: 0.18 },
-        { months: 12, profit: 0.55, advance: 0.15 },
-      ];
-    } else if (price > 50000 && price <= 100000) {
-      plans = [
-        { months: 3, profit: 0.20, advance: 0.40 },
-        { months: 6, profit: 0.35, advance: 0.35 },
-        { months: 9, profit: 0.45, advance: 0.30 },
-        { months: 11, profit: 0.52, advance: 0.28 },
-        { months: 12, profit: 0.55, advance: 0.25 },
-        { months: 24, profit: 0.85, advance: 0.25 },
-      ];
-    } else if (price > 100000) {
-      plans = [
-        { months: 3, profit: 0.20, advance: 0.40 },
-        { months: 6, profit: 0.35, advance: 0.35 },
-        { months: 9, profit: 0.45, advance: 0.30 },
-        { months: 11, profit: 0.52, advance: 0.28 },
-        { months: 12, profit: 0.55, advance: 0.25 },
-        { months: 18, profit: 0.70, advance: 0.25 },
-        { months: 24, profit: 0.85, advance: 0.25 },
-      ];
-    } else {
-      // General fallbacks for other categories
-      plans = [
-        { months: 3, profit: 0.22, advance: 0.40 },
-        { months: 6, profit: 0.38, advance: 0.35 },
-        { months: 9, profit: 0.48, advance: 0.30 },
-        { months: 11, profit: 0.55, advance: 0.28 },
-        { months: 12, profit: 0.60, advance: 0.25 },
-        { months: 18, profit: 0.75, advance: 0.25 },
-        { months: 24, profit: 0.90, advance: 0.25 },
-      ];
-    }
-
-    const calculated = plans.map(p => {
-      const adv = roundUp(price * p.advance);
-      const rem = price - adv;
-      const profit = roundUp(rem * p.profit);
-      const total = rem + profit;
-      const monthly = roundUp(total / p.months);
-      const fullTotal = adv + (monthly * p.months);
-      return { ...p, advanceAmount: adv, monthlyAmount: monthly, totalPrice: fullTotal };
-    });
-
-    setCalcResults(calculated);
+    setCalcResults(calculateInstallmentPlans(installmentFormula, category, price));
   };
 
   // Filter channels based on role
@@ -424,51 +374,9 @@ const CreateOrders: React.FC = () => {
       const category = customCategory;
 
       if (!isNaN(price) && months && category) {
-        const cat = category.toLowerCase().trim();
-        let plan = null;
-
-        // Formula logic for custom product calculation
-        if (cat === 'mobiles' && price <= 50000) {
-          const plans = [
-            { months: 3, profit: 0.20, advance: 0.35 },
-            { months: 6, profit: 0.35, advance: 0.25 },
-            { months: 9, profit: 0.45, advance: 0.20 },
-            { months: 11, profit: 0.52, advance: 0.18 },
-            { months: 12, profit: 0.55, advance: 0.15 },
-          ];
-          plan = plans.find(p => p.months === months);
-        } else if (price > 50000 && price <= 100000) {
-          const plans = [
-            { months: 3, profit: 0.20, advance: 0.40 },
-            { months: 6, profit: 0.35, advance: 0.35 },
-            { months: 9, profit: 0.45, advance: 0.30 },
-            { months: 11, profit: 0.52, advance: 0.28 },
-            { months: 12, profit: 0.55, advance: 0.25 },
-          ];
-          plan = plans.find(p => p.months === months);
-        } else if (price > 100000) {
-          const plans = [
-            { months: 3, profit: 0.20, advance: 0.40 },
-            { months: 6, profit: 0.35, advance: 0.35 },
-            { months: 9, profit: 0.45, advance: 0.30 },
-            { months: 11, profit: 0.52, advance: 0.28 },
-            { months: 12, profit: 0.55, advance: 0.25 },
-            { months: 18, profit: 0.70, advance: 0.25 },
-            { months: 24, profit: 0.85, advance: 0.25 },
-          ];
-          plan = plans.find(p => p.months === months);
-        } else {
-          const plans = [
-            { months: 3, profit: 0.22, advance: 0.40 },
-            { months: 6, profit: 0.38, advance: 0.35 },
-            { months: 9, profit: 0.48, advance: 0.30 },
-            { months: 11, profit: 0.55, advance: 0.28 },
-            { months: 12, profit: 0.60, advance: 0.25 },
-            { months: 18, profit: 0.75, advance: 0.25 },
-            { months: 24, profit: 0.90, advance: 0.25 },
-          ];
-          plan = plans.find(p => p.months === months);
-        }
+        const plan = installmentFormula
+          ? findTier(installmentFormula, category, price)?.plans.find(p => p.months === months) ?? null
+          : null;
 
         if (plan) {
           const adv = roundUp(price * plan.advance);
@@ -489,7 +397,7 @@ const CreateOrders: React.FC = () => {
         }
       }
     }
-  }, [customCashPrice, customCategory, customMonths, isCustomProduct, isCustomProductNoPricing]);
+  }, [customCashPrice, customCategory, customMonths, isCustomProduct, isCustomProductNoPricing, installmentFormula]);
 
   // Handle Advance override recalculation for custom products
   useEffect(() => {
@@ -1122,7 +1030,7 @@ const CreateOrders: React.FC = () => {
                               style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%236B7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")` }}
                             >
                               <option value="">Duration</option>
-                              {[3, 6, 9, 11, 12, 18, 24].map((m: any) => <option key={m} value={m}>{m} Months</option>)}
+                              {formulaMonths.map((m: any) => <option key={m} value={m}>{m} Months</option>)}
                             </select>
                           </div>
                         </div>

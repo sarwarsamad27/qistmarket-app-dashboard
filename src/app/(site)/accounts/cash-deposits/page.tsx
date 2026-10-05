@@ -191,7 +191,7 @@ export default function AccountsCashDepositsPage() {
                                             <p className="text-xs text-body-color">{formatExactDate(deposit.created_at, 'hh:mm A')}</p>
                                         </td>
                                         <td className="border-b border-[#eee] py-5 px-4 dark:border-strokedark">
-                                            <p className="text-black dark:text-white font-medium">{deposit.outlet?.name || "Accounts"}</p>
+                                            <p className="text-black dark:text-white font-medium">{deposit.outlet?.name || "Head Office"}</p>
                                             <p className="text-xs text-body-color">{deposit.submitted_by.full_name}</p>
                                         </td>
                                         <td className="border-b border-[#eee] py-5 px-4 dark:border-strokedark">
@@ -272,7 +272,7 @@ export default function AccountsCashDepositsPage() {
                                         <tr>
                                             <td colSpan={9} className="border-b border-[#eee] bg-gray-50 py-4 px-4 dark:border-strokedark dark:bg-meta-4">
                                                 <div className="flex flex-col gap-2 text-sm">
-                                                    <p><span className="text-body-color">Outlet / Submitted By:</span> {deposit.outlet?.name || deposit.submitted_by?.full_name || '—'}</p>
+                                                    <p><span className="text-body-color">Outlet / Submitted By:</span> {deposit.outlet?.name || "Head Office"} — {deposit.submitted_by?.full_name || "—"}</p>
                                                     {deposit.consumer_number && (
                                                         <div className="flex items-center gap-2">
                                                             <span className="text-body-color">{deposit.payment_method === 'qr_payment' ? 'SmartPay Consumer Number:' : '1Bill Consumer Number:'}</span>

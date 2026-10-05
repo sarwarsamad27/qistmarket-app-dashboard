@@ -31,6 +31,7 @@ type Metrics = {
     cash_sale: number;
     cash_transferred_in: number;
     cash_transferred_out: number;
+    bank_deposits?: number;
     closing_cash: number;
     expected_cash: number;
     period_net_change: number;
@@ -247,6 +248,7 @@ export default function CashRegisterPage() {
         { key: "vendor_payments", label: "Vendor Payments (–)" },
         { key: "vendor_receipts", label: "Cash from Vendor" },
         { key: "cash_sale", label: "Cash Sale" },
+        { key: "bank_deposits", label: "Bank Deposits / Head Office (–)" },
         { key: "closing_cash", label: "Closing / Expected Cash" },
     ];
 
@@ -255,7 +257,7 @@ export default function CashRegisterPage() {
     const currentMetrics = metrics || {
         opening_cash: 0, down_payments: 0, installments_received: 0, cash_from_recovery: 0,
         cash_from_delivery: 0, expenses: 0, vendor_payments: 0, vendor_receipts: 0, cash_sale: 0, cash_transferred_in: 0,
-        cash_transferred_out: 0, closing_cash: 0, expected_cash: 0, period_net_change: 0, digital_bank_total: 0, digital_1bill_total: 0
+        cash_transferred_out: 0, bank_deposits: 0, closing_cash: 0, expected_cash: 0, period_net_change: 0, digital_bank_total: 0, digital_1bill_total: 0
     };
 
     const expectedVal = currentMetrics.expected_cash;
@@ -353,7 +355,7 @@ export default function CashRegisterPage() {
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3">
                     {fields.map((f) => {
                         const isClosing = f.key === "closing_cash";
-                        const isOutflow = f.key === "expenses" || f.key === "vendor_payments";
+                        const isOutflow = f.key === "expenses" || f.key === "vendor_payments" || f.key === "bank_deposits";
                         const isOpening = f.key === "opening_cash";
                         const val = (currentMetrics as any)[f.key] || 0;
                         const isBigValue = val >= 100000;
@@ -567,7 +569,7 @@ export default function CashRegisterPage() {
                     <div className="divide-y divide-stroke dark:divide-strokedark">
                         {historyCategories.map((cat) => {
                             const isExpanded = expandedCategories.has(cat.key);
-                            const isOutflow = cat.key === "expenses" || cat.key === "vendor_payments";
+                            const isOutflow = cat.key === "expenses" || cat.key === "vendor_payments" || cat.key === "bank_deposits";
                             return (
                                 <div key={cat.key}>
                                     <button

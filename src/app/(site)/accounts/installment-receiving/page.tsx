@@ -2,13 +2,16 @@
 
 import { Fragment, useEffect, useState } from "react";
 import Cookies from "js-cookie";
-import { HandCoins, Wallet, Wifi, CheckCircle2, AlertCircle, PieChart, Search } from "lucide-react";
+import { HandCoins, Wallet, Wifi, CheckCircle2, AlertCircle, PieChart, Search, ReceiptText, LayoutDashboard, ListChecks } from "lucide-react";
 import Breadcrumb from "@/components/Breadcrumbs/Breadcrumb";
 import OutletSelector from "@/components/common/OutletSelector";
 import PageHeader from "@/components/Accounts/PageHeader";
 import EmptyState from "@/components/Accounts/EmptyState";
 import { StatCardSkeleton, TableSkeleton } from "@/components/Accounts/Skeleton";
 import StatCard, { PKR } from "@/components/Accounts/StatCard";
+import ExportMenu from "@/components/Accounts/ExportMenu";
+import ReceivePanel from "./_components/ReceivePanel";
+import CollectionsPanel from "./_components/CollectionsPanel";
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
 
@@ -31,7 +34,7 @@ interface Overview {
 
 // A single shape every card's underlying list gets normalized into, so one table can render
 // whichever "history" is currently selected instead of needing a bespoke table per card.
-type DisplayRow = { key: string; order_ref: string; customer_name: string; outlet_name: string | null; month: number | null; date: string | null; amount: number; history?: HistoryEntry[] };
+type DisplayRow = { key: string; order_id: number; order_ref: string; customer_name: string; outlet_name: string | null; month: number | null; date: string | null; amount: number; history?: HistoryEntry[] };
 
 type CardKey = "due" | "advance" | "partial" | "full" | "cash" | "online";
 
@@ -49,6 +52,10 @@ export default function InstallmentReceivingPage() {
   // when/how much was actually paid against it, in order". Cash/Online cards are already
   // single transactions, so they have no further history to expand into.
   const [expandedRowKey, setExpandedRowKey] = useState<string | null>(null);
+  // "receive" = take a payment for any customer; "overview" = the analysis cards below; "collections" = every payment received.
+  const [section, setSection] = useState<"receive" | "overview" | "collections">("receive");
+  const [receiveOrderId, setReceiveOrderId] = useState<number | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   // Each card's own list (from the API) normalized into one shared shape, so the table
   // below can render whichever card is selected without a bespoke table per card.
@@ -59,35 +66,35 @@ export default function InstallmentReceivingPage() {
         return {
           title: "Advance Pending",
           dateLabel: null,
-          rows: data.advancePendingOrders.map((r) => ({ key: `${r.order_id}`, order_ref: r.order_ref, customer_name: r.customer_name, outlet_name: r.outlet_name, month: null, date: null, amount: r.amount, history: r.history })),
+          rows: data.advancePendingOrders.map((r) => ({ key: `${r.order_id}`, order_id: r.order_id, order_ref: r.order_ref, customer_name: r.customer_name, outlet_name: r.outlet_name, month: null, date: null, amount: r.amount, history: r.history })),
           emptyTitle: "No orders with a pending advance",
         };
       case "partial":
         return {
           title: "Partially Paid Orders",
           dateLabel: null,
-          rows: data.partialOrders.map((r) => ({ key: `${r.order_id}`, order_ref: r.order_ref, customer_name: r.customer_name, outlet_name: r.outlet_name, month: r.month ?? null, date: null, amount: r.amount, history: r.history })),
+          rows: data.partialOrders.map((r) => ({ key: `${r.order_id}`, order_id: r.order_id, order_ref: r.order_ref, customer_name: r.customer_name, outlet_name: r.outlet_name, month: r.month ?? null, date: null, amount: r.amount, history: r.history })),
           emptyTitle: "No partially paid orders",
         };
       case "full":
         return {
           title: "Fully Paid Orders",
           dateLabel: null,
-          rows: data.fullyPaidOrders.map((r) => ({ key: `${r.order_id}`, order_ref: r.order_ref, customer_name: r.customer_name, outlet_name: r.outlet_name, month: null, date: null, amount: r.amount, history: r.history })),
+          rows: data.fullyPaidOrders.map((r) => ({ key: `${r.order_id}`, order_id: r.order_id, order_ref: r.order_ref, customer_name: r.customer_name, outlet_name: r.outlet_name, month: null, date: null, amount: r.amount, history: r.history })),
           emptyTitle: "No fully paid orders yet",
         };
       case "cash":
         return {
           title: "Cash Collections",
           dateLabel: "Payment Date",
-          rows: data.cashEvents.map((r, i) => ({ key: `${r.order_id}-${i}`, order_ref: r.order_ref, customer_name: r.customer_name, outlet_name: r.outlet_name, month: r.month, date: r.date, amount: r.amount })),
+          rows: data.cashEvents.map((r, i) => ({ key: `${r.order_id}-${i}`, order_id: r.order_id, order_ref: r.order_ref, customer_name: r.customer_name, outlet_name: r.outlet_name, month: r.month, date: r.date, amount: r.amount })),
           emptyTitle: "No cash collections recorded",
         };
       case "online":
         return {
           title: "Online Collections",
           dateLabel: "Payment Date",
-          rows: data.onlineEvents.map((r, i) => ({ key: `${r.order_id}-${i}`, order_ref: r.order_ref, customer_name: r.customer_name, outlet_name: r.outlet_name, month: r.month, date: r.date, amount: r.amount })),
+          rows: data.onlineEvents.map((r, i) => ({ key: `${r.order_id}-${i}`, order_id: r.order_id, order_ref: r.order_ref, customer_name: r.customer_name, outlet_name: r.outlet_name, month: r.month, date: r.date, amount: r.amount })),
           emptyTitle: "No online collections recorded",
         };
       case "due":
@@ -95,7 +102,7 @@ export default function InstallmentReceivingPage() {
         return {
           title: "Due Installments",
           dateLabel: "Due Date",
-          rows: data.due.map((r) => ({ key: `${r.order_id}-${r.month}`, order_ref: r.order_ref, customer_name: r.customer_name, outlet_name: r.outlet_name, month: r.month, date: r.dueDate, amount: r.amount, history: r.history })),
+          rows: data.due.map((r) => ({ key: `${r.order_id}-${r.month}`, order_id: r.order_id, order_ref: r.order_ref, customer_name: r.customer_name, outlet_name: r.outlet_name, month: r.month, date: r.dueDate, amount: r.amount, history: r.history })),
           emptyTitle: "No due installments",
         };
     }
@@ -110,7 +117,15 @@ export default function InstallmentReceivingPage() {
       .then((json) => { if (json.success) setData(json.data); })
       .catch((err) => console.error("Failed to load installment receiving overview:", err))
       .finally(() => setLoading(false));
-  }, [outletId]);
+  }, [outletId, refreshKey]);
+
+  // Deep link from Receivables: /accounts/installment-receiving?order=<id> opens that account.
+  useEffect(() => {
+    const id = parseInt(new URLSearchParams(window.location.search).get("order") || "");
+    if (id) { setReceiveOrderId(id); setSection("receive"); }
+  }, []);
+
+  const openReceive = (orderId: number) => { setReceiveOrderId(orderId); setSection("receive"); window.scrollTo({ top: 0, behavior: "smooth" }); };
 
   return (
     <>
@@ -118,9 +133,22 @@ export default function InstallmentReceivingPage() {
       <PageHeader
         icon={HandCoins}
         title="Installment Receiving"
-        subtitle="Due installments, advance/partial payment mix, and cash vs. online collections."
-        actions={<OutletSelector selectedId={outletId} onSelect={setOutletId} />}
+        subtitle="Receive any customer's installment at Head Office, track due / partial / advance payments, and every collection."
+        actions={section === "overview" ? <OutletSelector selectedId={outletId} onSelect={setOutletId} /> : undefined}
       />
+
+      <div className="mb-5 flex w-fit flex-wrap gap-1 rounded-xl bg-gray-100 p-1 dark:bg-dark-3">
+        {([["receive", "Receive Installment", ReceiptText], ["overview", "Due & Payment Status", LayoutDashboard], ["collections", "Collections", ListChecks]] as const).map(([k, l, Icon]) => (
+          <button key={k} onClick={() => setSection(k)} className={`flex items-center gap-1.5 rounded-lg px-4 py-1.5 text-sm font-semibold transition ${section === k ? "bg-white text-[#ff3d3d] shadow-sm dark:bg-boxdark" : "text-gray-500 hover:text-gray-700 dark:text-gray-400"}`}>
+            <Icon className="size-3.5" /> {l}
+          </button>
+        ))}
+      </div>
+
+      {section === "receive" && <ReceivePanel initialOrderId={receiveOrderId} onReceived={() => setRefreshKey((k) => k + 1)} />}
+      {section === "collections" && <CollectionsPanel refreshKey={refreshKey} />}
+
+      {section === "overview" && (<>
 
       <div className="mb-6 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
         {loading ? (
@@ -138,7 +166,8 @@ export default function InstallmentReceivingPage() {
       </div>
 
       {!loading && data && (
-        <div className="relative mb-4 max-w-sm">
+        <div className="mb-4 flex flex-wrap items-center gap-3">
+        <div className="relative max-w-sm flex-1">
           <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-gray-400" />
           <input
             value={search}
@@ -146,6 +175,18 @@ export default function InstallmentReceivingPage() {
             placeholder="Search customer, order ref, outlet..."
             className="w-full rounded-xl border border-stroke bg-white py-2.5 pl-9 pr-4 text-sm outline-none transition focus:border-[#ff3d3d] dark:border-dark-3 dark:bg-gray-dark dark:text-white"
           />
+        </div>
+        <div className="ml-auto">
+          <ExportMenu title={getCardRows().title} columns={[
+            { header: "#", value: (_: DisplayRow, i) => i + 1 },
+            { header: "Order Ref", value: (r) => r.order_ref },
+            { header: "Customer", value: (r) => r.customer_name },
+            { header: "Outlet", value: (r) => r.outlet_name || "" },
+            { header: "Month", value: (r) => r.month ?? "" },
+            { header: getCardRows().dateLabel || "Date", value: (r) => (r.date ? new Date(r.date).toLocaleDateString() : "") },
+            { header: "Amount", value: (r) => r.amount, numeric: true },
+          ]} getRows={() => getCardRows().rows} />
+        </div>
         </div>
       )}
 
@@ -184,13 +225,14 @@ export default function InstallmentReceivingPage() {
                         {rows.some((r) => r.month !== null) && <th className="px-4 py-3 font-bold">Month</th>}
                         {dateLabel && <th className="px-4 py-3 font-bold">{dateLabel}</th>}
                         <th className="px-4 py-3 text-right font-bold">Amount</th>
+                        <th className="px-4 py-3"></th>
                       </tr>
                     </thead>
                     <tbody>
                       {filtered.map((row, i) => {
                         const hasHistory = !!row.history && row.history.length > 0;
                         const isExpanded = expandedRowKey === row.key;
-                        const colCount = 4 + (rows.some((r) => r.month !== null) ? 1 : 0) + (dateLabel ? 1 : 0) + 1;
+                        const colCount = 4 + (rows.some((r) => r.month !== null) ? 1 : 0) + (dateLabel ? 1 : 0) + 2;
                         return (
                           <Fragment key={row.key}>
                             <tr
@@ -207,6 +249,11 @@ export default function InstallmentReceivingPage() {
                               {rows.some((r) => r.month !== null) && <td className="px-4 py-3.5 text-gray-500">{row.month ?? "—"}</td>}
                               {dateLabel && <td className="px-4 py-3.5 text-gray-500">{row.date ? new Date(row.date).toLocaleDateString() : "—"}</td>}
                               <td className="px-4 py-3.5 text-right tabular-nums font-bold text-dark dark:text-white">{PKR(row.amount)}</td>
+                              <td className="px-4 py-3.5 text-right">
+                                {["due", "partial", "advance"].includes(activeCard) && (
+                                  <button onClick={(e) => { e.stopPropagation(); openReceive(row.order_id); }} className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-emerald-700">Receive</button>
+                                )}
+                              </td>
                             </tr>
                             {isExpanded && hasHistory && (
                               <tr className="bg-slate-50 dark:bg-white/5">
@@ -252,6 +299,7 @@ export default function InstallmentReceivingPage() {
           );
         })()
       ) : null}
+      </>)}
     </>
   );
 }

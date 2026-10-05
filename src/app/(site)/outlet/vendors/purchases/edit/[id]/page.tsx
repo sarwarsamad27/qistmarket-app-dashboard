@@ -261,6 +261,10 @@ export default function EditVendorPurchasePage() {
         e.preventDefault();
         if (!vendorName.trim()) return setError("Vendor name is required.");
         if (items.some(i => !i.product_name.trim() || i.unit_price <= 0)) return setError("All items must have a product name and price > 0.");
+        // A partly-typed year (e.g. 0006) would otherwise be saved and show as thousands of years overdue in Aging.
+        const badYear = (d: string) => !!d && !/^(20\d{2}|2100)-/.test(d);
+        if (badYear(purchaseDate)) return setError("Purchase date has an invalid year — please re-enter it.");
+        if (badYear(dueDate)) return setError("Payment due date has an invalid year — please re-enter it.");
 
         setSaving(true);
         setError("");
@@ -412,6 +416,8 @@ export default function EditVendorPurchasePage() {
                                         <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
                                         <input 
                                             type="date" 
+                                            min="2000-01-01"
+                                            max="2100-12-31"
                                             value={purchaseDate}
                                             onChange={(e) => setPurchaseDate(e.target.value)}
                                             className="w-full pl-12 pr-5 py-3 rounded-2xl bg-gray-50 dark:bg-meta-4 border border-stroke dark:border-strokedark outline-none focus:border-primary text-sm font-bold transition-all"
@@ -424,6 +430,8 @@ export default function EditVendorPurchasePage() {
                                         <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 text-red-400" size={16} />
                                         <input 
                                             type="date" 
+                                            min="2000-01-01"
+                                            max="2100-12-31"
                                             value={dueDate}
                                             onChange={(e) => setDueDate(e.target.value)}
                                             className="w-full pl-12 pr-5 py-3 rounded-2xl bg-red-50/50 dark:bg-meta-4 border border-red-200 dark:border-strokedark outline-none focus:border-red-500 text-sm font-bold transition-all"

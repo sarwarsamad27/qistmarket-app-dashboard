@@ -76,12 +76,12 @@ type ReceivedVia = { amount: number; date: string; method: string; channel: 'qr'
 type ViaGroup = { method: string; channel: ReceivedVia['channel']; collected_by: string | null; outlet: string | null; date: string; amount: number; total: number; txn: string | null; uncounted: boolean };
 const groupReceivedVia = (list?: ReceivedVia[]): ViaGroup[] => {
     const groups: ViaGroup[] = [];
-    for (const p of list || []) {
-        const g = groups.find((x) => x.method === p.method && x.date === p.date && x.uncounted === !!p.uncounted);
+    for (const p of (list || []).filter((x) => !x.uncounted)) {
+        const g = groups.find((x) => x.method === p.method && x.date === p.date);
         if (g) g.amount += p.amount;
         else groups.push({
             method: p.method, channel: p.channel, collected_by: p.collected_by, outlet: p.outlet, date: p.date,
-            amount: p.amount, total: p.receipt_total ?? p.amount, txn: p.txn_id || null, uncounted: !!p.uncounted,
+            amount: p.amount, total: p.receipt_total ?? p.amount, txn: p.txn_id || null, uncounted: false,
         });
     }
     return groups;
@@ -722,11 +722,6 @@ export const PaymentDetailsSection = ({
                                                             (collected_amount) — can be more than the month's due. */}
                                                         <span className="whitespace-nowrap">{(inst.collected_amount || 0) > 0 ? rs(inst.collected_amount) : '-'}</span>
                                                         <CarryLines carriedOut={inst.carried_out} />
-                                                        {uncountedByMonth.get(inst.month) ? (
-                                                            <div className="mt-0.5 whitespace-nowrap text-[11px] font-bold text-orange-600 dark:text-orange-400" title="Received but counted on no month (a Super Admin edit set the ledger lower). Fix in Edit Ledger if it's the customer's money.">
-                                                                ⚠ +{rs(uncountedByMonth.get(inst.month) as number)} not counted
-                                                            </div>
-                                                        ) : null}
                                                     </td>
                                                     <td className="px-4 py-2 align-top text-sm font-bold text-green-600 dark:text-green-400">
                                                         {/* How much of this month's installment is covered: its own
