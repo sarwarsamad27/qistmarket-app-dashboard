@@ -2,18 +2,32 @@
 
 import { useEffect, useState } from "react";
 import Cookies from "js-cookie";
-import { ShieldAlert, Search, ChevronLeft, ChevronRight, LogIn, AlertTriangle, CheckCircle2, XCircle, Info, Users, TrendingDown, UserX } from "lucide-react";
+import { ShieldAlert, Search, ChevronLeft, ChevronRight, LogIn, AlertTriangle, CheckCircle2, XCircle, Info, Users, TrendingDown, UserX, MonitorSmartphone } from "lucide-react";
 import Breadcrumb from "@/components/Breadcrumbs/Breadcrumb";
 import PageHeader from "@/components/Accounts/PageHeader";
 import EmptyState from "@/components/Accounts/EmptyState";
 import { TableSkeleton } from "@/components/Accounts/Skeleton";
 import { formatExactDate } from "@/utils/dateUtils";
 import { roleLabel } from "@/lib/roleLabels";
+import ExportMenu, { ExportColumn } from "@/components/Accounts/ExportMenu";
+import DateRangeFilter, { DateRange } from "@/components/Accounts/DateRangeFilter";
+import DeviceTracking from "./_components/DeviceTracking";
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
 const authHeaders = () => ({ Authorization: `Bearer ${Cookies.get("auth_token")}` });
 
-interface LogEntry { id: number; action: string; details: string; created_at: string; ip_address: string | null; device_info: string | null; user: { username: string; full_name: string } | null; outlet: { name: string; code: string } | null }
+interface LogEntry { id: number; action: string; details: string; created_at: string; ip_address: string | null; device_info: string | null; user_name?: string; user: { username: string; full_name: string } | null; outlet: { name: string; code: string } | null }
+
+const LOG_COLUMNS: ExportColumn<LogEntry>[] = [
+  { header: "Date", value: (l) => new Date(l.created_at).toLocaleString() },
+  { header: "Action", value: (l) => l.action },
+  { header: "Details", value: (l) => l.details },
+  { header: "User", value: (l) => l.user?.full_name || l.user_name || "" },
+  { header: "Login ID", value: (l) => l.user?.username || "" },
+  { header: "Outlet", value: (l) => l.outlet?.name || "Head Office" },
+  { header: "IP address", value: (l) => l.ip_address || "" },
+  { header: "Device", value: (l) => l.device_info || "" },
+];
 interface FraudAlert { severity: string; type: string; title: string; message: string }
 interface DuplicateCnicOrder { order_ref: string; status: string; customer_name: string; role: string }
 interface DuplicateCnicAlert extends FraudAlert { cnic: string; orders: DuplicateCnicOrder[] }
@@ -42,6 +56,7 @@ const SEVERITY_STYLE: Record<string, string> = {
 const TABS = [
   { key: "all" as const, label: "All Activity", icon: ShieldAlert },
   { key: "logins" as const, label: "Login History", icon: LogIn },
+  { key: "devices" as const, label: "Devices & IPs", icon: MonitorSmartphone },
   { key: "fraud" as const, label: "Fraud Alerts", icon: AlertTriangle },
 ];
 
@@ -57,6 +72,16 @@ export default function ActivityLogPage() {
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [dSearch, setDSearch] = useState("");
+  const [actionFilter, setActionFilter] = useState("");
+  const [outletFilter, setOutletFilter] = useState("");
+  const [range, setRange] = useState<DateRange>({ from: "", to: "" });
+  const [actions, setActions] = useState<{ action: string; count: number }[]>([]);
+  const [outlets, setOutlets] = useState<{ id: number; name: string }[]>([]);
+  const [totalLogs, setTotalLogs] = useState(0);
+  const [loginSearch, setLoginSearch] = useState("");
+  const [dLoginSearch, setDLoginSearch] = useState("");
+  const [loginRange, setLoginRange] = useState<DateRange>({ from: "", to: "" });
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
 
@@ -78,23 +103,55 @@ export default function ActivityLogPage() {
   const [unassignedOrders, setUnassignedOrders] = useState<UnassignedOrder[]>([]);
   const [unassignedLoading, setUnassignedLoading] = useState(false);
 
+  useEffect(() => { const t = setTimeout(() => { setDSearch(search); setPage(1); }, 400); return () => clearTimeout(t); }, [search]);
+  useEffect(() => { const t = setTimeout(() => setDLoginSearch(loginSearch), 400); return () => clearTimeout(t); }, [loginSearch]);
+  useEffect(() => {
+    fetch(`${BACKEND_URL}/api/accounts/audit/actions`, { headers: authHeaders() }).then((r) => r.json()).then((j) => { if (j.success) setActions(j.data); }).catch(() => {});
+    fetch(`${BACKEND_URL}/api/accounts/cash/limit-options`, { headers: authHeaders() }).then((r) => r.json()).then((j) => { if (j.success) setOutlets(j.data.outlets); }).catch(() => {});
+  }, []);
+
+  const logParams = (p: number, limit: number) => {
+    const params = new URLSearchParams({ page: String(p), limit: String(limit) });
+    if (dSearch) params.set("search", dSearch);
+    if (actionFilter) params.set("action", actionFilter);
+    if (outletFilter) params.set("outletId", outletFilter);
+    if (range.from) params.set("startDate", range.from);
+    if (range.to) params.set("endDate", range.to);
+    return params;
+  };
+  const fetchAllLogs = async () => {
+    const j = await (await fetch(`${BACKEND_URL}/api/accounts/activity-logs?${logParams(1, 5000)}`, { headers: authHeaders() })).json();
+    return (j.logs || []) as LogEntry[];
+  };
+  const fetchAllLogins = async () => {
+    const params = new URLSearchParams({ limit: "5000" });
+    if (loginStatus) params.set("status", loginStatus);
+    if (dLoginSearch) params.set("search", dLoginSearch);
+    if (loginRange.from) params.set("startDate", loginRange.from);
+    if (loginRange.to) params.set("endDate", loginRange.to);
+    const j = await (await fetch(`${BACKEND_URL}/api/accounts/audit/login-history?${params}`, { headers: authHeaders() })).json();
+    return (j.data || []) as LogEntry[];
+  };
+
   useEffect(() => {
     if (tab !== "all") return;
     setLoading(true);
-    const params = new URLSearchParams({ page: String(page), limit: "25" });
-    if (search) params.set("search", search);
+    const params = logParams(page, 25);
     fetch(`${BACKEND_URL}/api/accounts/activity-logs?${params}`, { headers: authHeaders() })
       .then((res) => res.json())
-      .then((json) => { if (json.success) { setLogs(json.logs); setTotalPages(json.pagination.totalPages || 1); } })
+      .then((json) => { if (json.success) { setLogs(json.logs); setTotalPages(json.pagination.totalPages || 1); setTotalLogs(json.pagination.total || 0); } })
       .catch((err) => console.error("Failed to load activity log:", err))
       .finally(() => setLoading(false));
-  }, [page, search, tab]);
+  }, [page, dSearch, actionFilter, outletFilter, range, tab]);
 
   useEffect(() => {
     if (tab === "logins") {
       setLoginsLoading(true);
-      const params = new URLSearchParams({ limit: "50" });
+      const params = new URLSearchParams({ limit: "200" });
       if (loginStatus) params.set("status", loginStatus);
+      if (dLoginSearch) params.set("search", dLoginSearch);
+      if (loginRange.from) params.set("startDate", loginRange.from);
+      if (loginRange.to) params.set("endDate", loginRange.to);
       fetch(`${BACKEND_URL}/api/accounts/audit/login-history?${params}`, { headers: authHeaders() })
         .then((res) => res.json())
         .then((json) => { if (json.success) setLogins(json.data); })
@@ -128,7 +185,7 @@ export default function ActivityLogPage() {
         .then((json) => { if (json.success) { setUnassignedAlerts(json.data.alerts); setUnassignedOrders(json.data.orders); } })
         .finally(() => setUnassignedLoading(false));
     }
-  }, [tab, loginStatus, fraudSubTab]);
+  }, [tab, loginStatus, fraudSubTab, dLoginSearch, loginRange]);
 
   return (
     <>
@@ -145,11 +202,24 @@ export default function ActivityLogPage() {
 
       {tab === "all" && (
         <>
-          <div className="mb-4 flex items-center gap-2">
-            <div className="relative flex-1 max-w-sm">
+          <div className="mb-3 flex flex-wrap items-center gap-2">
+            <div className="relative min-w-[220px] flex-1 sm:max-w-sm">
               <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-gray-400" />
-              <input value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} placeholder="Search by action or user..." className="w-full rounded-xl border border-stroke bg-white py-2.5 pl-9 pr-4 text-sm outline-none transition focus:border-[#ff3d3d] dark:border-dark-3 dark:bg-gray-dark dark:text-white" />
+              <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search details, user, login ID, IP, device..." className="w-full rounded-xl border border-stroke bg-white py-2.5 pl-9 pr-4 text-sm outline-none transition focus:border-[#ff3d3d] dark:border-dark-3 dark:bg-gray-dark dark:text-white" />
             </div>
+            <select value={actionFilter} onChange={(e) => { setActionFilter(e.target.value); setPage(1); }} className="rounded-xl border border-stroke bg-white px-3 py-2.5 text-sm dark:border-dark-3 dark:bg-gray-dark dark:text-white">
+              <option value="">All actions</option>
+              {actions.map((a) => <option key={a.action} value={a.action}>{a.action.replace(/_/g, " ")} ({a.count})</option>)}
+            </select>
+            <select value={outletFilter} onChange={(e) => { setOutletFilter(e.target.value); setPage(1); }} className="rounded-xl border border-stroke bg-white px-3 py-2.5 text-sm dark:border-dark-3 dark:bg-gray-dark dark:text-white">
+              <option value="">All outlets</option><option value="ho">Head Office</option>
+              {outlets.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
+            </select>
+            <div className="ml-auto"><ExportMenu title="Activity Log" columns={LOG_COLUMNS} getRows={fetchAllLogs} /></div>
+          </div>
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+            <DateRangeFilter value={range} onChange={(r) => { setRange(r); setPage(1); }} />
+            <p className="text-xs text-gray-500">{totalLogs.toLocaleString()} matching entries</p>
           </div>
 
           {loading ? <TableSkeleton /> : logs.length > 0 ? (
@@ -157,7 +227,7 @@ export default function ActivityLogPage() {
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-sm">
                   <thead className="bg-gray-50 text-[11px] uppercase tracking-wide text-gray-500 dark:bg-dark-2 dark:text-gray-400">
-                    <tr><th className="px-4 py-3 font-bold">#</th><th className="px-4 py-3 font-bold">Date</th><th className="px-4 py-3 font-bold">Action</th><th className="px-4 py-3 font-bold">Details</th><th className="px-4 py-3 font-bold">User</th><th className="px-4 py-3 font-bold">Outlet</th></tr>
+                    <tr><th className="px-4 py-3 font-bold">#</th><th className="px-4 py-3 font-bold">Date</th><th className="px-4 py-3 font-bold">Action</th><th className="px-4 py-3 font-bold">Details</th><th className="px-4 py-3 font-bold">User</th><th className="px-4 py-3 font-bold">Outlet</th><th className="px-4 py-3 font-bold">IP / Device</th></tr>
                   </thead>
                   <tbody>
                     {logs.map((log, i) => (
@@ -166,8 +236,9 @@ export default function ActivityLogPage() {
                         <td className="px-4 py-3.5 whitespace-nowrap text-gray-500">{formatExactDate(log.created_at, 'DD MMM YYYY, hh:mm A')}</td>
                         <td className="px-4 py-3.5"><span className={`rounded-full px-2.5 py-1 text-xs font-bold ${ACTION_COLORS[log.action] || defaultActionColor}`}>{log.action}</span></td>
                         <td className="px-4 py-3.5 max-w-md truncate text-gray-600 dark:text-gray-300" title={log.details}>{log.details}</td>
-                        <td className="px-4 py-3.5 text-gray-600 dark:text-gray-300">{log.user?.full_name || "—"}</td>
+                        <td className="px-4 py-3.5 text-gray-600 dark:text-gray-300">{log.user?.full_name || log.user_name || "—"}{log.user?.username && <p className="text-xs text-gray-400">{log.user.username}</p>}</td>
                         <td className="px-4 py-3.5 text-gray-500">{log.outlet?.name || "Head Office"}</td>
+                        <td className="max-w-[200px] px-4 py-3.5 text-xs text-gray-400"><p className="font-mono">{log.ip_address || "—"}</p><p className="truncate" title={log.device_info || ""}>{log.device_info || ""}</p></td>
                       </tr>
                     ))}
                   </tbody>
@@ -187,11 +258,19 @@ export default function ActivityLogPage() {
 
       {tab === "logins" && (
         <>
-          <div className="mb-4 flex gap-1 rounded-xl bg-gray-100 p-1 dark:bg-dark-3 w-fit">
-            {(["", "success", "failed"] as const).map((s) => (
-              <button key={s} onClick={() => setLoginStatus(s)} className={`rounded-lg px-4 py-1.5 text-sm font-semibold capitalize transition ${loginStatus === s ? "bg-white text-[#ff3d3d] shadow-sm dark:bg-boxdark" : "text-gray-500"}`}>{s || "All"}</button>
-            ))}
+          <div className="mb-3 flex flex-wrap items-center gap-2">
+            <div className="flex w-fit gap-1 rounded-xl bg-gray-100 p-1 dark:bg-dark-3">
+              {(["", "success", "failed"] as const).map((s) => (
+                <button key={s} onClick={() => setLoginStatus(s)} className={`rounded-lg px-4 py-1.5 text-sm font-semibold capitalize transition ${loginStatus === s ? "bg-white text-[#ff3d3d] shadow-sm dark:bg-boxdark" : "text-gray-500"}`}>{s || "All"}</button>
+              ))}
+            </div>
+            <div className="relative min-w-[220px] flex-1 sm:max-w-sm">
+              <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-gray-400" />
+              <input value={loginSearch} onChange={(e) => setLoginSearch(e.target.value)} placeholder="User, login ID, IP, device..." className="w-full rounded-xl border border-stroke bg-white py-2 pl-9 pr-4 text-sm outline-none dark:border-dark-3 dark:bg-gray-dark dark:text-white" />
+            </div>
+            <div className="ml-auto"><ExportMenu title="Login History" columns={LOG_COLUMNS} getRows={fetchAllLogins} /></div>
           </div>
+          <div className="mb-4"><DateRangeFilter value={loginRange} onChange={setLoginRange} /></div>
           {loginsLoading ? <TableSkeleton /> : logins.length > 0 ? (
             <div className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm dark:border-white/10 dark:bg-boxdark">
               <table className="w-full text-left text-sm">
@@ -201,7 +280,7 @@ export default function ActivityLogPage() {
                     <tr key={log.id} className="border-t border-slate-50 dark:border-white/5">
                       <td className="px-4 py-3.5 text-gray-400">{i + 1}</td>
                       <td className="px-4 py-3.5 whitespace-nowrap text-gray-500">{formatExactDate(log.created_at, 'DD MMM YYYY, hh:mm A')}</td>
-                      <td className="px-4 py-3.5 font-medium text-dark dark:text-white">{log.user?.full_name || "—"}</td>
+                      <td className="px-4 py-3.5 font-medium text-dark dark:text-white">{log.user?.full_name || "—"}{log.user?.username && <p className="text-xs font-normal text-gray-400">{log.user.username}</p>}</td>
                       <td className="px-4 py-3.5">
                         {log.action === "LOGIN_SUCCESS" ? (
                           <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-600 dark:bg-emerald-500/10"><CheckCircle2 className="size-3" /> Success</span>
@@ -219,6 +298,8 @@ export default function ActivityLogPage() {
           ) : <div className="rounded-2xl border border-slate-100 bg-white shadow-sm dark:border-white/10 dark:bg-boxdark"><EmptyState icon={LogIn} title="No login history yet" /></div>}
         </>
       )}
+
+      {tab === "devices" && <DeviceTracking />}
 
       {tab === "fraud" && (
         <>

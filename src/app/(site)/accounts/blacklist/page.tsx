@@ -4,7 +4,9 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import Cookies from "js-cookie";
 import toast from "react-hot-toast";
-import { Ban, Search, History, ShieldCheck, ShieldX, Loader2, ClipboardCheck, Check, X, Gauge } from "lucide-react";
+import { Ban, Search, History, ShieldCheck, ShieldX, Loader2, ClipboardCheck, Check, X, Gauge, ShieldAlert } from "lucide-react";
+import ExportMenu from "@/components/Accounts/ExportMenu";
+import RiskRegister from "./_components/RiskRegister";
 import Breadcrumb from "@/components/Breadcrumbs/Breadcrumb";
 import PageHeader from "@/components/Accounts/PageHeader";
 import EmptyState from "@/components/Accounts/EmptyState";
@@ -48,7 +50,11 @@ interface HistoryRow {
   created_at: string;
   created_by: { full_name: string } | null;
 }
-interface PendingRequest { id: number; cnic: string; reason: string | null; created_at: string; created_by: { full_name: string } | null }
+interface PendingRequest {
+  id: number; cnic: string; reason: string | null; created_at: string; created_by: { full_name: string } | null;
+  customer_name?: string | null; own_request?: boolean;
+  risk?: { score: number; tier: string; factors: string[]; stats: { outstanding: number; overdue: number; missed: number; pay_ratio: number } };
+}
 interface RiskScore { cnic: string; score: number; tier: string; factors: string[] }
 
 // The canonical blacklist reason buckets. Owned by the backend
@@ -58,7 +64,7 @@ interface RiskScore { cnic: string; score: number; tier: string; factors: string
 interface ReasonType { code: string; label: string; description: string; manual: boolean }
 
 export default function BlacklistPage() {
-  const [tab, setTab] = useState<"list" | "manage" | "approvals" | "history">("list");
+  const [tab, setTab] = useState<"list" | "manage" | "risk" | "approvals" | "history">("list");
 
   // List tab
   const [customers, setCustomers] = useState<BlacklistedCustomer[]>([]);
@@ -149,6 +155,19 @@ export default function BlacklistPage() {
     }
   };
 
+  const runSearch = async (term: string) => {
+    setSearching(true);
+    try {
+      const res = await fetch(`${BACKEND_URL}/api/accounts/blacklist/search?query=${encodeURIComponent(term)}`, { headers: authHeaders() });
+      const json = await res.json();
+      if (json.success) setResults(json.data);
+    } finally {
+      setSearching(false);
+    }
+  };
+  // From the Risk Register: jump to Search & Manage with that CNIC loaded.
+  const manageCnic = (cnic: string) => { setTab("manage"); setQuery(cnic); runSearch(cnic); handleRiskLookup(cnic); };
+
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
     if (query.trim().length < 3) {
@@ -208,6 +227,7 @@ export default function BlacklistPage() {
   const TABS = [
     { key: "list" as const, label: "Blacklisted Customers", icon: Ban },
     { key: "manage" as const, label: "Search & Manage", icon: Search },
+    { key: "risk" as const, label: "Risk Register", icon: ShieldAlert },
     { key: "approvals" as const, label: "Pending Approvals", icon: ClipboardCheck },
     { key: "history" as const, label: "Action History", icon: History },
   ];
@@ -383,19 +403,42 @@ export default function BlacklistPage() {
         pendingLoading ? <TableSkeleton /> : pending.length > 0 ? (
           <div className="space-y-3">
             {pending.map((p) => (
-              <div key={p.id} className="flex items-center justify-between rounded-2xl border border-slate-100 bg-white p-4 shadow-sm dark:border-white/10 dark:bg-boxdark">
-                <div>
-                  <p className="font-bold text-dark dark:text-white">{p.cnic}</p>
+              <div key={p.id} className="flex flex-wrap items-start justify-between gap-3 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm dark:border-white/10 dark:bg-boxdark">
+                <div className="min-w-0 flex-1">
+                  <p className="font-bold text-dark dark:text-white">{p.customer_name || "—"} <span className="font-mono text-xs font-normal text-gray-400">{p.cnic}</span></p>
                   <p className="text-xs text-gray-500">{p.reason || "No reason given"} · requested by {p.created_by?.full_name || "—"} on {new Date(p.created_at).toLocaleDateString()}</p>
+                  {p.risk && (
+                    <div className="mt-2 rounded-xl bg-slate-50 px-3 py-2 text-xs dark:bg-white/5">
+                      <span className={`mr-2 rounded-full px-2 py-0.5 font-bold uppercase ${p.risk.tier === "high" ? "bg-rose-100 text-rose-700" : p.risk.tier === "medium" ? "bg-amber-100 text-amber-700" : "bg-emerald-100 text-emerald-700"}`}>{p.risk.tier} risk · {p.risk.score}</span>
+                      Owes {p.risk.stats.outstanding.toLocaleString()} · overdue {p.risk.stats.overdue.toLocaleString()} · {p.risk.stats.missed} missed · paid {p.risk.stats.pay_ratio}% of due
+                      {p.risk.factors.length > 0 && <p className="mt-1 text-gray-500">{p.risk.factors.join(" · ")}</p>}
+                    </div>
+                  )}
                 </div>
                 <div className="flex gap-2">
-                  <button onClick={() => handleDecidePending(p.id, "approve")} className="flex items-center gap-1.5 rounded-lg bg-emerald-50 px-4 py-2 text-xs font-bold text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-500/10 dark:text-emerald-400"><Check className="size-3.5" /> Approve</button>
+                  <button disabled={p.own_request} title={p.own_request ? "You raised this request — someone else must approve it." : undefined} onClick={() => handleDecidePending(p.id, "approve")} className="flex items-center gap-1.5 rounded-lg bg-emerald-50 px-4 py-2 text-xs font-bold text-emerald-700 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-40 dark:bg-emerald-500/10 dark:text-emerald-400"><Check className="size-3.5" /> Approve</button>
                   <button onClick={() => handleDecidePending(p.id, "reject")} className="flex items-center gap-1.5 rounded-lg bg-rose-50 px-4 py-2 text-xs font-bold text-rose-700 hover:bg-rose-100 dark:bg-rose-500/10 dark:text-rose-400"><X className="size-3.5" /> Reject</button>
                 </div>
               </div>
             ))}
           </div>
         ) : <div className="rounded-2xl border border-slate-100 bg-white shadow-sm dark:border-white/10 dark:bg-boxdark"><EmptyState icon={ClipboardCheck} title="No pending whitelist requests" /></div>
+      )}
+
+      {tab === "risk" && <RiskRegister onAct={manageCnic} />}
+
+      {tab === "history" && history.length > 0 && (
+        <div className="mb-3 flex justify-end">
+          <ExportMenu title="Blacklist Action History" columns={[
+            { header: "Date", value: (h: HistoryRow) => new Date(h.created_at).toLocaleString() },
+            { header: "CNIC", value: (h) => h.cnic },
+            { header: "Action", value: (h) => h.action },
+            { header: "Reason type", value: (h) => h.reason_label || h.category || "" },
+            { header: "Status", value: (h) => h.status },
+            { header: "Reason", value: (h) => h.reason || "" },
+            { header: "By", value: (h) => h.created_by?.full_name || "" },
+          ]} getRows={() => history} />
+        </div>
       )}
 
       {tab === "history" && (

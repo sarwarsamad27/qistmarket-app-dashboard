@@ -73,7 +73,8 @@ export function exportRows<T>(format: Format, title: string, columns: ExportColu
 export default function ExportMenu<T>({ title, subtitle, columns, getRows, disabled }: {
   title: string;
   subtitle?: string;
-  columns: ExportColumn<T>[];
+  /** Fixed columns, or a function that builds them from the rows (for reports whose fields vary). */
+  columns: ExportColumn<T>[] | ((rows: T[]) => ExportColumn<T>[]);
   getRows: () => T[] | Promise<T[]>;
   disabled?: boolean;
 }) {
@@ -93,7 +94,7 @@ export default function ExportMenu<T>({ title, subtitle, columns, getRows, disab
     try {
       const rows = await getRows();
       if (!rows.length) { toast.error("Nothing to export."); return; }
-      exportRows(format, title, columns, rows, subtitle);
+      exportRows(format, title, typeof columns === "function" ? columns(rows) : columns, rows, subtitle);
       toast.success(`Exported ${rows.length} row(s).`);
     } catch (err: any) {
       toast.error(err?.message || "Export failed.");
