@@ -13,6 +13,15 @@ import ExportMenu, { ExportColumn } from "@/components/Accounts/ExportMenu";
 import DateRangeFilter, { DateRange } from "@/components/Accounts/DateRangeFilter";
 import DeviceTracking from "./_components/DeviceTracking";
 import PaymentActivity from "./_components/PaymentActivity";
+import { deviceName, isMobileApp } from "@/utils/deviceName";
+
+// IP + device, readable: "Mobile app" / "Windows · Chrome", raw string on hover.
+const DeviceCell = ({ ip, ua }: { ip: string | null; ua: string | null }) => (
+  <>
+    <p className="font-mono">{ip || "—"}</p>
+    {ua && <p className="truncate" title={ua}><span className={`mr-1 rounded px-1 text-[10px] font-bold ${isMobileApp(ua) ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10" : "bg-slate-100 text-slate-600 dark:bg-white/10"}`}>{isMobileApp(ua) ? "APP" : "WEB"}</span>{deviceName(ua)}</p>}
+  </>
+);
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
 const authHeaders = () => ({ Authorization: `Bearer ${Cookies.get("auth_token")}` });
@@ -263,14 +272,14 @@ export default function ActivityLogPage() {
                         <td className="px-4 py-3.5 max-w-md truncate text-gray-600 dark:text-gray-300" title={log.details}>{log.details}</td>
                         <td className="px-4 py-3.5 text-gray-600 dark:text-gray-300">{log.user?.full_name || log.user_name || "—"}{log.user?.username && <p className="text-xs text-gray-400">{log.user.username}</p>}</td>
                         <td className="px-4 py-3.5 text-gray-500">{log.outlet?.name || "Head Office"}</td>
-                        <td className="max-w-[200px] px-4 py-3.5 text-xs text-gray-400"><p className="font-mono">{log.ip_address || "—"}</p><p className="truncate" title={log.device_info || ""}>{log.device_info || ""}</p></td>
+                        <td className="max-w-[220px] px-4 py-3.5 text-xs text-gray-500"><DeviceCell ip={log.ip_address} ua={log.device_info} /></td>
                       </tr>
                       {expandedLog === log.id && (
                         <tr className="bg-slate-50/70 dark:bg-white/5">
                           <td colSpan={7} className="px-6 py-3 text-xs text-gray-600 dark:text-gray-300">
                             <p className="mb-1 whitespace-pre-wrap break-words text-sm text-dark dark:text-white">{log.details}</p>
                             <p><b>When:</b> {formatExactDate(log.created_at, 'DD MMM YYYY, hh:mm:ss A')} · <b>Who:</b> {log.user?.full_name || log.user_name || "—"}{log.user?.username ? ` (${log.user.username})` : ""} · <b>Outlet:</b> {log.outlet?.name || "Head Office"}</p>
-                            <p><b>IP:</b> <span className="font-mono">{log.ip_address || "—"}</span> · <b>Device:</b> {log.device_info || "—"}</p>
+                            <p><b>IP:</b> <span className="font-mono">{log.ip_address || "—"}</span> · <b>Device:</b> {deviceName(log.device_info)}{log.device_info ? <span className="text-gray-400"> ({log.device_info})</span> : null}</p>
                           </td>
                         </tr>
                       )}
@@ -324,7 +333,7 @@ export default function ActivityLogPage() {
                         )}
                       </td>
                       <td className="px-4 py-3.5 font-mono text-xs text-gray-500">{log.ip_address || "—"}</td>
-                      <td className="px-4 py-3.5 max-w-xs whitespace-normal break-words text-xs text-gray-400">{log.device_info || "—"}{log.action !== "LOGIN_SUCCESS" && log.details && <p className="mt-0.5 font-semibold text-rose-500">{log.details}</p>}</td>
+                      <td className="px-4 py-3.5 max-w-xs whitespace-normal break-words text-xs text-gray-500">{log.device_info ? <span title={log.device_info}><span className={`mr-1 rounded px-1 text-[10px] font-bold ${isMobileApp(log.device_info) ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10" : "bg-slate-100 text-slate-600 dark:bg-white/10"}`}>{isMobileApp(log.device_info) ? "APP" : "WEB"}</span>{deviceName(log.device_info)}</span> : "—"}{log.action !== "LOGIN_SUCCESS" && log.details && <p className="mt-0.5 font-semibold text-rose-500">{log.details}</p>}</td>
                     </tr>
                   ))}
                 </tbody>

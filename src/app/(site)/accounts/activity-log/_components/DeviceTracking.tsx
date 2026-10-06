@@ -6,6 +6,7 @@ import { Search, MonitorSmartphone, Globe } from "lucide-react";
 import EmptyState from "@/components/Accounts/EmptyState";
 import { TableSkeleton } from "@/components/Accounts/Skeleton";
 import ExportMenu from "@/components/Accounts/ExportMenu";
+import { deviceName } from "@/utils/deviceName";
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
 
@@ -13,12 +14,7 @@ interface Device { device: string; last_used: string; first_seen: string | null;
 interface UserRow { user_id: number; name: string; username: string | null; role: string | null; outlet: string; logins: number; failed: number; last_login: string | null; last_ip: string | null; ips: string[]; ip_count: number; devices: Device[]; device_count: number; new_devices: number }
 interface IpRow { ip: string; users: string[]; user_count: number; logins: number; failed: number; last_seen: string }
 
-/** Short, readable name for a user-agent string. */
-const deviceName = (ua: string) => {
-  const os = /Android/i.test(ua) ? "Android" : /iPhone|iPad/i.test(ua) ? "iOS" : /Windows/i.test(ua) ? "Windows" : /Mac OS/i.test(ua) ? "Mac" : /Linux/i.test(ua) ? "Linux" : /okhttp|Dart/i.test(ua) ? "Mobile app" : "Other";
-  const browser = /Edg\//.test(ua) ? "Edge" : /Chrome\//.test(ua) ? "Chrome" : /Firefox\//.test(ua) ? "Firefox" : /Safari\//.test(ua) ? "Safari" : /Dart|okhttp/i.test(ua) ? "App" : "";
-  return `${os}${browser ? ` · ${browser}` : ""}`;
-};
+
 
 /** Which IPs and devices every user logs in from, and which accounts share an IP. */
 export default function DeviceTracking() {
