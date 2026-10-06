@@ -24,12 +24,15 @@ const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
 const authHeaders = () => ({ Authorization: `Bearer ${Cookies.get("auth_token")}`, "Content-Type": "application/json" });
 const day = (d?: string | null) => (d ? new Date(d).toLocaleDateString() : "—");
 
-const BUCKET_COLORS: Record<string, string> = { "0-30": "text-emerald-600", "31-60": "text-amber-600", "61-90": "text-orange-600", "90+": "text-rose-600" };
+const BUCKET_COLORS: Record<string, string> = { not_due: "text-slate-500", "0-30": "text-emerald-600", "31-60": "text-amber-600", "61-90": "text-orange-600", "90+": "text-rose-600" };
 
 interface VendorPayables { totalPayable: number; vendorWise: { vendor_name: string; vendor_id: number | null; total_amount: number; paid_amount: number; balance: number }[]; outletWise: { outlet_id: number | null; outlet_name: string; payable: number }[] }
-interface AgingItem { purchase_id: number; invoice_number: string; vendor_name: string; outlet_name?: string; aging_from: string; dateCorrected?: boolean; daysOverdue: number; bucket: string; balance: number }
-interface AgingData { buckets: Record<string, number>; total: number; vendorWise: any[]; items: AgingItem[] }
-interface DueAlert { purchase_id: number; invoice_number: string; vendor_name: string; outlet_name: string; due_date: string; balance: number; isOverdue: boolean }
+interface AgingItem { purchase_id: number; invoice_number: string; vendor_id?: number | null; vendor_name: string; outlet_name?: string; aging_from: string; due_assumed?: boolean; dateCorrected?: boolean; daysOverdue: number; days_to_due?: number; bucket: string; balance: number }
+interface AgingVendor { vendor_id: number | null; vendor_name: string; not_due: number; "0-30": number; "31-60": number; "61-90": number; "90+": number; total: number; invoices: number; oldest_days: number }
+interface AgingData { buckets: Record<string, number>; total: number; not_due?: { amount: number; count: number }; credit_days?: number; vendorWise: AgingVendor[]; items: AgingItem[] }
+interface DueAlert { purchase_id: number; invoice_number: string; vendor_id?: number | null; vendor_name: string; outlet_name: string; due_date: string; due_assumed?: boolean; balance: number; isOverdue: boolean }
+interface AlertSummary { overdue: { count: number; amount: number }; due_soon: { count: number; amount: number }; assumed_count: number; credit_days: number }
+interface ScheduledDue { id: number; vendor_id: number; vendor_name: string; outlet_name: string; amount: number; scheduled_date: string; notes: string | null; isOverdue: boolean }
 interface ScheduledPayment { id: number; vendor_id: number; amount: number; scheduled_date: string; status: string; notes: string | null; paid_at: string | null; paid_amount: number | null; vendor: { name: string } }
 interface VendorListItem extends SoftDeleted { id: number; name: string; phone: string | null; email: string | null; balance: number; cash_in_hand_balance: number; outlet: { id: number; name: string } | null }
 interface Purchase extends SoftDeleted {
@@ -70,6 +73,12 @@ export default function AccountsVendorsPage() {
   const [alerts, setAlerts] = useState<DueAlert[]>([]);
   const [alertsLoading, setAlertsLoading] = useState(false);
   const [alertDays, setAlertDays] = useState(7);
+  const [alertSummary, setAlertSummary] = useState<AlertSummary | null>(null);
+  const [scheduledDue, setScheduledDue] = useState<ScheduledDue[]>([]);
+  const [alertSearch, setAlertSearch] = useState("");
+  const [agingBucket, setAgingBucket] = useState("");
+  const [agingSearch, setAgingSearch] = useState("");
+  const [agingView, setAgingView] = useState<"invoices" | "vendors">("vendors");
 
   const [scheduled, setScheduled] = useState<ScheduledPayment[]>([]);
   const [scheduledLoading, setScheduledLoading] = useState(false);
@@ -112,7 +121,7 @@ export default function AccountsVendorsPage() {
     }
     if (tab === "alerts") {
       setAlertsLoading(true);
-      fetch(`${BACKEND_URL}/api/accounts/vendors/due-alerts?withinDays=${alertDays}`, { headers: authHeaders() }).then((res) => res.json()).then((json) => { if (json.success) setAlerts(json.data); }).finally(() => setAlertsLoading(false));
+      fetch(`${BACKEND_URL}/api/accounts/vendors/due-alerts?withinDays=${alertDays}`, { headers: authHeaders() }).then((res) => res.json()).then((json) => { if (json.success) { setAlerts(json.data); setAlertSummary(json.summary || null); setScheduledDue(json.scheduled || []); } }).finally(() => setAlertsLoading(false));
     }
     if (tab === "scheduled") fetchScheduled();
   }, [tab, alertDays, refreshKey]);
@@ -415,53 +424,111 @@ export default function AccountsVendorsPage() {
 
       {/* ── Aging ── */}
       {tab === "aging" && (
-        agingLoading ? <TableSkeleton /> : aging && aging.items.length > 0 ? (
-          <div className="space-y-6">
-            <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-              {Object.entries(aging.buckets).map(([bucket, amount]) => (
-                <div key={bucket} className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm dark:border-white/10 dark:bg-boxdark">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">{bucket} Days</p>
-                  <p className={`text-xl font-black ${BUCKET_COLORS[bucket]}`}>{PKR(amount)}</p>
-                </div>
+        agingLoading ? <TableSkeleton /> : aging && aging.items.length > 0 ? (() => {
+          const q = agingSearch.trim().toLowerCase();
+          const items = aging.items.filter((it) => (!agingBucket || it.bucket === agingBucket) && (!q || `${it.invoice_number} ${it.vendor_name} ${it.outlet_name || ""}`.toLowerCase().includes(q)));
+          const vendors = aging.vendorWise.filter((v) => (!q || v.vendor_name.toLowerCase().includes(q)) && (!agingBucket || (v as any)[agingBucket] > 0));
+          const cards: [string, string, number, string][] = [
+            ["not_due", "Not yet due", aging.not_due?.amount || 0, `${aging.not_due?.count || 0} invoice(s)`],
+            ["0-30", "Overdue 0–30 days", aging.buckets["0-30"] || 0, ""],
+            ["31-60", "Overdue 31–60 days", aging.buckets["31-60"] || 0, ""],
+            ["61-90", "Overdue 61–90 days", aging.buckets["61-90"] || 0, ""],
+            ["90+", "Overdue 90+ days", aging.buckets["90+"] || 0, ""],
+          ];
+          return (
+          <div className="space-y-5">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+              {cards.map(([key, label, amount, note]) => (
+                <button key={key} onClick={() => setAgingBucket(agingBucket === key ? "" : key)} className={`rounded-2xl border bg-white p-4 text-left shadow-sm dark:bg-boxdark ${agingBucket === key ? "border-[#ff3d3d] ring-2 ring-[#ff3d3d]/20" : "border-slate-100 dark:border-white/10"}`}>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">{label}</p>
+                  <p className={`text-xl font-black ${BUCKET_COLORS[key]}`}>{PKR(amount)}</p>
+                  {note && <p className="text-[11px] text-gray-500">{note}</p>}
+                </button>
               ))}
             </div>
-            <div className={card}>
-              <div className="flex justify-end border-b border-slate-100 p-3 dark:border-white/10">
-                <ExportMenu title="Vendor Aging" columns={[
-                  { header: "Invoice", value: (it: AgingItem) => it.invoice_number },
-                  { header: "Vendor", value: (it) => it.vendor_name },
-                  { header: "Outlet", value: (it) => it.outlet_name || "" },
-                  { header: "Due / purchase date", value: (it) => day(it.aging_from) },
-                  { header: "Days overdue", value: (it) => it.daysOverdue, numeric: true },
-                  { header: "Bucket", value: (it) => it.bucket },
-                  { header: "Balance", value: (it) => it.balance, numeric: true },
-                  { header: "Note", value: (it) => (it.dateCorrected ? "Invoice has an invalid date" : "") },
-                ]} getRows={() => aging.items} />
+            <p className="text-xs text-gray-500">Total overdue: <b className="text-rose-600">{PKR(aging.total)}</b>. Invoices entered without a due date are treated as due {aging.credit_days ?? 30} days after purchase (marked “no due date”).</p>
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="flex gap-1 rounded-xl bg-gray-100 p-1 dark:bg-dark-3">
+                {(["vendors", "invoices"] as const).map((v) => <button key={v} onClick={() => setAgingView(v)} className={`rounded-lg px-4 py-1.5 text-sm font-semibold ${agingView === v ? "bg-white text-[#ff3d3d] shadow-sm dark:bg-boxdark" : "text-gray-500"}`}>{v === "vendors" ? "By vendor" : "By invoice"}</button>)}
               </div>
-              <div className="max-h-[600px] overflow-auto">
-                <table className="w-full text-left text-sm">
-                  <thead className={`${thead} sticky top-0`}><tr><th className="px-4 py-3 font-bold">Invoice</th><th className="px-4 py-3 font-bold">Vendor</th><th className="px-4 py-3 font-bold">Outlet</th><th className="px-4 py-3 font-bold">Due / Purchase Date</th><th className="px-4 py-3 text-right font-bold">Days Overdue</th><th className="px-4 py-3 text-right font-bold">Balance</th><th className="px-4 py-3"></th></tr></thead>
-                  <tbody>{aging.items.map((it) => (
-                    <tr key={it.purchase_id} className="border-t border-slate-50 dark:border-white/5">
-                      <td className="px-4 py-3.5 font-semibold text-dark dark:text-white">{it.invoice_number}</td>
-                      <td className="px-4 py-3.5 text-gray-600 dark:text-gray-300">{it.vendor_name}</td>
-                      <td className="px-4 py-3.5 text-gray-600 dark:text-gray-300">{it.outlet_name || "—"}</td>
-                      <td className="px-4 py-3.5 text-gray-500">
-                        {day(it.aging_from)}
-                        {it.dateCorrected && (
-                          <span title="The date saved on this invoice has an impossible year, so aging is counted from the day it was entered. Edit the purchase to fix the date." className="ml-2 rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-700 dark:bg-amber-500/10">Wrong date on invoice</span>
-                        )}
-                      </td>
-                      <td className={`px-4 py-3.5 text-right font-semibold tabular-nums ${BUCKET_COLORS[it.bucket]}`}>{it.daysOverdue}</td>
-                      <td className="px-4 py-3.5 text-right font-bold tabular-nums text-dark dark:text-white">{PKR(it.balance)}</td>
-                      <td className="px-4 py-3.5 text-right"><button onClick={() => payPurchase({ purchase_id: it.purchase_id, invoice_number: it.invoice_number, vendor_name: it.vendor_name, balance: it.balance })} className="text-xs font-bold text-[#ff3d3d] hover:underline">Pay</button></td>
-                    </tr>
-                  ))}</tbody>
-                </table>
+              <div className="relative min-w-[200px] flex-1 sm:max-w-xs">
+                <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-gray-400" />
+                <input value={agingSearch} onChange={(e) => setAgingSearch(e.target.value)} placeholder="Vendor, invoice, outlet..." className={`${sel} w-full pl-9`} />
+              </div>
+              {agingBucket && <button onClick={() => setAgingBucket("")} className="text-xs font-semibold text-gray-500 hover:underline">Clear bucket filter</button>}
+              <div className="ml-auto">
+                {agingView === "vendors" ? (
+                  <ExportMenu title="Vendor Aging by vendor" columns={[
+                    { header: "Vendor", value: (v: AgingVendor) => v.vendor_name },
+                    { header: "Invoices", value: (v) => v.invoices, numeric: true },
+                    { header: "Not yet due", value: (v) => v.not_due, numeric: true },
+                    { header: "0-30", value: (v) => v["0-30"], numeric: true },
+                    { header: "31-60", value: (v) => v["31-60"], numeric: true },
+                    { header: "61-90", value: (v) => v["61-90"], numeric: true },
+                    { header: "90+", value: (v) => v["90+"], numeric: true },
+                    { header: "Total owed", value: (v) => v.total, numeric: true },
+                    { header: "Oldest (days overdue)", value: (v) => v.oldest_days, numeric: true },
+                  ]} getRows={() => vendors} />
+                ) : (
+                  <ExportMenu title="Vendor Aging by invoice" columns={[
+                    { header: "Invoice", value: (it: AgingItem) => it.invoice_number },
+                    { header: "Vendor", value: (it) => it.vendor_name },
+                    { header: "Outlet", value: (it) => it.outlet_name || "" },
+                    { header: "Due date", value: (it) => day(it.aging_from) },
+                    { header: "Due date source", value: (it) => (it.due_assumed ? "No due date — purchase + credit days" : "Invoice") },
+                    { header: "Days overdue", value: (it) => it.daysOverdue, numeric: true },
+                    { header: "Bucket", value: (it) => (it.bucket === "not_due" ? "Not yet due" : it.bucket) },
+                    { header: "Balance", value: (it) => it.balance, numeric: true },
+                  ]} getRows={() => items} />
+                )}
               </div>
             </div>
+
+            {agingView === "vendors" ? (
+              <div className={card}>
+                <div className="max-h-[600px] overflow-auto">
+                  <table className="w-full text-left text-sm">
+                    <thead className={`${thead} sticky top-0`}><tr><th className="px-4 py-3 font-bold">Vendor</th><th className="px-4 py-3 text-right font-bold">Not yet due</th><th className="px-4 py-3 text-right font-bold">0–30</th><th className="px-4 py-3 text-right font-bold">31–60</th><th className="px-4 py-3 text-right font-bold">61–90</th><th className="px-4 py-3 text-right font-bold">90+</th><th className="px-4 py-3 text-right font-bold">Total owed</th><th className="px-4 py-3"></th></tr></thead>
+                    <tbody>{vendors.map((v) => (
+                      <tr key={`${v.vendor_id}-${v.vendor_name}`} className="border-t border-slate-50 dark:border-white/5">
+                        <td className="px-4 py-3.5">{v.vendor_id ? <button onClick={() => setLedgerVendor(v.vendor_id)} className="font-medium text-dark hover:text-[#ff3d3d] hover:underline dark:text-white">{v.vendor_name}</button> : <span className="font-medium">{v.vendor_name}</span>}<p className="text-xs text-gray-400">{v.invoices} invoice(s){v.oldest_days ? ` · oldest ${v.oldest_days} days overdue` : ""}</p></td>
+                        {(["not_due", "0-30", "31-60", "61-90", "90+"] as const).map((k) => <td key={k} className={`px-4 py-3.5 text-right tabular-nums ${(v as any)[k] ? BUCKET_COLORS[k] + " font-semibold" : "text-gray-300"}`}>{(v as any)[k] ? PKR((v as any)[k]) : "—"}</td>)}
+                        <td className="px-4 py-3.5 text-right font-black tabular-nums text-dark dark:text-white">{PKR(v.total)}</td>
+                        <td className="px-4 py-3.5 text-right">{v.vendor_id && <button onClick={() => setPayTarget({ vendor_id: v.vendor_id!, vendor_name: v.vendor_name, outstanding: vendorOutstanding(v.vendor_id) || v.total })} className="text-xs font-bold text-[#ff3d3d] hover:underline">Pay</button>}</td>
+                      </tr>
+                    ))}</tbody>
+                  </table>
+                </div>
+              </div>
+            ) : (
+              <div className={card}>
+                <div className="max-h-[600px] overflow-auto">
+                  <table className="w-full text-left text-sm">
+                    <thead className={`${thead} sticky top-0`}><tr><th className="px-4 py-3 font-bold">Invoice</th><th className="px-4 py-3 font-bold">Vendor</th><th className="px-4 py-3 font-bold">Outlet</th><th className="px-4 py-3 font-bold">Due Date</th><th className="px-4 py-3 text-right font-bold">Days Overdue</th><th className="px-4 py-3 text-right font-bold">Balance</th><th className="px-4 py-3"></th></tr></thead>
+                    <tbody>{items.map((it) => (
+                      <tr key={it.purchase_id} className="border-t border-slate-50 dark:border-white/5">
+                        <td className="px-4 py-3.5 font-semibold text-dark dark:text-white">{it.invoice_number}</td>
+                        <td className="px-4 py-3.5 text-gray-600 dark:text-gray-300">{it.vendor_name}</td>
+                        <td className="px-4 py-3.5 text-gray-600 dark:text-gray-300">{it.outlet_name || "—"}</td>
+                        <td className="px-4 py-3.5 text-gray-500">
+                          {day(it.aging_from)}
+                          {it.due_assumed && <span title={`No due date was entered on this invoice, so it is taken as due ${aging.credit_days ?? 30} days after purchase. Edit the purchase to set the real date.`} className="ml-2 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-600 dark:bg-white/10">no due date</span>}
+                          {it.dateCorrected && (
+                            <span title="The date saved on this invoice has an impossible year, so aging is counted from the day it was entered. Edit the purchase to fix the date." className="ml-2 rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-700 dark:bg-amber-500/10">Wrong date on invoice</span>
+                          )}
+                        </td>
+                        <td className={`px-4 py-3.5 text-right font-semibold tabular-nums ${BUCKET_COLORS[it.bucket]}`}>{it.bucket === "not_due" ? `due in ${it.days_to_due}d` : it.daysOverdue}</td>
+                        <td className="px-4 py-3.5 text-right font-bold tabular-nums text-dark dark:text-white">{PKR(it.balance)}</td>
+                        <td className="px-4 py-3.5 text-right"><button onClick={() => payPurchase({ purchase_id: it.purchase_id, invoice_number: it.invoice_number, vendor_name: it.vendor_name, balance: it.balance, vendor_id: it.vendor_id })} className="text-xs font-bold text-[#ff3d3d] hover:underline">Pay</button></td>
+                      </tr>
+                    ))}</tbody>
+                  </table>
+                </div>
+              </div>
+            )}
           </div>
-        ) : <div className={card}><EmptyState icon={Clock} title="No outstanding vendor balances" /></div>
+          );
+        })() : <div className={card}><EmptyState icon={Clock} title="No outstanding vendor balances" /></div>
       )}
 
       {/* ── Due alerts ── */}
@@ -483,21 +550,48 @@ export default function AccountsVendorsPage() {
               ]} getRows={() => alerts} />
             </div>
           </div>
+          {alertSummary && (
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
+              <div className="rounded-2xl border border-rose-100 bg-rose-50/60 p-4 dark:border-rose-500/20 dark:bg-rose-500/5"><p className="text-[10px] font-black uppercase tracking-widest text-rose-500">Overdue now</p><p className="text-xl font-black text-rose-600">{PKR(alertSummary.overdue.amount)}</p><p className="text-[11px] text-gray-500">{alertSummary.overdue.count} invoice(s)</p></div>
+              <div className="rounded-2xl border border-amber-100 bg-amber-50/60 p-4 dark:border-amber-500/20 dark:bg-amber-500/5"><p className="text-[10px] font-black uppercase tracking-widest text-amber-600">Due in next {alertDays} days</p><p className="text-xl font-black text-amber-600">{PKR(alertSummary.due_soon.amount)}</p><p className="text-[11px] text-gray-500">{alertSummary.due_soon.count} invoice(s)</p></div>
+              <div className="rounded-2xl border border-slate-100 bg-white p-4 dark:border-white/10 dark:bg-boxdark"><p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Scheduled to pay</p><p className="text-xl font-black text-dark dark:text-white">{PKR(scheduledDue.reduce((s2, x) => s2 + x.amount, 0))}</p><p className="text-[11px] text-gray-500">{scheduledDue.length} planned payment(s) in this window</p></div>
+            </div>
+          )}
+          {alertSummary && alertSummary.assumed_count > 0 && <p className="text-xs text-gray-500">{alertSummary.assumed_count} invoice(s) had no due date entered — they are taken as due {alertSummary.credit_days} days after purchase (marked “no due date”).</p>}
+          <div className="relative max-w-sm">
+            <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-gray-400" />
+            <input value={alertSearch} onChange={(e) => setAlertSearch(e.target.value)} placeholder="Vendor, invoice, outlet..." className={`${sel} w-full pl-9`} />
+          </div>
+          {scheduledDue.length > 0 && (
+            <div className={card}>
+              <p className="border-b border-slate-100 px-4 py-2.5 text-xs font-bold uppercase tracking-wide text-gray-500 dark:border-white/10">Scheduled payments due</p>
+              <table className="w-full text-left text-sm">
+                <tbody>{scheduledDue.filter((x) => !alertSearch.trim() || `${x.vendor_name} ${x.outlet_name}`.toLowerCase().includes(alertSearch.trim().toLowerCase())).map((x) => (
+                  <tr key={x.id} className="border-t border-slate-50 first:border-0 dark:border-white/5">
+                    <td className="px-4 py-3 font-medium text-dark dark:text-white">{x.vendor_name}<p className="text-xs font-normal text-gray-400">{x.outlet_name}{x.notes ? ` · ${x.notes}` : ""}</p></td>
+                    <td className={`px-4 py-3 ${x.isOverdue ? "font-semibold text-rose-600" : "text-gray-500"}`}>{day(x.scheduled_date)}{x.isOverdue && " (past)"}</td>
+                    <td className="px-4 py-3 text-right font-bold tabular-nums">{PKR(x.amount)}</td>
+                    <td className="px-4 py-3 text-right"><button onClick={() => { const out = vendorOutstanding(x.vendor_id); if (out <= 0) { toast.error("This vendor has nothing outstanding."); return; } setPayTarget({ vendor_id: x.vendor_id, vendor_name: x.vendor_name, outstanding: out, suggested_amount: x.amount, scheduled_payment_id: x.id }); }} className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white">Pay now</button></td>
+                  </tr>
+                ))}</tbody>
+              </table>
+            </div>
+          )}
           {alertsLoading ? <TableSkeleton /> : alerts.length > 0 ? (
             <div className={card}>
               <table className="w-full text-left text-sm">
                 <thead className={thead}><tr><th className="px-4 py-3 font-bold">Invoice</th><th className="px-4 py-3 font-bold">Vendor</th><th className="px-4 py-3 font-bold">Outlet</th><th className="px-4 py-3 font-bold">Due Date</th><th className="px-4 py-3 font-bold">Status</th><th className="px-4 py-3 text-right font-bold">Balance</th><th className="px-4 py-3"></th></tr></thead>
-                <tbody>{alerts.map((a) => {
+                <tbody>{alerts.filter((a) => !alertSearch.trim() || `${a.invoice_number} ${a.vendor_name} ${a.outlet_name}`.toLowerCase().includes(alertSearch.trim().toLowerCase())).map((a) => {
                   const days = Math.round((new Date(a.due_date).getTime() - Date.now()) / 86400000);
                   return (
                     <tr key={a.purchase_id} className="border-t border-slate-50 dark:border-white/5">
                       <td className="px-4 py-3.5 font-semibold text-dark dark:text-white">{a.invoice_number}</td>
                       <td className="px-4 py-3.5 text-gray-600 dark:text-gray-300">{a.vendor_name}</td>
                       <td className="px-4 py-3.5 text-gray-600 dark:text-gray-300">{a.outlet_name}</td>
-                      <td className="px-4 py-3.5 text-gray-500">{day(a.due_date)}</td>
+                      <td className="px-4 py-3.5 text-gray-500">{day(a.due_date)}{a.due_assumed && <span title="No due date was entered on this invoice — taken as purchase date + credit days." className="ml-2 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-600 dark:bg-white/10">no due date</span>}</td>
                       <td className="px-4 py-3.5">{a.isOverdue ? <span className="rounded-full bg-rose-50 px-2.5 py-1 text-xs font-bold text-rose-600 dark:bg-rose-500/10">Overdue {-days}d</span> : <span className="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-bold text-amber-600 dark:bg-amber-500/10">Due in {days}d</span>}</td>
                       <td className="px-4 py-3.5 text-right font-bold tabular-nums text-dark dark:text-white">{PKR(a.balance)}</td>
-                      <td className="px-4 py-3.5 text-right"><button onClick={() => payPurchase({ purchase_id: a.purchase_id, invoice_number: a.invoice_number, vendor_name: a.vendor_name, balance: a.balance })} className="rounded-lg bg-[#ff3d3d] px-3 py-1.5 text-xs font-bold text-white">Pay</button></td>
+                      <td className="px-4 py-3.5 text-right"><button onClick={() => payPurchase({ purchase_id: a.purchase_id, invoice_number: a.invoice_number, vendor_name: a.vendor_name, balance: a.balance, vendor_id: a.vendor_id })} className="rounded-lg bg-[#ff3d3d] px-3 py-1.5 text-xs font-bold text-white">Pay</button></td>
                     </tr>
                   );
                 })}</tbody>
