@@ -183,8 +183,9 @@ export default function MonthlyInstallmentsPage() {
               { header: "Target %", value: (m) => m.targetPercentage ?? "", numeric: true },
             ]} getRows={() => months} />
           </div>
-          <div className="-mx-2 overflow-x-auto px-2">
-            <div className="min-w-[640px]">
+          {/* Scrolls sideways only on narrow screens; never shows a scrollbar on desktop. */}
+          <div className="overflow-x-auto overflow-y-hidden md:overflow-x-visible">
+            <div className="min-w-[640px] md:min-w-0">
               <Chart options={chartOptions} series={series} type="line" height={330} />
             </div>
           </div>
