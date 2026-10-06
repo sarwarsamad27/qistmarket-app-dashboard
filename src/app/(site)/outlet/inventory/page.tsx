@@ -9,6 +9,7 @@ import {
     ScanSearch, MapPin, ArrowRightLeft, RotateCcw, ShoppingBag, Building2
 } from "lucide-react";
 import Breadcrumb from "@/components/Breadcrumbs/Breadcrumb";
+import { askDeleteReason } from "@/components/common/DeletedBadge";
 
 const API_BASE = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
 const getAuthHeaders = () => ({
@@ -273,8 +274,9 @@ export default function OutletInventoryPage() {
         const label = item.imei_serial
             ? `IMEI ${item.imei_serial} (${item.product_name})`
             : `${item.quantity} unit(s) of ${item.product_name}`;
-        if (!confirm(`Delete ${label}? This cannot be undone.`)) return;
-        const res = await fetch(`${API_BASE}/api/outlet/inventory/${item.id}`, {
+        const reason = askDeleteReason(label);
+        if (reason === null) return;
+        const res = await fetch(`${API_BASE}/api/outlet/inventory/${item.id}?reason=${encodeURIComponent(reason)}`, {
             method: "DELETE",
             headers: getAuthHeaders(),
         });
@@ -291,11 +293,12 @@ export default function OutletInventoryPage() {
     // via the same bulk-delete endpoint used for manual multi-select.
     const deleteGroup = async (grp: GroupedItem) => {
         const ids = grp.children.map(c => c.id);
-        if (!confirm(`Delete "${grp.product_name}" and all ${ids.length} unit(s) (including every IMEI)? This cannot be undone.`)) return;
+        const reason = askDeleteReason(`"${grp.product_name}" and all ${ids.length} unit(s)`);
+        if (reason === null) return;
         const res = await fetch(`${API_BASE}/api/outlet/inventory/bulk-delete`, {
             method: "POST",
             headers: getAuthHeaders(),
-            body: JSON.stringify({ ids }),
+            body: JSON.stringify({ ids, reason }),
         });
         const data = await res.json();
         if (data.success) {
@@ -309,11 +312,12 @@ export default function OutletInventoryPage() {
 
     const handleBulkDelete = async () => {
         if (selectedIds.length === 0) return;
-        if (!confirm(`Delete ${selectedIds.length} item(s)?`)) return;
+        const reason = askDeleteReason(`${selectedIds.length} item(s)`);
+        if (reason === null) return;
         const res = await fetch(`${API_BASE}/api/outlet/inventory/bulk-delete`, {
             method: "POST",
             headers: getAuthHeaders(),
-            body: JSON.stringify({ ids: selectedIds }),
+            body: JSON.stringify({ ids: selectedIds, reason }),
         });
         const data = await res.json();
         if (data.success) {

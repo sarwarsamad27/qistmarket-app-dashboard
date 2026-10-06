@@ -33,6 +33,7 @@ import EmptyState from "@/components/Accounts/EmptyState";
 import { StatCardSkeleton, TableSkeleton } from "@/components/Accounts/Skeleton";
 import { PKR } from "@/components/Accounts/StatCard";
 import { apiErrorMessage } from "@/lib/apiErrors";
+import DeletedBadge, { askDeleteReason, deletedRowClass } from "@/components/common/DeletedBadge";
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
 const authHeaders = () => ({ Authorization: `Bearer ${Cookies.get("auth_token")}`, "Content-Type": "application/json" });
@@ -52,6 +53,9 @@ interface ExpenseSummary {
 }
 
 interface AllExpensesRow {
+  deleted_at?: string | null;
+  deleted_by_name?: string | null;
+  delete_reason?: string | null;
   id: number;
   voucher_number: string;
   total_amount: number;
@@ -117,6 +121,7 @@ export default function AccountsExpensesPage() {
   // All Expenses Tracker state
   const [allExpenses, setAllExpenses] = useState<AllExpensesRow[]>([]);
   const [allExpensesLoading, setAllExpensesLoading] = useState(false);
+  const [showDeleted, setShowDeleted] = useState(false);
   const [sourceFilter, setSourceFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState<string>("");
@@ -169,6 +174,7 @@ export default function AccountsExpensesPage() {
     if (sourceFilter !== "all") query.set("source", sourceFilter);
     if (statusFilter !== "all") query.set("status", statusFilter);
     if (searchQuery.trim()) query.set("search", searchQuery.trim());
+    if (showDeleted) query.set("includeDeleted", "1");
 
     fetch(`${BACKEND_URL}/api/accounts/expenses/all?${query.toString()}`, { headers: authHeaders() })
       .then((res) => res.json())
@@ -205,7 +211,7 @@ export default function AccountsExpensesPage() {
         })
         .finally(() => setSalaryLoading(false));
     }
-  }, [tab, globalMonthFilter, sourceFilter, statusFilter]);
+  }, [tab, globalMonthFilter, sourceFilter, statusFilter, showDeleted]);
 
   const fetchApprovals = () => {
     setApprovalsLoading(true);
@@ -306,10 +312,11 @@ export default function AccountsExpensesPage() {
   };
 
   const handleDeleteExpense = async (id: number, voucherNumber: string, amount: number) => {
-    if (!confirm(`Are you sure you want to delete Expense Voucher "${voucherNumber}" (${PKR(amount)})?\n\nThis will permanently delete the expense and automatically reverse the balance from the Cash Register if applicable.`)) return;
+    const reason = askDeleteReason(`expense voucher ${voucherNumber} (${PKR(amount)})`);
+    if (reason === null) return;
     setDeletingId(id);
     try {
-      const res = await fetch(`${BACKEND_URL}/api/accounts/expenses/${id}`, {
+      const res = await fetch(`${BACKEND_URL}/api/accounts/expenses/${id}?reason=${encodeURIComponent(reason)}`, {
         method: "DELETE",
         headers: authHeaders(),
       });
@@ -596,6 +603,10 @@ export default function AccountsExpensesPage() {
                   <option value="rejected">Rejected</option>
                 </select>
 
+                <label className="flex items-center gap-1.5 rounded-xl border border-stroke px-3 py-1.5 text-xs font-semibold text-gray-600 dark:border-dark-3 dark:text-gray-300">
+                  <input type="checkbox" checked={showDeleted} onChange={(e) => setShowDeleted(e.target.checked)} className="size-3.5 accent-[#ff3d3d]" /> Show deleted
+                </label>
+
                 <button
                   onClick={() => { fetchAllExpenses(globalMonthFilter); fetchSummary(globalMonthFilter); }}
                   className="flex items-center gap-1.5 rounded-xl border border-stroke bg-gray-50 px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-100 dark:border-dark-3 dark:bg-white/5 dark:text-gray-300"
@@ -623,10 +634,11 @@ export default function AccountsExpensesPage() {
                   </thead>
                   <tbody className="divide-y divide-slate-100 dark:divide-white/5">
                     {allExpenses.map((v) => (
-                      <tr key={v.id} className="transition hover:bg-slate-50/70 dark:hover:bg-white/5">
+                      <tr key={v.id} className={`transition hover:bg-slate-50/70 dark:hover:bg-white/5 ${deletedRowClass(v)}`}>
                         {/* Voucher # & Date */}
                         <td className="px-5 py-3.5">
-                          <p className="font-extrabold text-dark dark:text-white">{v.voucher_number}</p>
+                          <p className="font-extrabold text-dark dark:text-white">{v.voucher_number}<DeletedBadge row={v} /></p>
+                          {v.deleted_at && <p className="text-[10px] text-gray-500">{v.deleted_by_name ? `by ${v.deleted_by_name}` : ""}{v.delete_reason ? ` — ${v.delete_reason}` : ""}</p>}
                           <p className="text-xs text-gray-400">{new Date(v.date).toLocaleDateString()}</p>
                         </td>
 
@@ -720,14 +732,14 @@ export default function AccountsExpensesPage() {
                               </button>
                             )}
 
-                            <button
+                            {!v.deleted_at && <button
                               onClick={() => handleDeleteExpense(v.id, v.voucher_number, v.total_amount)}
                               disabled={deletingId === v.id}
                               title="Delete Expense Voucher"
                               className="inline-flex items-center gap-1 rounded-lg bg-rose-50 p-1.5 text-xs font-bold text-rose-600 hover:bg-rose-100 dark:bg-rose-500/10 dark:text-rose-400 disabled:opacity-50 transition"
                             >
                               {deletingId === v.id ? <Loader2 className="size-3.5 animate-spin" /> : <Trash2 className="size-3.5" />}
-                            </button>
+                            </button>}
                           </div>
                         </td>
                       </tr>

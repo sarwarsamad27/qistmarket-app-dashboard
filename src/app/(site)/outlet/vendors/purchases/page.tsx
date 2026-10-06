@@ -1,5 +1,6 @@
 "use client";
 
+import DeletedBadge, { deletedRowClass } from "@/components/common/DeletedBadge";
 import { useEffect, useState, useMemo, Fragment } from "react";
 import { useRouter } from "next/navigation";
 import Cookies from "js-cookie";
@@ -35,6 +36,9 @@ interface PurchaseItem {
 }
 
 interface Purchase {
+    deleted_at?: string | null;
+    deleted_by_name?: string | null;
+    delete_reason?: string | null;
     id: number;
     invoice_number: string;
     vendor_id?: number;
@@ -53,6 +57,8 @@ interface Purchase {
 
 export default function VendorPurchasesPage() {
     const router = useRouter();
+    const [showDeleted, setShowDeleted] = useState(false);
+    const [deleteReasonText, setDeleteReasonText] = useState("");
     const [purchases, setPurchases] = useState<Purchase[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState("");
@@ -83,10 +89,10 @@ export default function VendorPurchasesPage() {
     const [purchaseHistory, setPurchaseHistory] = useState<any[]>([]);
     const [loadingHistory, setLoadingHistory] = useState(false);
 
-    useEffect(() => { 
-        if (view === 'purchases') fetchPurchases(); 
+    useEffect(() => {
+        if (view === 'purchases') fetchPurchases();
         else fetchReturns();
-    }, [view]);
+    }, [view, showDeleted]);
 
     const fetchReturns = async () => {
         setLoadingReturns(true);
@@ -104,7 +110,7 @@ export default function VendorPurchasesPage() {
     const fetchPurchases = async () => {
         setLoading(true);
         try {
-            const res = await fetch(`${API_BASE}/api/outlet/vendors/purchases`, { headers: getAuthHeaders() });
+            const res = await fetch(`${API_BASE}/api/outlet/vendors/purchases${showDeleted ? "?includeDeleted=1" : ""}`, { headers: getAuthHeaders() });
             const data = await res.json();
             if (data.success) setPurchases(data.purchases);
         } catch (e) { 
@@ -132,13 +138,14 @@ export default function VendorPurchasesPage() {
         setConfirmDeleteId(null);
         setDeletingId(id);
         try {
-            const res = await fetch(`${API_BASE}/api/outlet/vendors/purchases/${id}`, {
+            const res = await fetch(`${API_BASE}/api/outlet/vendors/purchases/${id}?reason=${encodeURIComponent(deleteReasonText.trim() || "No reason given")}`, {
                 method: "DELETE",
                 headers: getAuthHeaders(),
             });
             const data = await res.json();
             if (data.success) {
-                setPurchases(prev => prev.filter(p => p.id !== id));
+                setDeleteReasonText("");
+                fetchPurchases();
                 toast.success(data.message || "Purchase deleted successfully.");
             } else {
                 toast.error(data.message || "Failed to delete purchase.");
@@ -240,9 +247,10 @@ export default function VendorPurchasesPage() {
     }, [purchases]);
 
     const stats = useMemo(() => {
-        const totalPurchased = purchases.reduce((s, p) => s + p.total_amount, 0);
-        const totalPaid = purchases.reduce((s, p) => s + p.paid_amount, 0);
-        const totalBalance = purchases.reduce((s, p) => s + p.balance, 0);
+        const live = purchases.filter(p => !p.deleted_at); // deleted invoices never count
+        const totalPurchased = live.reduce((s, p) => s + p.total_amount, 0);
+        const totalPaid = live.reduce((s, p) => s + p.paid_amount, 0);
+        const totalBalance = live.reduce((s, p) => s + p.balance, 0);
         return { totalPurchased, totalPaid, totalBalance };
     }, [purchases]);
 
@@ -399,6 +407,11 @@ export default function VendorPurchasesPage() {
                             className="w-full pl-10 pr-4 py-2 rounded-xl bg-gray-50 dark:bg-meta-4 border border-stroke dark:border-strokedark focus:border-primary outline-none text-sm transition-all"
                         />
                     </div>
+                    {view === 'purchases' && (
+                        <label className="flex items-center gap-1.5 text-xs font-bold text-gray-500">
+                            <input type="checkbox" checked={showDeleted} onChange={(e) => setShowDeleted(e.target.checked)} className="size-4 accent-primary" /> Show deleted
+                        </label>
+                    )}
                 </div>
 
                 <div className="overflow-x-auto">
@@ -431,13 +444,14 @@ export default function VendorPurchasesPage() {
                                         <Fragment key={p.id}>
                                             <tr 
                                                 onClick={() => toggleExpand(p.id)}
-                                                className={`group border-b border-stroke dark:border-strokedark hover:bg-gray-50 dark:hover:bg-meta-4/20 transition-colors cursor-pointer ${isExpanded ? 'bg-primary/5 dark:bg-primary/10' : ''}`}
+                                                className={`group border-b border-stroke dark:border-strokedark hover:bg-gray-50 dark:hover:bg-meta-4/20 transition-colors cursor-pointer ${isExpanded ? 'bg-primary/5 dark:bg-primary/10' : ''} ${deletedRowClass(p)}`}
                                             >
                                                 <td className="p-4 text-center">
                                                     {isExpanded ? <ChevronDown size={16} className="text-primary mx-auto" /> : <ChevronRight size={16} className="text-gray-400 mx-auto" />}
                                                 </td>
                                                 <td className="p-4">
-                                                    <div className="font-bold text-gray-800 dark:text-white uppercase tracking-tight">{p.invoice_number}</div>
+                                                    <div className="font-bold text-gray-800 dark:text-white uppercase tracking-tight">{p.invoice_number}<DeletedBadge row={p} /></div>
+                                                    {p.deleted_at && <div className="text-[10px] normal-case text-gray-500">{p.deleted_by_name ? `by ${p.deleted_by_name}` : ""}{p.delete_reason ? ` — ${p.delete_reason}` : ""}</div>}
                                                     <div className="text-[10px] text-gray-500 mt-0.5">{new Date(p.purchase_date).toLocaleDateString("en-PK", { day: '2-digit', month: 'short', year: 'numeric' })}</div>
                                                 </td>
                                                 <td className="p-4">
@@ -465,8 +479,8 @@ export default function VendorPurchasesPage() {
                                                     </span>
                                                 </td>
                                                 <td className="p-4 text-right" onClick={(e) => e.stopPropagation()}>
-                                                    <div className="flex items-center justify-end gap-2">
-                                                        <button 
+                                                    {!p.deleted_at && <div className="flex items-center justify-end gap-2">
+                                                        <button
                                                             onClick={(e) => {
                                                                 e.stopPropagation();
                                                                 setReturnModalPurchase(p);
@@ -506,7 +520,7 @@ export default function VendorPurchasesPage() {
                                                         >
                                                             <Trash2 size={16} />
                                                         </button>
-                                                    </div>
+                                                    </div>}
                                                 </td>
                                             </tr>
     
@@ -753,8 +767,14 @@ export default function VendorPurchasesPage() {
                         </div>
                         <h3 className="text-2xl font-black text-gray-800 dark:text-white mb-2 tracking-tight">Delete Invoice?</h3>
                         <p className="text-xs text-gray-500 dark:text-gray-400 mb-8 font-bold leading-relaxed max-w-xs mx-auto">
-                            Are you sure you want to delete this purchase invoice? This action <span className="text-red-500 font-black">cannot be undone</span> and will not automatically remove items from inventory.
+                            The invoice stays on record greyed out as “Deleted” and stops counting in payables and stock; its payments are cancelled with it and the unsold units leave inventory.
                         </p>
+                        <input
+                            value={deleteReasonText}
+                            onChange={(e) => setDeleteReasonText(e.target.value)}
+                            placeholder="Reason for deleting"
+                            className="mb-6 w-full rounded-2xl border border-stroke bg-transparent px-4 py-3 text-sm font-bold outline-none focus:border-red-500 dark:border-strokedark"
+                        />
                         <div className="flex items-center gap-3 w-full">
                             <button 
                                 onClick={() => setConfirmDeleteId(null)}

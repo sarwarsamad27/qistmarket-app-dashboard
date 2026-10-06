@@ -7,11 +7,12 @@ import {
     CreditCard, Plus, Search, Filter,
     History, TrendingUp, AlertCircle,
     CheckCircle2, Building2, Calendar,
-    ChevronRight, Wallet, ArrowUpRight, ArrowDownLeft, ShoppingCart
+    ChevronRight, Wallet, ArrowUpRight, ArrowDownLeft, ShoppingCart, Trash2
 } from "lucide-react";
 import Loader from "@/components/common/Loader";
 import { formatExactDate } from "@/utils/dateUtils";
 import { getErrorMessage } from "@/lib/apiErrors";
+import DeletedBadge, { askDeleteReason, deletedRowClass } from "@/components/common/DeletedBadge";
 
 const API_BASE = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
 const getAuthHeaders = () => ({
@@ -38,6 +39,11 @@ interface Payment {
     type: "out" | "in";
     source: "invoice" | "ledger";
     created_at: string;
+    record_id?: number;
+    paid_from?: string | null;
+    deleted_at?: string | null;
+    deleted_by_name?: string | null;
+    delete_reason?: string | null;
 }
 
 interface BasicPurchase {
@@ -58,6 +64,8 @@ export default function VendorPaymentsPage() {
     const [loading, setLoading] = useState(true);
     const [summary, setSummary] = useState<VendorSummary[]>([]);
     const [payments, setPayments] = useState<Payment[]>([]);
+    const [showDeleted, setShowDeleted] = useState(false);
+    const [deletingId, setDeletingId] = useState<string | null>(null);
     const [purchases, setPurchases] = useState<BasicPurchase[]>([]);
     const [vendors, setVendors] = useState<BasicVendor[]>([]);
 
@@ -78,14 +86,34 @@ export default function VendorPaymentsPage() {
 
     useEffect(() => {
         fetchData();
-    }, []);
+    }, [showDeleted]);
+
+    const deletePayment = async (p: Payment) => {
+        const reason = askDeleteReason("this payment");
+        if (reason === null) return;
+        setDeletingId(p.id);
+        try {
+            const path = p.source === 'invoice' ? 'payments' : 'cash-transactions';
+            const res = await fetch(`${API_BASE}/api/outlet/vendors/${path}/${p.record_id}?reason=${encodeURIComponent(reason)}`, {
+                method: "DELETE",
+                headers: getAuthHeaders(),
+            });
+            const data = await res.json();
+            if (!data.success) throw new Error(data.message);
+            fetchData();
+        } catch (e) {
+            alert(getErrorMessage(e));
+        } finally {
+            setDeletingId(null);
+        }
+    };
 
     const fetchData = async () => {
         setLoading(true);
         try {
             const [sumRes, payRes, purRes, vendRes] = await Promise.all([
                 fetch(`${API_BASE}/api/outlet/vendors/summary`, { headers: getAuthHeaders() }),
-                fetch(`${API_BASE}/api/outlet/vendors/payments`, { headers: getAuthHeaders() }),
+                fetch(`${API_BASE}/api/outlet/vendors/payments${showDeleted ? "?includeDeleted=1" : ""}`, { headers: getAuthHeaders() }),
                 fetch(`${API_BASE}/api/outlet/vendors/purchases`, { headers: getAuthHeaders() }),
                 fetch(`${API_BASE}/api/outlet/vendors`, { headers: getAuthHeaders() }),
             ]);
@@ -284,7 +312,10 @@ export default function VendorPaymentsPage() {
                             <h2 className="text-xs font-black uppercase tracking-widest text-gray-500 flex items-center gap-2">
                                 <History size={14} /> Global Payment Transaction History
                             </h2>
-                            <div className="flex gap-2">
+                            <div className="flex items-center gap-2">
+                                <label className="flex items-center gap-1.5 text-[10px] font-bold uppercase text-gray-500">
+                                    <input type="checkbox" checked={showDeleted} onChange={(e) => setShowDeleted(e.target.checked)} className="size-3.5 accent-primary" /> Show deleted
+                                </label>
                                 <button className="p-1.5 hover:bg-white dark:hover:bg-boxdark rounded-lg text-gray-400 transition-colors">
                                     <Filter size={14} />
                                 </button>
@@ -313,7 +344,7 @@ export default function VendorPaymentsPage() {
                                             </td>
                                         </tr>
                                     ) : payments.map(p => (
-                                        <tr key={p.id} className="hover:bg-gray-50 dark:hover:bg-meta-4/20 transition-all group">
+                                        <tr key={p.id} className={`hover:bg-gray-50 dark:hover:bg-meta-4/20 transition-all group ${deletedRowClass(p)}`}>
                                             <td className="p-4">
                                                 <div className="flex items-center gap-3">
                                                     <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${p.type === 'in' ? 'bg-green-500/10 text-green-600' : 'bg-primary/5 text-primary'}`}>
@@ -326,7 +357,8 @@ export default function VendorPaymentsPage() {
                                                 </div>
                                             </td>
                                             <td className="p-4">
-                                                <div className="font-black text-gray-700 dark:text-gray-300">{p.vendor_name}</div>
+                                                <div className="font-black text-gray-700 dark:text-gray-300">{p.vendor_name}<DeletedBadge row={p} /></div>
+                                                {p.deleted_at && <div className="text-[10px] text-gray-500">{p.deleted_by_name ? `by ${p.deleted_by_name}` : ""}{p.delete_reason ? ` — ${p.delete_reason}` : ""}</div>}
                                                 <div className="text-[10px] text-gray-400 italic">
                                                     {p.source === 'invoice' ? 'Invoice Ref: Settle Partial' : (p.notes || 'Ledger Adjustment')}
                                                 </div>
@@ -346,9 +378,21 @@ export default function VendorPaymentsPage() {
                                                 <div className={`font-black text-sm tabular-nums ${p.type === 'in' ? 'text-green-600' : 'text-primary'}`}>
                                                     {p.type === 'in' ? '+' : '-'} PKR {p.amount.toLocaleString()}
                                                 </div>
-                                                <div className="text-[10px] text-gray-400 font-bold uppercase flex items-center justify-end gap-1">
-                                                    Process Complete <CheckCircle2 size={10} className="text-green-500" />
-                                                </div>
+                                                {!p.deleted_at && (
+                                                    <div className="text-[10px] text-gray-400 font-bold uppercase flex items-center justify-end gap-1">
+                                                        Process Complete <CheckCircle2 size={10} className="text-green-500" />
+                                                        {p.record_id && !(p.source === 'invoice' && p.paid_from) && (
+                                                            <button
+                                                                onClick={() => deletePayment(p)}
+                                                                disabled={deletingId === p.id}
+                                                                title="Delete this payment"
+                                                                className="ml-2 p-1 rounded-lg text-gray-400 hover:bg-red-50 hover:text-red-600 disabled:opacity-40"
+                                                            >
+                                                                <Trash2 size={13} />
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                )}
                                             </td>
                                         </tr>
                                     ))}

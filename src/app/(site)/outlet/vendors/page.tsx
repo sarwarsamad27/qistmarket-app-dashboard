@@ -7,6 +7,7 @@ import { Plus, Search, User, Phone, Mail, MapPin, IndianRupee, History, Edit, Tr
 import Link from "next/link";
 import toast from "react-hot-toast";
 import { getErrorMessage } from "@/lib/apiErrors";
+import DeletedBadge, { deletedRowClass } from "@/components/common/DeletedBadge";
 
 const API_BASE = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
 const getAuthHeaders = () => ({
@@ -27,6 +28,8 @@ export default function VendorManagementPage() {
     const [deletePreview, setDeletePreview] = useState<any>(null);
     const [deleteConfirmText, setDeleteConfirmText] = useState("");
     const [deleting, setDeleting] = useState(false);
+    const [deleteReasonText, setDeleteReasonText] = useState("");
+    const [showDeleted, setShowDeleted] = useState(false);
 
     const [formData, setFormData] = useState({
         name: "",
@@ -38,7 +41,7 @@ export default function VendorManagementPage() {
     const fetchVendors = async () => {
         setLoading(true);
         try {
-            const res = await fetch(`${API_BASE}/api/outlet/vendors`, {
+            const res = await fetch(`${API_BASE}/api/outlet/vendors${showDeleted ? "?includeDeleted=1" : ""}`, {
                 headers: getAuthHeaders()
             });
             const data = await res.json();
@@ -52,7 +55,7 @@ export default function VendorManagementPage() {
 
     useEffect(() => {
         fetchVendors();
-    }, []);
+    }, [showDeleted]);
 
     const handleSave = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -107,14 +110,15 @@ export default function VendorManagementPage() {
         if (!deleteTarget) return;
         setDeleting(true);
         try {
-            const res = await fetch(`${API_BASE}/api/outlet/vendors/${deleteTarget.id}`, {
+            const res = await fetch(`${API_BASE}/api/outlet/vendors/${deleteTarget.id}?reason=${encodeURIComponent(deleteReasonText.trim() || "No reason given")}`, {
                 method: "DELETE",
                 headers: getAuthHeaders(),
             });
             const data = await res.json();
             if (!res.ok || !data.success) throw new Error(data.message || "Failed to delete vendor");
             toast.success(data.message || "Vendor deleted");
-            setVendors((prev) => prev.filter((v) => v.id !== deleteTarget.id));
+            fetchVendors();
+            setDeleteReasonText("");
             setDeleteTarget(null);
             setDeletePreview(null);
             setDeleteConfirmText("");
@@ -161,6 +165,9 @@ export default function VendorManagementPage() {
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="w-full pl-12 pr-6 py-3.5 rounded-2xl bg-white dark:bg-boxdark border border-stroke dark:border-strokedark outline-none focus:border-primary shadow-sm font-bold text-sm transition-all"
                 />
+                <label className="mt-2 flex items-center gap-1.5 text-xs font-bold text-gray-500">
+                    <input type="checkbox" checked={showDeleted} onChange={(e) => setShowDeleted(e.target.checked)} className="size-4 accent-primary" /> Show deleted vendors
+                </label>
             </div>
 
             {loading ? (
@@ -178,13 +185,13 @@ export default function VendorManagementPage() {
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {filteredVendors.map((vendor) => (
-                        <div key={vendor.id} className="bg-white dark:bg-boxdark rounded-3xl border border-stroke dark:border-strokedark shadow-sm hover:shadow-md transition-all overflow-hidden group">
+                        <div key={vendor.id} className={`bg-white dark:bg-boxdark rounded-3xl border border-stroke dark:border-strokedark shadow-sm hover:shadow-md transition-all overflow-hidden group ${deletedRowClass(vendor)}`}>
                             <div className="p-6">
                                 <div className="flex items-start justify-between mb-4">
                                     <div className="w-12 h-12 bg-primary/10 rounded-2xl flex items-center justify-center text-primary font-black group-hover:scale-110 transition-transform">
                                         {vendor.name.charAt(0).toUpperCase()}
                                     </div>
-                                    <div className="flex items-center gap-1">
+                                    {!vendor.deleted_at && <div className="flex items-center gap-1">
                                         <button 
                                             onClick={() => { setEditingVendor(vendor); setFormData({ name: vendor.name, phone: vendor.phone || "", email: vendor.email || "", address: vendor.address || "" }); setShowModal(true); }}
                                             className="p-2 text-gray-400 hover:text-primary transition-colors"
@@ -198,10 +205,11 @@ export default function VendorManagementPage() {
                                         >
                                             <Trash2 size={16} />
                                         </button>
-                                    </div>
+                                    </div>}
                                 </div>
 
-                                <h3 className="font-black text-gray-800 dark:text-white group-hover:text-primary transition-colors truncate">{vendor.name}</h3>
+                                <h3 className="font-black text-gray-800 dark:text-white group-hover:text-primary transition-colors truncate">{vendor.name}<DeletedBadge row={vendor} /></h3>
+                                {vendor.deleted_at && <p className="text-[10px] text-gray-500">{vendor.deleted_by_name ? `by ${vendor.deleted_by_name}` : ""}{vendor.delete_reason ? ` — ${vendor.delete_reason}` : ""}</p>}
                                 
                                 <div className="mt-4 space-y-2">
                                     <div className="flex items-center gap-2 text-[10px] font-bold text-gray-400">
@@ -242,7 +250,7 @@ export default function VendorManagementPage() {
                                 <Trash2 size={20} />
                             </div>
                             <div>
-                                <h3 className="text-lg font-black text-gray-800 dark:text-white">Delete vendor permanently?</h3>
+                                <h3 className="text-lg font-black text-gray-800 dark:text-white">Delete vendor?</h3>
                                 <p className="text-xs font-bold text-gray-400">{deleteTarget.name}</p>
                             </div>
                         </div>
@@ -252,7 +260,7 @@ export default function VendorManagementPage() {
                         ) : (
                             <>
                                 <p className="mb-3 text-sm text-gray-600 dark:text-gray-300">
-                                    This deletes the vendor <strong>and its entire history</strong>. It cannot be undone.
+                                    The vendor <strong>and its whole history</strong> stay on record greyed out as “Deleted”, but none of it will be counted any more (payables, cash, reports).
                                 </p>
                                 <ul className="mb-4 space-y-1 rounded-2xl bg-gray-50 p-4 text-sm font-bold text-gray-700 dark:bg-meta-4 dark:text-gray-200">
                                     <li>Balance owed: <span className="text-red-500">PKR {Number(deletePreview.vendor?.balance || 0).toLocaleString()}</span></li>
@@ -264,8 +272,15 @@ export default function VendorManagementPage() {
                                 </ul>
                                 <p className="mb-4 text-xs text-gray-400">
                                     Stock items that came in through these purchases stay in inventory (they may already be sold or delivered).
-                                    Past reports and totals that included this vendor will change.
+                                    Totals that included this vendor will change.
                                 </p>
+                                <label className="mb-1 block text-xs font-black uppercase tracking-widest text-gray-500">Reason</label>
+                                <input
+                                    value={deleteReasonText}
+                                    onChange={(e) => setDeleteReasonText(e.target.value)}
+                                    placeholder="Why is this vendor being deleted?"
+                                    className="mb-3 w-full rounded-2xl border border-stroke bg-transparent px-4 py-3 text-sm font-bold outline-none focus:border-red-500 dark:border-strokedark"
+                                />
                                 <label className="mb-1 block text-xs font-black uppercase tracking-widest text-gray-500">
                                     Type the vendor name to confirm
                                 </label>
@@ -288,7 +303,7 @@ export default function VendorManagementPage() {
                                 disabled={!deletePreview || !nameMatches || deleting}
                                 className="flex-1 rounded-2xl bg-red-600 px-6 py-3 text-sm font-black text-white shadow-lg transition-all hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-40"
                             >
-                                {deleting ? "Deleting…" : "Delete Permanently"}
+                                {deleting ? "Deleting…" : "Delete"}
                             </button>
                         </div>
                     </div>

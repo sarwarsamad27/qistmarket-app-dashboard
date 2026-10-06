@@ -1,5 +1,6 @@
 "use client";
 
+import DeletedBadge, { askDeleteReason, deletedRowClass } from "@/components/common/DeletedBadge";
 import { useEffect, useState, useMemo, Fragment } from "react";
 import { useRouter } from "next/navigation";
 import Cookies from "js-cookie";
@@ -28,6 +29,9 @@ interface ExpenseItem {
 }
 
 interface ExpenseVoucher {
+    deleted_at?: string | null;
+    deleted_by_name?: string | null;
+    delete_reason?: string | null;
     id: number;
     voucher_number: string;
     total_amount: number;
@@ -59,15 +63,17 @@ export default function ExpensesPage() {
     const [customStart, setCustomStart] = useState("");
     const [customEnd, setCustomEnd] = useState("");
 
+    const [showDeleted, setShowDeleted] = useState(false);
+
     useEffect(() => {
         fetchData();
-    }, []);
+    }, [showDeleted]);
 
     const fetchData = async () => {
         setLoading(true);
         try {
             const [vRes, sRes] = await Promise.all([
-                fetch(`${API_BASE}/api/outlet/expenses`, { headers: getAuthHeaders() }),
+                fetch(`${API_BASE}/api/outlet/expenses${showDeleted ? "?includeDeleted=1" : ""}`, { headers: getAuthHeaders() }),
                 fetch(`${API_BASE}/api/outlet/expenses/summary`, { headers: getAuthHeaders() })
             ]);
 
@@ -92,16 +98,18 @@ export default function ExpensesPage() {
     };
 
     const handleDelete = async (id: number) => {
-        if (!confirm("Are you sure you want to delete this expense voucher?")) return;
+        const reason = askDeleteReason("this expense voucher");
+        if (reason === null) return;
         setDeletingId(id);
         try {
-            const res = await fetch(`${API_BASE}/api/outlet/expenses/${id}`, {
+            const res = await fetch(`${API_BASE}/api/outlet/expenses/${id}?reason=${encodeURIComponent(reason)}`, {
                 method: "DELETE",
                 headers: getAuthHeaders(),
             });
             const data = await res.json();
             if (data.success) {
-                setVouchers(prev => prev.filter(v => v.id !== id));
+                // Soft delete: reload so it shows greyed (if "Show deleted" is on) or drops out.
+                fetchData();
                 // Refresh summary after delete
                 const sRes = await fetch(`${API_BASE}/api/outlet/expenses/summary`, { headers: getAuthHeaders() });
                 const sData = await sRes.json();
@@ -247,6 +255,9 @@ export default function ExpensesPage() {
                                 <option value="custom">Custom Range</option>
                             </select>
                         </div>
+                        <label className="flex items-center gap-1.5 text-xs font-bold text-gray-500">
+                            <input type="checkbox" checked={showDeleted} onChange={(e) => setShowDeleted(e.target.checked)} className="size-4 accent-primary" /> Show deleted
+                        </label>
                         {dateRange === "custom" && (
                             <div className="flex items-center gap-2">
                                 <input
@@ -295,13 +306,14 @@ export default function ExpensesPage() {
                                     <Fragment key={v.id}>
                                         <tr
                                             onClick={() => toggleExpand(v.id)}
-                                            className={`group border-b border-stroke dark:border-strokedark hover:bg-gray-50 dark:hover:bg-meta-4/20 transition-all cursor-pointer ${isExpanded ? 'bg-primary/5 dark:bg-primary/10' : ''}`}
+                                            className={`group border-b border-stroke dark:border-strokedark hover:bg-gray-50 dark:hover:bg-meta-4/20 transition-all cursor-pointer ${isExpanded ? 'bg-primary/5 dark:bg-primary/10' : ''} ${deletedRowClass(v)}`}
                                         >
                                             <td className="p-5 text-center">
                                                 {isExpanded ? <ChevronDown size={18} className="text-primary mx-auto" strokeWidth={3} /> : <ChevronRight size={18} className="text-gray-300 mx-auto group-hover:text-primary transition-colors" />}
                                             </td>
                                             <td className="p-5">
-                                                <div className="font-black text-gray-800 dark:text-white uppercase tracking-tight text-base">{v.voucher_number}</div>
+                                                <div className="font-black text-gray-800 dark:text-white uppercase tracking-tight text-base">{v.voucher_number}<DeletedBadge row={v} /></div>
+                                                {v.deleted_at && <div className="text-[10px] text-gray-500 normal-case">{v.deleted_by_name ? `by ${v.deleted_by_name}` : ""}{v.delete_reason ? ` — ${v.delete_reason}` : ""}</div>}
                                                 <div className="text-[10px] text-gray-500 mt-0.5 font-bold flex items-center gap-1.5 uppercase">
                                                     <Calendar size={10} /> {formatExactDate(v.created_at, 'DD MMM YYYY, hh:mm A')}
                                                 </div>
@@ -324,7 +336,7 @@ export default function ExpensesPage() {
                                             </td>
                                             <td className="p-5 text-right" onClick={(e) => e.stopPropagation()}>
                                                 <div className="flex items-center justify-end gap-2">
-                                                    {isWithinEditWindow(v.created_at) && (
+                                                    {!v.deleted_at && isWithinEditWindow(v.created_at) && (
                                                         <>
                                                             <button
                                                                 onClick={() => router.push(`/outlet/expenses/edit/${v.id}`)}
