@@ -77,14 +77,16 @@ export default function MonthlyInstallmentsPage() {
   useEffect(() => { fetchTrend(); }, [outletId]);
   useEffect(() => { fetchDetail(); }, [month, outletId]);
 
-  const handleSetTarget = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!targetAmount || parseFloat(targetAmount) <= 0) { toast.error("Enter a valid target amount."); return; }
+  // remove = true clears the target (a month doesn't have to have one).
+  const saveTarget = async (remove: boolean) => {
+    if (!remove && (!targetAmount || parseFloat(targetAmount) <= 0)) { toast.error("Enter a valid target amount."); return; }
+    if (remove && !confirm(`Remove the target for ${detail?.label || month}?`)) return;
     setSaving(true);
     try {
-      const res = await fetch(`${BACKEND_URL}/api/accounts/monthly-installments/target`, { method: "POST", headers: authHeaders(), body: JSON.stringify({ month, outletId, target_amount: parseFloat(targetAmount) }) });
-      if (!res.ok) throw new Error(await apiErrorMessage(res, "Failed to set target."));
-      toast.success(`Target set for ${detail?.label || month}.`);
+      const res = await fetch(`${BACKEND_URL}/api/accounts/monthly-installments/target`, { method: "POST", headers: authHeaders(), body: JSON.stringify({ month, outletId, target_amount: remove ? 0 : parseFloat(targetAmount) }) });
+      if (!res.ok) throw new Error(await apiErrorMessage(res, "Failed to save target."));
+      if (remove) setTargetAmount("");
+      toast.success(remove ? `Target removed for ${detail?.label || month}.` : `Target set for ${detail?.label || month}.`);
       fetchTrend();
       fetchDetail();
     } catch (err: any) {
@@ -153,10 +155,14 @@ export default function MonthlyInstallmentsPage() {
                   {s.target_scope === "outlets_sum" && <p className="text-[10px] text-gray-400">Sum of the outlets&apos; own targets (no company target set).</p>}
                 </>
               ) : <p className="mt-1 text-sm text-gray-500">No target set for {outletId === "all" ? "the company" : outletName} this month.</p>}
-              <form onSubmit={handleSetTarget} className="mt-2 flex gap-1.5">
+              <form onSubmit={(e) => { e.preventDefault(); saveTarget(false); }} className="mt-2 flex gap-1.5">
                 <input type="number" value={targetAmount} onChange={(e) => setTargetAmount(e.target.value)} placeholder="Target PKR" className="w-full rounded-lg border border-stroke px-2 py-1 text-xs dark:border-dark-3 dark:bg-gray-dark dark:text-white" />
                 <button type="submit" disabled={saving} className="flex items-center gap-1 rounded-lg bg-[#ff3d3d] px-2 py-1 text-xs font-bold text-white disabled:opacity-50"><Save className="size-3" /> {saving ? "…" : "Set"}</button>
               </form>
+              {/* Only this view's own target can be removed (not the sum of the outlets' targets). */}
+              {s.target > 0 && s.target_scope !== "outlets_sum" && (
+                <button type="button" onClick={() => saveTarget(true)} disabled={saving} className="mt-1.5 text-[11px] font-semibold text-gray-400 hover:text-rose-600 hover:underline disabled:opacity-50">Remove target</button>
+              )}
             </div>
           </div>
 

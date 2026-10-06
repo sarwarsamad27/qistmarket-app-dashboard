@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import Cookies from "js-cookie";
-import { ShieldAlert, Search, ChevronLeft, ChevronRight, LogIn, AlertTriangle, CheckCircle2, XCircle, Info, Users, TrendingDown, UserX, MonitorSmartphone } from "lucide-react";
+import { ShieldAlert, Search, ChevronLeft, ChevronRight, LogIn, AlertTriangle, CheckCircle2, XCircle, Info, Users, TrendingDown, UserX, MonitorSmartphone, Wallet } from "lucide-react";
 import Breadcrumb from "@/components/Breadcrumbs/Breadcrumb";
 import PageHeader from "@/components/Accounts/PageHeader";
 import EmptyState from "@/components/Accounts/EmptyState";
@@ -12,6 +12,7 @@ import { roleLabel } from "@/lib/roleLabels";
 import ExportMenu, { ExportColumn } from "@/components/Accounts/ExportMenu";
 import DateRangeFilter, { DateRange } from "@/components/Accounts/DateRangeFilter";
 import DeviceTracking from "./_components/DeviceTracking";
+import PaymentActivity from "./_components/PaymentActivity";
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
 const authHeaders = () => ({ Authorization: `Bearer ${Cookies.get("auth_token")}` });
@@ -55,6 +56,7 @@ const SEVERITY_STYLE: Record<string, string> = {
 
 const TABS = [
   { key: "all" as const, label: "All Activity", icon: ShieldAlert },
+  { key: "payments" as const, label: "Payment Transactions", icon: Wallet },
   { key: "logins" as const, label: "Login History", icon: LogIn },
   { key: "devices" as const, label: "Devices & IPs", icon: MonitorSmartphone },
   { key: "fraud" as const, label: "Fraud Alerts", icon: AlertTriangle },
@@ -76,7 +78,15 @@ export default function ActivityLogPage() {
   const [actionFilter, setActionFilter] = useState("");
   const [outletFilter, setOutletFilter] = useState("");
   const [range, setRange] = useState<DateRange>({ from: "", to: "" });
-  const [actions, setActions] = useState<{ action: string; count: number }[]>([]);
+  const [actions, setActions] = useState<{ action: string; count: number; category?: string }[]>([]);
+  const [categories, setCategories] = useState<{ key: string; label: string }[]>([]);
+  const [categoryFilter, setCategoryFilter] = useState("");
+  const [expandedLog, setExpandedLog] = useState<number | null>(null);
+  const [loginPage, setLoginPage] = useState(1);
+  const [loginTotal, setLoginTotal] = useState(0);
+  const [loginPages, setLoginPages] = useState(1);
+  const [fraudSearch, setFraudSearch] = useState("");
+  const [severityFilter, setSeverityFilter] = useState("");
   const [outlets, setOutlets] = useState<{ id: number; name: string }[]>([]);
   const [totalLogs, setTotalLogs] = useState(0);
   const [loginSearch, setLoginSearch] = useState("");
@@ -106,7 +116,7 @@ export default function ActivityLogPage() {
   useEffect(() => { const t = setTimeout(() => { setDSearch(search); setPage(1); }, 400); return () => clearTimeout(t); }, [search]);
   useEffect(() => { const t = setTimeout(() => setDLoginSearch(loginSearch), 400); return () => clearTimeout(t); }, [loginSearch]);
   useEffect(() => {
-    fetch(`${BACKEND_URL}/api/accounts/audit/actions`, { headers: authHeaders() }).then((r) => r.json()).then((j) => { if (j.success) setActions(j.data); }).catch(() => {});
+    fetch(`${BACKEND_URL}/api/accounts/audit/actions`, { headers: authHeaders() }).then((r) => r.json()).then((j) => { if (j.success) { setActions(j.data); setCategories(j.categories || []); } }).catch(() => {});
     fetch(`${BACKEND_URL}/api/accounts/cash/limit-options`, { headers: authHeaders() }).then((r) => r.json()).then((j) => { if (j.success) setOutlets(j.data.outlets); }).catch(() => {});
   }, []);
 
@@ -114,6 +124,7 @@ export default function ActivityLogPage() {
     const params = new URLSearchParams({ page: String(p), limit: String(limit) });
     if (dSearch) params.set("search", dSearch);
     if (actionFilter) params.set("action", actionFilter);
+    else if (categoryFilter) params.set("category", categoryFilter);
     if (outletFilter) params.set("outletId", outletFilter);
     if (range.from) params.set("startDate", range.from);
     if (range.to) params.set("endDate", range.to);
@@ -142,19 +153,19 @@ export default function ActivityLogPage() {
       .then((json) => { if (json.success) { setLogs(json.logs); setTotalPages(json.pagination.totalPages || 1); setTotalLogs(json.pagination.total || 0); } })
       .catch((err) => console.error("Failed to load activity log:", err))
       .finally(() => setLoading(false));
-  }, [page, dSearch, actionFilter, outletFilter, range, tab]);
+  }, [page, dSearch, actionFilter, categoryFilter, outletFilter, range, tab]);
 
   useEffect(() => {
     if (tab === "logins") {
       setLoginsLoading(true);
-      const params = new URLSearchParams({ limit: "200" });
+      const params = new URLSearchParams({ page: String(loginPage), limit: "25" });
       if (loginStatus) params.set("status", loginStatus);
       if (dLoginSearch) params.set("search", dLoginSearch);
       if (loginRange.from) params.set("startDate", loginRange.from);
       if (loginRange.to) params.set("endDate", loginRange.to);
       fetch(`${BACKEND_URL}/api/accounts/audit/login-history?${params}`, { headers: authHeaders() })
         .then((res) => res.json())
-        .then((json) => { if (json.success) setLogins(json.data); })
+        .then((json) => { if (json.success) { setLogins(json.data); setLoginTotal(json.pagination?.total || 0); setLoginPages(json.pagination?.totalPages || 1); } })
         .finally(() => setLoginsLoading(false));
     }
     if (tab === "fraud" && fraudSubTab === "summary") {
@@ -185,7 +196,16 @@ export default function ActivityLogPage() {
         .then((json) => { if (json.success) { setUnassignedAlerts(json.data.alerts); setUnassignedOrders(json.data.orders); } })
         .finally(() => setUnassignedLoading(false));
     }
-  }, [tab, loginStatus, fraudSubTab, dLoginSearch, loginRange]);
+  }, [tab, loginStatus, fraudSubTab, dLoginSearch, loginRange, loginPage]);
+  useEffect(() => { setLoginPage(1); }, [loginStatus, dLoginSearch, loginRange]);
+
+  // Search + severity for every Fraud Alerts list (they are small, so filtered here).
+  const fq = fraudSearch.trim().toLowerCase();
+  const matchAlert = (a: FraudAlert) => (!severityFilter || a.severity === severityFilter) && (!fq || `${a.title} ${a.message}`.toLowerCase().includes(fq));
+  const shownFraud = useMemo(() => fraudAlerts.filter(matchAlert), [fraudAlerts, fq, severityFilter]); // eslint-disable-line react-hooks/exhaustive-deps
+  const shownLowRecovery = useMemo(() => lowRecoveryAlerts.filter(matchAlert), [lowRecoveryAlerts, fq, severityFilter]); // eslint-disable-line react-hooks/exhaustive-deps
+  const shownDuplicates = useMemo(() => duplicateCnicAlerts.filter((a) => (!severityFilter || a.severity === severityFilter) && (!fq || `${a.cnic} ${a.message} ${a.orders.map((o) => `${o.order_ref} ${o.customer_name}`).join(" ")}`.toLowerCase().includes(fq))), [duplicateCnicAlerts, fq, severityFilter]);
+  const shownUnassigned = useMemo(() => unassignedOrders.filter((o) => !fq || `${o.order_ref} ${o.customer_name}`.toLowerCase().includes(fq)), [unassignedOrders, fq]);
 
   return (
     <>
@@ -207,9 +227,13 @@ export default function ActivityLogPage() {
               <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-gray-400" />
               <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search details, user, login ID, IP, device..." className="w-full rounded-xl border border-stroke bg-white py-2.5 pl-9 pr-4 text-sm outline-none transition focus:border-[#ff3d3d] dark:border-dark-3 dark:bg-gray-dark dark:text-white" />
             </div>
+            <select value={categoryFilter} onChange={(e) => { setCategoryFilter(e.target.value); setActionFilter(""); setPage(1); }} className="rounded-xl border border-stroke bg-white px-3 py-2.5 text-sm dark:border-dark-3 dark:bg-gray-dark dark:text-white">
+              <option value="">All types</option>
+              {categories.map((c) => <option key={c.key} value={c.key}>{c.label}</option>)}
+            </select>
             <select value={actionFilter} onChange={(e) => { setActionFilter(e.target.value); setPage(1); }} className="rounded-xl border border-stroke bg-white px-3 py-2.5 text-sm dark:border-dark-3 dark:bg-gray-dark dark:text-white">
               <option value="">All actions</option>
-              {actions.map((a) => <option key={a.action} value={a.action}>{a.action.replace(/_/g, " ")} ({a.count})</option>)}
+              {actions.filter((a) => !categoryFilter || a.category === categoryFilter).map((a) => <option key={a.action} value={a.action}>{a.action.replace(/_/g, " ")} ({a.count})</option>)}
             </select>
             <select value={outletFilter} onChange={(e) => { setOutletFilter(e.target.value); setPage(1); }} className="rounded-xl border border-stroke bg-white px-3 py-2.5 text-sm dark:border-dark-3 dark:bg-gray-dark dark:text-white">
               <option value="">All outlets</option><option value="ho">Head Office</option>
@@ -231,7 +255,8 @@ export default function ActivityLogPage() {
                   </thead>
                   <tbody>
                     {logs.map((log, i) => (
-                      <tr key={log.id} className="border-t border-slate-50 transition hover:bg-slate-50/70 dark:border-white/5 dark:hover:bg-white/5">
+                      <Fragment key={log.id}>
+                      <tr onClick={() => setExpandedLog(expandedLog === log.id ? null : log.id)} title="Click to see the full entry" className="cursor-pointer border-t border-slate-50 transition hover:bg-slate-50/70 dark:border-white/5 dark:hover:bg-white/5">
                         <td className="px-4 py-3.5 text-gray-400">{(page - 1) * 25 + i + 1}</td>
                         <td className="px-4 py-3.5 whitespace-nowrap text-gray-500">{formatExactDate(log.created_at, 'DD MMM YYYY, hh:mm A')}</td>
                         <td className="px-4 py-3.5"><span className={`rounded-full px-2.5 py-1 text-xs font-bold ${ACTION_COLORS[log.action] || defaultActionColor}`}>{log.action}</span></td>
@@ -240,6 +265,16 @@ export default function ActivityLogPage() {
                         <td className="px-4 py-3.5 text-gray-500">{log.outlet?.name || "Head Office"}</td>
                         <td className="max-w-[200px] px-4 py-3.5 text-xs text-gray-400"><p className="font-mono">{log.ip_address || "—"}</p><p className="truncate" title={log.device_info || ""}>{log.device_info || ""}</p></td>
                       </tr>
+                      {expandedLog === log.id && (
+                        <tr className="bg-slate-50/70 dark:bg-white/5">
+                          <td colSpan={7} className="px-6 py-3 text-xs text-gray-600 dark:text-gray-300">
+                            <p className="mb-1 whitespace-pre-wrap break-words text-sm text-dark dark:text-white">{log.details}</p>
+                            <p><b>When:</b> {formatExactDate(log.created_at, 'DD MMM YYYY, hh:mm:ss A')} · <b>Who:</b> {log.user?.full_name || log.user_name || "—"}{log.user?.username ? ` (${log.user.username})` : ""} · <b>Outlet:</b> {log.outlet?.name || "Head Office"}</p>
+                            <p><b>IP:</b> <span className="font-mono">{log.ip_address || "—"}</span> · <b>Device:</b> {log.device_info || "—"}</p>
+                          </td>
+                        </tr>
+                      )}
+                      </Fragment>
                     ))}
                   </tbody>
                 </table>
@@ -270,7 +305,7 @@ export default function ActivityLogPage() {
             </div>
             <div className="ml-auto"><ExportMenu title="Login History" columns={LOG_COLUMNS} getRows={fetchAllLogins} /></div>
           </div>
-          <div className="mb-4"><DateRangeFilter value={loginRange} onChange={setLoginRange} /></div>
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-2"><DateRangeFilter value={loginRange} onChange={setLoginRange} /><p className="text-xs text-gray-500">{loginTotal.toLocaleString()} matching login(s)</p></div>
           {loginsLoading ? <TableSkeleton /> : logins.length > 0 ? (
             <div className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm dark:border-white/10 dark:bg-boxdark">
               <table className="w-full text-left text-sm">
@@ -278,7 +313,7 @@ export default function ActivityLogPage() {
                 <tbody>
                   {logins.map((log, i) => (
                     <tr key={log.id} className="border-t border-slate-50 dark:border-white/5">
-                      <td className="px-4 py-3.5 text-gray-400">{i + 1}</td>
+                      <td className="px-4 py-3.5 text-gray-400">{(loginPage - 1) * 25 + i + 1}</td>
                       <td className="px-4 py-3.5 whitespace-nowrap text-gray-500">{formatExactDate(log.created_at, 'DD MMM YYYY, hh:mm A')}</td>
                       <td className="px-4 py-3.5 font-medium text-dark dark:text-white">{log.user?.full_name || "—"}{log.user?.username && <p className="text-xs font-normal text-gray-400">{log.user.username}</p>}</td>
                       <td className="px-4 py-3.5">
@@ -289,15 +324,24 @@ export default function ActivityLogPage() {
                         )}
                       </td>
                       <td className="px-4 py-3.5 font-mono text-xs text-gray-500">{log.ip_address || "—"}</td>
-                      <td className="px-4 py-3.5 max-w-xs whitespace-normal break-words text-xs text-gray-400">{log.device_info || "—"}</td>
+                      <td className="px-4 py-3.5 max-w-xs whitespace-normal break-words text-xs text-gray-400">{log.device_info || "—"}{log.action !== "LOGIN_SUCCESS" && log.details && <p className="mt-0.5 font-semibold text-rose-500">{log.details}</p>}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
+              <div className="flex items-center justify-between border-t border-slate-100 px-4 py-3 dark:border-white/5">
+                <p className="text-xs text-gray-400">Page {loginPage} of {loginPages}</p>
+                <div className="flex gap-1">
+                  <button onClick={() => setLoginPage((p) => Math.max(1, p - 1))} disabled={loginPage <= 1} className="flex size-8 items-center justify-center rounded-lg bg-slate-100 text-slate-500 hover:bg-slate-200 disabled:opacity-40 dark:bg-white/10"><ChevronLeft className="size-4" /></button>
+                  <button onClick={() => setLoginPage((p) => Math.min(loginPages, p + 1))} disabled={loginPage >= loginPages} className="flex size-8 items-center justify-center rounded-lg bg-slate-100 text-slate-500 hover:bg-slate-200 disabled:opacity-40 dark:bg-white/10"><ChevronRight className="size-4" /></button>
+                </div>
+              </div>
             </div>
           ) : <div className="rounded-2xl border border-slate-100 bg-white shadow-sm dark:border-white/10 dark:bg-boxdark"><EmptyState icon={LogIn} title="No login history yet" /></div>}
         </>
       )}
+
+      {tab === "payments" && <PaymentActivity outlets={outlets} />}
 
       {tab === "devices" && <DeviceTracking />}
 
@@ -310,11 +354,22 @@ export default function ActivityLogPage() {
               </button>
             ))}
           </div>
+          <div className="mb-4 flex flex-wrap items-center gap-2">
+            <div className="relative min-w-[220px] flex-1 sm:max-w-sm">
+              <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-gray-400" />
+              <input value={fraudSearch} onChange={(e) => setFraudSearch(e.target.value)} placeholder="Search name, CNIC, order no, outlet..." className="w-full rounded-xl border border-stroke bg-white py-2 pl-9 pr-4 text-sm outline-none dark:border-dark-3 dark:bg-gray-dark dark:text-white" />
+            </div>
+            {fraudSubTab !== "unassigned-recovery" && (
+              <select value={severityFilter} onChange={(e) => setSeverityFilter(e.target.value)} className="rounded-xl border border-stroke bg-white px-3 py-2 text-sm dark:border-dark-3 dark:bg-gray-dark dark:text-white">
+                <option value="">Any severity</option><option value="critical">Critical</option><option value="serious">Serious</option><option value="warning">Warning</option>
+              </select>
+            )}
+          </div>
 
           {fraudSubTab === "summary" && (
-            fraudLoading ? <TableSkeleton /> : fraudAlerts.length > 0 ? (
+            fraudLoading ? <TableSkeleton /> : shownFraud.length > 0 ? (
               <div className="space-y-2">
-                {fraudAlerts.map((a, i) => {
+                {shownFraud.map((a, i) => {
                   const Icon = SEVERITY_ICON[a.severity] || Info;
                   return (
                     <div key={i} className={`flex items-start gap-3 rounded-xl border px-4 py-3 text-sm ${SEVERITY_STYLE[a.severity] || SEVERITY_STYLE.warning}`}>
@@ -328,9 +383,9 @@ export default function ActivityLogPage() {
           )}
 
           {fraudSubTab === "duplicate-cnic" && (
-            duplicateCnicLoading ? <TableSkeleton /> : duplicateCnicAlerts.length > 0 ? (
+            duplicateCnicLoading ? <TableSkeleton /> : shownDuplicates.length > 0 ? (
               <div className="space-y-3">
-                {duplicateCnicAlerts.map((a, i) => (
+                {shownDuplicates.map((a, i) => (
                   <div key={i} className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm dark:border-white/10 dark:bg-boxdark">
                     <div className={`flex items-start gap-3 border-b border-slate-100 px-4 py-3 text-sm dark:border-white/5 ${SEVERITY_STYLE[a.severity] || SEVERITY_STYLE.serious}`}>
                       <AlertTriangle className="mt-0.5 size-4 shrink-0" />
@@ -363,9 +418,9 @@ export default function ActivityLogPage() {
           )}
 
           {fraudSubTab === "low-recovery" && (
-            lowRecoveryLoading ? <TableSkeleton /> : lowRecoveryAlerts.length > 0 ? (
+            lowRecoveryLoading ? <TableSkeleton /> : shownLowRecovery.length > 0 ? (
               <div className="space-y-2">
-                {lowRecoveryAlerts.map((a, i) => {
+                {shownLowRecovery.map((a, i) => {
                   const Icon = SEVERITY_ICON[a.severity] || Info;
                   return (
                     <div key={i} className={`flex items-start gap-3 rounded-xl border px-4 py-3 text-sm ${SEVERITY_STYLE[a.severity] || SEVERITY_STYLE.warning}`}>
@@ -379,7 +434,7 @@ export default function ActivityLogPage() {
           )}
 
           {fraudSubTab === "unassigned-recovery" && (
-            unassignedLoading ? <TableSkeleton /> : unassignedOrders.length > 0 ? (
+            unassignedLoading ? <TableSkeleton /> : shownUnassigned.length > 0 ? (
               <div className="space-y-3">
                 {unassignedAlerts.map((a, i) => {
                   const Icon = SEVERITY_ICON[a.severity] || Info;
@@ -396,7 +451,7 @@ export default function ActivityLogPage() {
                       <tr><th className="px-4 py-3 font-bold">Order Ref</th><th className="px-4 py-3 font-bold">Customer</th></tr>
                     </thead>
                     <tbody>
-                      {unassignedOrders.map((o) => (
+                      {shownUnassigned.map((o) => (
                         <tr key={o.id} className="border-t border-slate-50 dark:border-white/5">
                           <td className="px-4 py-3.5 font-medium text-dark dark:text-white">{o.order_ref}</td>
                           <td className="px-4 py-3.5 text-gray-600 dark:text-gray-300">{o.customer_name || "—"}</td>
