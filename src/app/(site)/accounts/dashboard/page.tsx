@@ -265,7 +265,18 @@ export default function AccountsDashboardPage() {
           Array.from({ length: 10 }).map((_, i) => <StatCardSkeleton key={i} />)
         ) : (
           <>
-            <StatCard icon={Wallet} label="Total Cash In Hand" value={PKR(summary?.totalCashInHand || 0)} accent="text-emerald-600" bg="bg-emerald-50 dark:bg-emerald-500/10" bar="bg-emerald-500" onClick={() => router.push(`/accounts/cash-in-hand${getFilterQueryParams()}`)} />
+            {/* Cash can't physically be negative: a minus total means outlet registers have more cash
+                going out (expenses, vendor payments...) than recorded coming in — flag it and send the
+                user to the outlet-wise breakdown instead of showing it as a normal figure. */}
+            <StatCard
+              icon={Wallet}
+              label={(summary?.totalCashInHand || 0) < 0 ? "Total Cash In Hand — check outlets" : "Total Cash In Hand"}
+              value={PKR(summary?.totalCashInHand || 0)}
+              accent={(summary?.totalCashInHand || 0) < 0 ? "text-rose-600" : "text-emerald-600"}
+              bg={(summary?.totalCashInHand || 0) < 0 ? "bg-rose-50 dark:bg-rose-500/10" : "bg-emerald-50 dark:bg-emerald-500/10"}
+              bar={(summary?.totalCashInHand || 0) < 0 ? "bg-rose-500" : "bg-emerald-500"}
+              onClick={() => router.push((summary?.totalCashInHand || 0) < 0 ? "/accounts/cash-in-hand?tab=outlet" : `/accounts/cash-in-hand${getFilterQueryParams()}`)}
+            />
             <StatCard icon={Clock} label="Pending Cash In Hand" value={PKR(summary?.pendingCashInHand || 0)} accent="text-amber-600" bg="bg-amber-50 dark:bg-amber-500/10" bar="bg-amber-500" onClick={() => router.push(`/accounts/cash-in-hand${getFilterQueryParams()}`)} />
             <StatCard icon={Wifi} label={`Online Payments (${range})`} value={PKR(summary?.onlinePaymentsToday || 0)} accent="text-blue-600" bg="bg-blue-50 dark:bg-blue-500/10" bar="bg-blue-500" onClick={() => router.push(`/accounts/online-payments${getFilterQueryParams()}`)} />
             <StatCard icon={TrendingUp} label={`Total Recovery (${range})`} value={PKR(recovery?.totalRecovered || 0)} accent="text-emerald-600" bg="bg-emerald-50 dark:bg-emerald-500/10" bar="bg-emerald-500" onClick={() => router.push(`/accounts/recovery-analytics${getFilterQueryParams()}`)} />

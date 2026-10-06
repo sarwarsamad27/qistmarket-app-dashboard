@@ -171,6 +171,12 @@ export default function CashInHandPage() {
       .finally(() => setLoading(false));
   }, []);
 
+  // Deep link from the dashboard (e.g. ?tab=outlet when the total is negative).
+  useEffect(() => {
+    const t = new URLSearchParams(window.location.search).get("tab");
+    if (t && TABS.some((x) => x.key === t)) setView(t as (typeof TABS)[number]["key"]);
+  }, []);
+
   useEffect(() => {
     loadOverview();
     fetch(`${BACKEND_URL}/api/accounts/cash/limit-options`, { headers: authHeaders() })
