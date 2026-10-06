@@ -31,6 +31,8 @@ interface BlacklistedCustomer {
 interface SearchResult {
   id: number;
   verification_id: number;
+  order_id: number | null;
+  order_ref?: string | null;
   name: string;
   cnic_number: string;
   telephone_number: string;
@@ -360,12 +362,17 @@ export default function BlacklistPage() {
                       </td>
                       <td className="px-4 py-3.5">
                         <div className="flex items-center justify-end gap-2">
-                          <Link
-                            href={`/verifications/${r.verification_id}`}
-                            className="text-xs font-semibold text-slate-600 hover:underline dark:text-slate-300"
-                          >
-                            Profile
-                          </Link>
+                          {r.order_id ? (
+                            <Link
+                              href={`/verifications/${r.order_id}`}
+                              title={r.order_ref ? `Order ${r.order_ref}` : undefined}
+                              className="text-xs font-semibold text-slate-600 hover:underline dark:text-slate-300"
+                            >
+                              Profile
+                            </Link>
+                          ) : (
+                            <span className="text-xs text-gray-400" title="No order linked to this verification">Profile</span>
+                          )}
                           <button onClick={() => handleRiskLookup(r.cnic_number)} className="inline-flex items-center gap-1 text-xs font-semibold text-indigo-600 hover:underline"><Gauge className="size-3.5" /> Risk</button>
                           {r.is_blacklisted ? (
                             <button
