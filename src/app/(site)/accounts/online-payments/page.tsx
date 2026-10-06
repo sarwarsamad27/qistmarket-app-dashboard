@@ -7,6 +7,7 @@ import PageHeader from "@/components/Accounts/PageHeader";
 import LiveTransactions from "./_components/LiveTransactions";
 import Settlements from "./_components/Settlements";
 import OnlineAnalytics from "./_components/OnlineAnalytics";
+import RecoveryChannels from "./_components/RecoveryChannels";
 
 const TABS = [
   { key: "live" as const, label: "Live Payments", icon: Radio },
@@ -33,7 +34,15 @@ export default function OnlinePaymentsPage() {
       </div>
       {tab === "live" && <LiveTransactions />}
       {tab === "settlements" && <Settlements />}
-      {tab === "analytics" && <OnlineAnalytics />}
+      {tab === "analytics" && (
+        <div className="space-y-8">
+          <RecoveryChannels />
+          <div>
+            <h3 className="mb-3 text-sm font-black uppercase tracking-widest text-gray-400">1Bill vs SmartPay QR (gateway detail)</h3>
+            <OnlineAnalytics />
+          </div>
+        </div>
+      )}
     </>
   );
 }

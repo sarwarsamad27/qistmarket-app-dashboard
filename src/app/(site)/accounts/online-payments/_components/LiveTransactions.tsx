@@ -23,6 +23,7 @@ interface Data {
   kpis: { total_amount: number; total_count: number; today_amount: number; today_count: number; success_rate: number; failed: number; duplicate: number; unsettled_amount: number };
   byChannel: Record<string, { label: string; count: number; paid_count: number; paid_amount: number; failed: number; duplicate: number; unsettled: number }>;
   purposes: Record<string, string>;
+  outlets: { id: number; name: string }[];
   transactions: OnlineTxn[];
   server_time: string;
 }
@@ -37,7 +38,7 @@ const CHANNEL_STYLE: Record<string, string> = { "1bill": "bg-blue-50 text-blue-7
 /** Every 1Bill / SmartPay payment as it arrives — refreshes itself every 30 seconds while "Live" is on. */
 export default function LiveTransactions() {
   const [range, setRange] = useState<DateRange>({ from: ymd(new Date()), to: ymd(new Date()) });
-  const [f, setF] = useState({ channel: "", status: "", purpose: "", settlement: "" });
+  const [f, setF] = useState({ channel: "", status: "", purpose: "", settlement: "", outletId: "" });
   const [search, setSearch] = useState("");
   const [dq, setDq] = useState("");
   const [data, setData] = useState<Data | null>(null);
@@ -93,6 +94,10 @@ export default function LiveTransactions() {
         <select value={f.purpose} onChange={(e) => setF({ ...f, purpose: e.target.value })} className={sel}>
           <option value="">Any purpose</option>
           {Object.entries(data?.purposes || {}).map(([key, label]) => <option key={key} value={key}>{label}</option>)}
+        </select>
+        <select value={f.outletId} onChange={(e) => setF({ ...f, outletId: e.target.value })} className={sel}>
+          <option value="">All outlets</option>
+          {(data?.outlets || []).map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
         </select>
         <select value={f.settlement} onChange={(e) => setF({ ...f, settlement: e.target.value })} className={sel}><option value="">Any settlement</option><option value="unbatched">Not in a batch</option><option value="batched">In a batch (unsettled)</option><option value="settled">Settled</option></select>
         <div className="relative min-w-[200px] flex-1 sm:max-w-xs">

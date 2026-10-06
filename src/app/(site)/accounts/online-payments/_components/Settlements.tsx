@@ -185,7 +185,7 @@ function BatchDetail({ id, onBack }: { id: number; onBack: () => void }) {
   const [fileName, setFileName] = useState("");
   const [headerRow, setHeaderRow] = useState(0);
   const [map, setMap] = useState({ txn: -1, amount: -1, date: -1 });
-  const [verify, setVerify] = useState({ received_amount: "", charges: "", bank_account_id: "", notes: "" });
+  const [verify, setVerify] = useState({ received_amount: "", charges: "", bank_account_id: "", notes: "", release_missing: true });
   const [filter, setFilter] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -234,12 +234,13 @@ function BatchDetail({ id, onBack }: { id: number; onBack: () => void }) {
     try {
       const res = await fetch(`${BACKEND_URL}/api/accounts/online/settlements/${id}/verify`, { method: "POST", headers: authHeaders(), body: JSON.stringify(verify) });
       if (!res.ok) throw new Error(await apiErrorMessage(res, "Verify failed."));
-      toast.success("Batch verified. Settle it to credit the bank account.");
+      const j = await res.json();
+      toast.success(`Batch verified.${j.data.released_count ? ` ${j.data.released_count} payment(s) not on the gateway sheet (${PKR(j.data.released_amount)}) went back to "not batched".` : ""} Settle it to credit the bank account.`, { duration: 6000 });
       load();
     } catch (err: any) { toast.error(err.message); } finally { setBusy(false); }
   };
   const doSettle = async () => {
-    if (!b || !confirm(`Credit ${PKR(b.received_amount || 0)} to ${b.bank_account} and mark ${b.batch_no} settled?`)) return;
+    if (!b || !confirm(`Credit ${PKR(b.received_amount || 0)} to ${b.bank_account} and mark ${b.batch_no} settled?${b.difference ? `\n\nDifference on this batch: ${PKR(b.difference)}${b.notes ? ` (${b.notes})` : ""}.` : ""}`)) return;
     setBusy(true);
     try {
       const res = await fetch(`${BACKEND_URL}/api/accounts/online/settlements/${id}/settle`, { method: "POST", headers: authHeaders() });
@@ -256,7 +257,9 @@ function BatchDetail({ id, onBack }: { id: number; onBack: () => void }) {
 
   if (!b) return <TableSkeleton />;
   const locked = ["settled", "cancelled"].includes(b.status);
-  const expected = b.expected_amount;
+  const releasable = b.sheet_amount !== null ? (b.items || []).filter((i) => i.status === "missing_in_sheet").reduce((s, i) => s + i.amount, 0) : 0;
+  const expected = Math.round((b.expected_amount - (verify.release_missing ? releasable : 0)) * 100) / 100;
+  const unresolved = b.summary.amount_mismatch + b.summary.missing_in_system + (verify.release_missing ? 0 : b.summary.missing_in_sheet);
   const received = parseFloat(verify.received_amount) || 0;
   const charges = parseFloat(verify.charges) || 0;
   const items = (b.items || []).filter((i) => !filter || i.status === filter);
@@ -306,7 +309,13 @@ function BatchDetail({ id, onBack }: { id: number; onBack: () => void }) {
               <label className="text-xs text-gray-500">Received in bank (PKR)<input type="number" value={verify.received_amount} onChange={(e) => setVerify({ ...verify, received_amount: e.target.value })} className={sel} /></label>
               <label className="text-xs text-gray-500">Gateway charges<input type="number" value={verify.charges} onChange={(e) => setVerify({ ...verify, charges: e.target.value })} className={sel} /></label>
               <label className="col-span-2 text-xs text-gray-500">Bank account<select value={verify.bank_account_id} onChange={(e) => setVerify({ ...verify, bank_account_id: e.target.value })} className={sel}><option value="">Select...</option>{banks.map((x) => <option key={x.id} value={x.id}>{x.bank_name} — {x.account_number}</option>)}</select></label>
-              <label className="col-span-2 text-xs text-gray-500">Notes<input value={verify.notes} onChange={(e) => setVerify({ ...verify, notes: e.target.value })} className={sel} /></label>
+              {releasable > 0 && (
+                <label className="col-span-2 flex items-start gap-2 rounded-lg bg-rose-50 p-2 text-xs text-rose-700 dark:bg-rose-500/10">
+                  <input type="checkbox" checked={verify.release_missing} onChange={(e) => setVerify({ ...verify, release_missing: e.target.checked })} className="mt-0.5 accent-rose-600" />
+                  <span>{b.summary.missing_in_sheet} payment(s) worth {PKR(releasable)} are <b>not on the gateway sheet</b>, so the gateway hasn&apos;t paid them out yet. Take them out of this batch (they go back to &quot;not batched&quot; for the next one).</span>
+                </label>
+              )}
+              <label className="col-span-2 text-xs text-gray-500">Notes{(Math.abs(expected - received - charges) > 0.5 || unresolved > 0) && <span className="font-semibold text-rose-600"> * required — explain the difference{unresolved ? ` and the ${unresolved} line(s) to review` : ""}</span>}<input value={verify.notes} onChange={(e) => setVerify({ ...verify, notes: e.target.value })} className={sel} /></label>
             </div>
             <p className={`mt-2 text-xs font-semibold ${Math.abs(expected - received - charges) > 0.5 ? "text-rose-600" : "text-emerald-600"}`}>Expected {PKR(expected)} − received {PKR(received)} − charges {PKR(charges)} = difference {PKR(Math.round((expected - received - charges) * 100) / 100)}</p>
             <div className="mt-3 flex gap-2">
