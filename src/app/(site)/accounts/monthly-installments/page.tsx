@@ -32,6 +32,7 @@ interface Detail {
     arrears: number; arrears_accounts: number; expected_recovery: number;
     collected: { total: number; cash: number; online: number; other: number };
     collected_vs_expected_pct: number; target: number; target_pct: number | null; target_remaining: number | null;
+    target_scope?: "outlet" | "company" | "outlets_sum" | null;
   };
   outlets: { outlet_id: number | null; outlet_name: string; due: number; paid: number; unpaid: number; installments: number; unpaid_count: number; arrears: number; collected: number }[];
   schedule: ScheduleRow[];
@@ -81,7 +82,7 @@ export default function MonthlyInstallmentsPage() {
     if (!targetAmount || parseFloat(targetAmount) <= 0) { toast.error("Enter a valid target amount."); return; }
     setSaving(true);
     try {
-      const res = await fetch(`${BACKEND_URL}/api/accounts/monthly-installments/target`, { method: "POST", headers: authHeaders(), body: JSON.stringify({ month, target_amount: parseFloat(targetAmount) }) });
+      const res = await fetch(`${BACKEND_URL}/api/accounts/monthly-installments/target`, { method: "POST", headers: authHeaders(), body: JSON.stringify({ month, outletId, target_amount: parseFloat(targetAmount) }) });
       if (!res.ok) throw new Error(await apiErrorMessage(res, "Failed to set target."));
       toast.success(`Target set for ${detail?.label || month}.`);
       fetchTrend();
@@ -111,7 +112,7 @@ export default function MonthlyInstallmentsPage() {
     yaxis: { labels: { formatter: (v) => (v >= 1e6 ? `${(v / 1e6).toFixed(1)}M` : v >= 1e3 ? `${Math.round(v / 1e3)}k` : `${v}`), style: { colors: "#898781", fontSize: "11px" } } },
     tooltip: { shared: true, intersect: false, y: { formatter: (v) => PKR(v) } },
     dataLabels: { enabled: false },
-    markers: { size: [0, 0, 4] },
+    markers: { size: [0, 0, 7], strokeWidth: 2, strokeColors: "#fff", hover: { size: 9 } },
   };
   const series = [
     { name: "Due that month", type: "column", data: months.map((m) => m.due) },
@@ -120,6 +121,7 @@ export default function MonthlyInstallmentsPage() {
   ];
 
   const s = detail?.summary;
+  const outletName = detail?.outlets[0]?.outlet_name || "this outlet";
   return (
     <>
       <Breadcrumb pageName="Monthly Installments" />
@@ -142,14 +144,15 @@ export default function MonthlyInstallmentsPage() {
             <Stat label="Collected in month" value={PKR(s.collected.total)} note={`${s.collected_vs_expected_pct}% of expected · cash ${PKR(s.collected.cash)} · online ${PKR(s.collected.online)}${s.collected.other ? ` · manual corrections / other ${PKR(s.collected.other)}` : ""}`} tone="text-emerald-700 dark:text-emerald-300" />
             <Stat label="This month's dues paid" value={`${s.paid_pct}%`} note={`${PKR(s.paid)} paid · ${PKR(s.unpaid)} unpaid of ${s.installments} installments`} tone="text-dark dark:text-white" />
             <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm dark:border-white/10 dark:bg-boxdark">
-              <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Target</p>
+              <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Target — {outletId === "all" ? "whole company" : outletName}</p>
               {s.target > 0 ? (
                 <>
                   <p className="text-xl font-black text-dark dark:text-white">{s.target_pct}% <span className="text-sm font-semibold text-gray-500">of {PKR(s.target)}</span></p>
                   <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-gray-100 dark:bg-white/10"><div className={`h-full ${(s.target_pct || 0) >= 100 ? "bg-emerald-500" : "bg-indigo-500"}`} style={{ width: `${Math.min(100, s.target_pct || 0)}%` }} /></div>
                   <p className="mt-1 text-[11px] text-gray-500">{s.target_remaining ? `${PKR(s.target_remaining)} still to collect` : "Target achieved"}</p>
+                  {s.target_scope === "outlets_sum" && <p className="text-[10px] text-gray-400">Sum of the outlets&apos; own targets (no company target set).</p>}
                 </>
-              ) : <p className="mt-1 text-sm text-gray-500">No target set for this month.</p>}
+              ) : <p className="mt-1 text-sm text-gray-500">No target set for {outletId === "all" ? "the company" : outletName} this month.</p>}
               <form onSubmit={handleSetTarget} className="mt-2 flex gap-1.5">
                 <input type="number" value={targetAmount} onChange={(e) => setTargetAmount(e.target.value)} placeholder="Target PKR" className="w-full rounded-lg border border-stroke px-2 py-1 text-xs dark:border-dark-3 dark:bg-gray-dark dark:text-white" />
                 <button type="submit" disabled={saving} className="flex items-center gap-1 rounded-lg bg-[#ff3d3d] px-2 py-1 text-xs font-bold text-white disabled:opacity-50"><Save className="size-3" /> {saving ? "…" : "Set"}</button>
@@ -172,7 +175,7 @@ export default function MonthlyInstallmentsPage() {
       {loading ? <div className="mb-6"><ChartSkeleton /></div> : (
         <div className="mb-6 rounded-2xl border border-slate-100 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-boxdark">
           <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-            <h2 className="text-sm font-bold text-dark dark:text-white">Monthly trend — {outletId === "all" ? "all outlets" : detail?.outlets[0]?.outlet_name || "selected outlet"} <span className="font-normal text-gray-400">(click a month to open it{outletId === "all" ? "" : "; targets are company-wide, shown under All Outlets"})</span></h2>
+            <h2 className="text-sm font-bold text-dark dark:text-white">Monthly trend — {outletId === "all" ? "all outlets" : outletName} <span className="font-normal text-gray-400">(click a month to open it)</span></h2>
             <ExportMenu title="Monthly Installments Trend" columns={[
               { header: "Month", value: (m: MonthRow) => m.label },
               { header: "Due", value: (m) => m.due, numeric: true },
