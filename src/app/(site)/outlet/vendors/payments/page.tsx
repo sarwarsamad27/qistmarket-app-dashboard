@@ -81,6 +81,7 @@ export default function VendorPaymentsPage() {
         vendor_id: "",
         amount: "",
         payment_method: "Cash",
+        reference: "",
         notes: ""
     });
 
@@ -136,7 +137,7 @@ export default function VendorPaymentsPage() {
         }
     };
 
-    const resetForm = () => setForm({ type: "out", purchase_id: "", vendor_id: "", amount: "", payment_method: "Cash", notes: "" });
+    const resetForm = () => setForm({ type: "out", purchase_id: "", vendor_id: "", amount: "", payment_method: "Cash", reference: "", notes: "" });
 
     const handleRecordPayment = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -144,6 +145,7 @@ export default function VendorPaymentsPage() {
 
         if (form.type === "out") {
             if (!form.purchase_id) return setError("Please select an invoice.");
+            if (form.payment_method !== "Cash" && !form.reference.trim()) return setError("Enter the transaction / cheque reference for an online payment.");
         } else {
             if (!form.vendor_id) return setError("Please select a vendor.");
         }
@@ -162,6 +164,7 @@ export default function VendorPaymentsPage() {
                     purchase_id: parseInt(form.purchase_id),
                     amount: parseFloat(form.amount),
                     payment_method: form.payment_method,
+                    reference: form.reference,
                     notes: form.notes
                 }
                 : {
@@ -515,11 +518,31 @@ export default function VendorPaymentsPage() {
                                                 onChange={e => setForm({ ...form, payment_method: e.target.value })}
                                                 className="w-full px-5 py-3 rounded-2xl bg-gray-50 dark:bg-meta-4 border border-stroke dark:border-strokedark outline-none focus:border-primary text-sm font-bold transition-all appearance-none"
                                             >
-                                                {["Cash"].map(m => <option key={m}>{m}</option>)}
+                                                <option value="Cash">Cash (from outlet cash in hand)</option>
+                                                <optgroup label="Online">
+                                                    {["Bank Transfer", "JazzCash", "Easypaisa", "Cheque"].map(m => <option key={m} value={m}>{m}</option>)}
+                                                </optgroup>
                                             </select>
                                         </div>
                                     )}
                                 </div>
+                                {form.type === "out" && (
+                                    <div>
+                                        <p className={`mb-2 rounded-xl px-3 py-2 text-[11px] font-bold ${form.payment_method === "Cash" ? "bg-amber-50 text-amber-700 dark:bg-amber-500/10" : "bg-blue-50 text-blue-700 dark:bg-blue-500/10"}`}>
+                                            {form.payment_method === "Cash"
+                                                ? "Paid from this outlet's cash in hand: it will be deducted from today's cash register."
+                                                : "Online payment: it does not touch the outlet's cash in hand. Enter the transaction / cheque reference."}
+                                        </p>
+                                        {form.payment_method !== "Cash" && (
+                                            <input
+                                                value={form.reference}
+                                                onChange={e => setForm({ ...form, reference: e.target.value })}
+                                                placeholder={form.payment_method === "Cheque" ? "Cheque number *" : "Transaction ID / reference *"}
+                                                className="w-full px-5 py-3 rounded-2xl bg-gray-50 dark:bg-meta-4 border border-stroke dark:border-strokedark outline-none focus:border-primary text-sm font-bold transition-all"
+                                            />
+                                        )}
+                                    </div>
+                                )}
 
                                 <div>
                                     <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 ml-1">Payment Notes</label>
