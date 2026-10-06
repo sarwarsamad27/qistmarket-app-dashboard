@@ -59,7 +59,7 @@ export default function MonthlyInstallmentsPage() {
 
   const fetchTrend = () => {
     setLoading(true);
-    fetch(`${BACKEND_URL}/api/accounts/monthly-installments?months=12&futureMonths=3`, { headers: authHeaders() })
+    fetch(`${BACKEND_URL}/api/accounts/monthly-installments?months=12&futureMonths=3&outletId=${outletId}`, { headers: authHeaders() })
       .then((res) => res.json())
       .then((json) => { if (json.success) setMonths(json.data.months); })
       .catch((err) => console.error("Failed to load monthly analytics:", err))
@@ -73,7 +73,7 @@ export default function MonthlyInstallmentsPage() {
       .finally(() => setDetailLoading(false));
   };
 
-  useEffect(() => { fetchTrend(); }, []);
+  useEffect(() => { fetchTrend(); }, [outletId]);
   useEffect(() => { fetchDetail(); }, [month, outletId]);
 
   const handleSetTarget = async (e: React.FormEvent) => {
@@ -106,7 +106,8 @@ export default function MonthlyInstallmentsPage() {
     colors: ["#2a78d6", "#eb6834", "#898781"],
     grid: { strokeDashArray: 4, borderColor: "#e1e0d9" },
     legend: { position: "top", horizontalAlign: "left", fontSize: "12px", markers: { size: 5 } },
-    xaxis: { categories: months.map((m) => m.label), axisBorder: { show: false }, axisTicks: { show: false }, labels: { style: { colors: "#898781", fontSize: "11px" } } },
+    // "Nov 25" instead of "Nov 2025" so 15 months fit; on narrow screens they tilt instead of overlapping.
+    xaxis: { categories: months.map((m) => m.label.replace(/ (\d{2})(\d{2})$/, " '$2")), axisBorder: { show: false }, axisTicks: { show: false }, tickPlacement: "on", labels: { rotate: -45, rotateAlways: false, hideOverlappingLabels: false, trim: false, style: { colors: "#898781", fontSize: "11px" } } },
     yaxis: { labels: { formatter: (v) => (v >= 1e6 ? `${(v / 1e6).toFixed(1)}M` : v >= 1e3 ? `${Math.round(v / 1e3)}k` : `${v}`), style: { colors: "#898781", fontSize: "11px" } } },
     tooltip: { shared: true, intersect: false, y: { formatter: (v) => PKR(v) } },
     dataLabels: { enabled: false },
@@ -171,7 +172,7 @@ export default function MonthlyInstallmentsPage() {
       {loading ? <div className="mb-6"><ChartSkeleton /></div> : (
         <div className="mb-6 rounded-2xl border border-slate-100 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-boxdark">
           <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-            <h2 className="text-sm font-bold text-dark dark:text-white">Monthly trend (click a month to open it)</h2>
+            <h2 className="text-sm font-bold text-dark dark:text-white">Monthly trend — {outletId === "all" ? "all outlets" : detail?.outlets[0]?.outlet_name || "selected outlet"} <span className="font-normal text-gray-400">(click a month to open it{outletId === "all" ? "" : "; targets are company-wide, shown under All Outlets"})</span></h2>
             <ExportMenu title="Monthly Installments Trend" columns={[
               { header: "Month", value: (m: MonthRow) => m.label },
               { header: "Due", value: (m) => m.due, numeric: true },
@@ -182,7 +183,11 @@ export default function MonthlyInstallmentsPage() {
               { header: "Target %", value: (m) => m.targetPercentage ?? "", numeric: true },
             ]} getRows={() => months} />
           </div>
-          <Chart options={chartOptions} series={series} type="line" height={330} />
+          <div className="-mx-2 overflow-x-auto px-2">
+            <div className="min-w-[640px]">
+              <Chart options={chartOptions} series={series} type="line" height={330} />
+            </div>
+          </div>
           <div className="mt-3 overflow-x-auto">
             <table className="w-full text-left text-xs">
               <thead className="text-[10px] uppercase text-gray-400"><tr><th className="py-1.5">Month</th><th className="py-1.5 text-right">Due</th><th className="py-1.5 text-right">Paid of dues</th><th className="py-1.5 text-right">Unpaid</th><th className="py-1.5 text-right">Collected</th><th className="py-1.5 text-right">Target</th></tr></thead>
