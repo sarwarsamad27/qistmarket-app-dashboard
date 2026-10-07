@@ -29,8 +29,6 @@ interface Overview {
   upcoming: Upcoming[];
 }
 interface ScheduleRow { monthNumber: number; label: string; dueDate: string; dueAmount: number; paidAmount: number; remainingAmount: number; status: string }
-interface RiskEntry { order_id: number; order_ref: string; customer_name: string; outlet_name: string; remaining: number; missedCount: number }
-interface RiskData { summary: { cleared: number; regular: number; overdue: number; defaulter: number }; tiers: { regular: RiskEntry[]; overdue: RiskEntry[]; defaulter: RiskEntry[] } }
 
 const TABS = [
   { key: "outstanding" as const, label: "Outstanding", icon: Users },
@@ -57,6 +55,34 @@ const sel = "rounded-xl border border-stroke bg-white px-3 py-2 text-sm outline-
 
 const receiveHref = (orderId: number) => `/accounts/installment-receiving?order=${orderId}`;
 
+/**
+ * Risk score 0–100 for one account, from four things a recovery manager looks at:
+ *   how late (35) · how many installments missed (25) · how long since any payment (20) ·
+ *   how much of the deal is still unpaid (10) and how much of that is already overdue (10).
+ * 60+ = high, 30–59 = medium, under 30 = low.
+ */
+const riskOf = (a: Account) => {
+  // Each part is clamped to 0…max (a payment dated in the future must not make days negative).
+  const clamp = (v: number, max: number) => Math.max(0, Math.min(v || 0, max));
+  const late = clamp(a.days_late, 120) / 120 * 35;
+  const missed = clamp(a.overdue_months, 4) / 4 * 25;
+  const silent = (a.days_since_payment === null ? 90 : clamp(a.days_since_payment, 90)) / 90 * 20;
+  const unpaidShare = a.total > 0 ? Math.max(0, Math.min(1, a.remaining / a.total)) * 10 : 0;
+  const overdueShare = a.remaining > 0 ? Math.max(0, Math.min(1, a.overdue / a.remaining)) * 10 : 0;
+  const score = Math.round(late + missed + silent + unpaidShare + overdueShare);
+  const reasons = [
+    a.days_late ? `${a.days_late}d late` : "",
+    a.overdue_months ? `${a.overdue_months} missed` : "",
+    a.days_since_payment === null ? "never paid" : a.days_since_payment > 30 ? `no payment ${a.days_since_payment}d` : "",
+  ].filter(Boolean);
+  return { score, level: (score >= 60 ? "high" : score >= 30 ? "medium" : "low") as "high" | "medium" | "low", reasons };
+};
+const RISK_STYLE = {
+  high: "bg-rose-50 text-rose-700 dark:bg-rose-500/10",
+  medium: "bg-amber-50 text-amber-700 dark:bg-amber-500/10",
+  low: "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10",
+};
+
 export default function AccountsReceivablesPage() {
   const [tab, setTab] = useState<(typeof TABS)[number]["key"]>("outstanding");
   const [data, setData] = useState<Overview | null>(null);
@@ -71,9 +97,7 @@ export default function AccountsReceivablesPage() {
   const [schedule, setSchedule] = useState<ScheduleRow[]>([]);
   const [scheduleLoading, setScheduleLoading] = useState(false);
 
-  const [risk, setRisk] = useState<RiskData | null>(null);
-  const [riskLoading, setRiskLoading] = useState(false);
-  const [riskTier, setRiskTier] = useState<"defaulter" | "overdue" | "regular">("defaulter");
+  const [riskLevel, setRiskLevel] = useState<"" | "high" | "medium" | "low">("high");
 
   useEffect(() => {
     setLoading(true);
@@ -84,15 +108,6 @@ export default function AccountsReceivablesPage() {
       .finally(() => setLoading(false));
   }, [outletId]);
 
-  useEffect(() => {
-    if (tab === "risk" && !risk) {
-      setRiskLoading(true);
-      fetch(`${BACKEND_URL}/api/accounts/receivables/risk-analysis`, { headers: authHeaders() })
-        .then((res) => res.json())
-        .then((json) => { if (json.success) setRisk(json.data); })
-        .finally(() => setRiskLoading(false));
-    }
-  }, [tab, risk]);
 
   const openSchedule = async (row: { order_id: number; order_ref: string; customer_name: string }) => {
     setScheduleOrder(row);
@@ -115,7 +130,22 @@ export default function AccountsReceivablesPage() {
     const limit = Date.now() + dueWindow * 86400000;
     return (data?.upcoming || []).filter((u) => new Date(u.due_date).getTime() <= limit && matches(u));
   }, [data, q, dueWindow]);
-  const tierList = (risk?.tiers[riskTier] || []).filter(matches);
+  // Risk: every account with a balance, scored; follows the outlet picker and the search box.
+  const scored = useMemo(() => (data?.accounts || []).filter((a) => a.remaining > 0).map((a) => ({ ...a, risk: riskOf(a) })), [data]);
+  const riskList = useMemo(() => scored.filter((a) => matches(a) && (!riskLevel || a.risk.level === riskLevel)).sort((x, y) => y.risk.score - x.risk.score), [scored, q, riskLevel]); // eslint-disable-line react-hooks/exhaustive-deps
+  const riskSummary = useMemo(() => {
+    const lv = { high: { count: 0, amount: 0 }, medium: { count: 0, amount: 0 }, low: { count: 0, amount: 0 } };
+    const byStatus: Record<string, { count: number; amount: number }> = {};
+    const byOutlet: Record<string, { outlet: string; accounts: number; outstanding: number; overdue: number; high: number; high_amount: number }> = {};
+    for (const a of scored) {
+      lv[a.risk.level].count += 1; lv[a.risk.level].amount += a.remaining;
+      (byStatus[a.status] ||= { count: 0, amount: 0 }); byStatus[a.status].count += 1; byStatus[a.status].amount += a.remaining;
+      const o = (byOutlet[a.outlet_name] ||= { outlet: a.outlet_name, accounts: 0, outstanding: 0, overdue: 0, high: 0, high_amount: 0 });
+      o.accounts += 1; o.outstanding += a.remaining; o.overdue += a.overdue;
+      if (a.risk.level === "high") { o.high += 1; o.high_amount += a.remaining; }
+    }
+    return { lv, byStatus, byOutlet: Object.values(byOutlet).sort((x, y) => y.high_amount - x.high_amount || y.overdue - x.overdue) };
+  }, [scored]);
   const maxBucket = Math.max(1, ...BUCKETS.map((b) => data?.aging[b.key] || 0));
 
   const accountColumns = [
@@ -308,49 +338,109 @@ export default function AccountsReceivablesPage() {
 
       {/* ── Risk ── */}
       {tab === "risk" && (
-        riskLoading ? <TableSkeleton /> : risk ? (
-          <div className="space-y-6">
-            <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-              <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-4 dark:border-emerald-500/20 dark:bg-emerald-500/10"><p className="text-[10px] font-black uppercase tracking-widest text-emerald-600/80">Cleared</p><p className="text-xl font-black text-emerald-700 dark:text-emerald-400">{risk.summary.cleared}</p></div>
-              <div className="rounded-2xl border border-blue-100 bg-blue-50 p-4 dark:border-blue-500/20 dark:bg-blue-500/10"><p className="text-[10px] font-black uppercase tracking-widest text-blue-600/80">Regular</p><p className="text-xl font-black text-blue-700 dark:text-blue-400">{risk.summary.regular}</p></div>
-              <div className="rounded-2xl border border-amber-100 bg-amber-50 p-4 dark:border-amber-500/20 dark:bg-amber-500/10"><p className="text-[10px] font-black uppercase tracking-widest text-amber-600/80">Overdue</p><p className="text-xl font-black text-amber-700 dark:text-amber-400">{risk.summary.overdue}</p></div>
-              <div className="rounded-2xl border border-rose-100 bg-rose-50 p-4 dark:border-rose-500/20 dark:bg-rose-500/10"><p className="text-[10px] font-black uppercase tracking-widest text-rose-600/80">Defaulter</p><p className="text-xl font-black text-rose-700 dark:text-rose-400">{risk.summary.defaulter}</p></div>
+        loading ? <TableSkeleton /> : (
+          <div className="space-y-5">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+              {(["high", "medium", "low"] as const).map((lv) => (
+                <button key={lv} onClick={() => setRiskLevel(riskLevel === lv ? "" : lv)} className={`rounded-2xl border p-4 text-left shadow-sm ${riskLevel === lv ? "ring-2 ring-[#ff3d3d]/30 border-[#ff3d3d]" : "border-slate-100 dark:border-white/10"} bg-white dark:bg-boxdark`}>
+                  <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold capitalize ${RISK_STYLE[lv]}`}>{lv} risk</span>
+                  <p className="mt-1.5 text-xl font-black text-dark dark:text-white">{riskSummary.lv[lv].count} <span className="text-sm font-semibold text-gray-500">customers</span></p>
+                  <p className="text-xs text-gray-500">{PKR(riskSummary.lv[lv].amount)} still owed</p>
+                </button>
+              ))}
             </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <div className="flex w-fit gap-1 rounded-xl bg-gray-100 p-1 dark:bg-dark-3">
-                {(["defaulter", "overdue", "regular"] as const).map((t) => (
-                  <button key={t} onClick={() => setRiskTier(t)} className={`rounded-lg px-4 py-1.5 text-sm font-semibold capitalize transition ${riskTier === t ? "bg-white text-[#ff3d3d] shadow-sm dark:bg-boxdark" : "text-gray-500"}`}>{t}</button>
-                ))}
-              </div>
-              <div className="ml-auto">
-                <ExportMenu title={`Risk ${riskTier}`} columns={[
-                  { header: "Order", value: (e: RiskEntry) => e.order_ref },
-                  { header: "Customer", value: (e) => e.customer_name },
-                  { header: "Outlet", value: (e) => e.outlet_name },
-                  { header: "Missed months", value: (e) => e.missedCount, numeric: true },
-                  { header: "Remaining", value: (e) => e.remaining, numeric: true },
-                ]} getRows={() => tierList} />
-              </div>
-            </div>
-            {tierList.length > 0 ? (
-              <div className={card}>
-                <table className="w-full text-left text-sm">
-                  <thead className={thead}><tr><th className="px-4 py-3 font-bold">Order Ref</th><th className="px-4 py-3 font-bold">Customer</th><th className="px-4 py-3 font-bold">Outlet</th><th className="px-4 py-3 text-right font-bold">Missed</th><th className="px-4 py-3 text-right font-bold">Remaining</th><th className="px-4 py-3"></th></tr></thead>
-                  <tbody>{tierList.map((e) => (
-                    <tr key={e.order_id} className="border-t border-slate-50 dark:border-white/5">
-                      <td className="px-4 py-3.5 font-semibold text-dark dark:text-white">{e.order_ref}</td>
-                      <td className="px-4 py-3.5 text-gray-600 dark:text-gray-300">{e.customer_name}</td>
-                      <td className="px-4 py-3.5 text-gray-600 dark:text-gray-300">{e.outlet_name}</td>
-                      <td className="px-4 py-3.5 text-right tabular-nums text-amber-600">{e.missedCount}</td>
-                      <td className="px-4 py-3.5 text-right font-bold tabular-nums text-rose-600">{PKR(e.remaining)}</td>
-                      <td className="px-4 py-3.5 text-right"><Link href={receiveHref(e.order_id)} className="text-xs font-bold text-emerald-600 hover:underline">Receive</Link></td>
+            <p className="text-xs text-gray-500">Risk score (0–100) = how late + installments missed + days since the last payment + how much is unpaid / already overdue. <b>60+ high</b>, 30–59 medium, under 30 low. Follows the outlet picker and search above.</p>
+
+            <div className="grid grid-cols-1 gap-5 xl:grid-cols-3">
+              <div className={`${card} p-4`}>
+                <h3 className="mb-2 text-sm font-bold text-dark dark:text-white">By account status</h3>
+                <table className="w-full text-sm"><tbody>
+                  {(["active", "regular", "overdue", "defaulter", "blacklist"] as const).map((st) => (
+                    <tr key={st} className="border-t border-slate-100 first:border-0 dark:border-white/5">
+                      <td className="py-1.5"><span className={`rounded-full px-2 py-0.5 text-[11px] font-bold capitalize ${STATUS_STYLE[st]}`}>{st}</span></td>
+                      <td className="py-1.5 text-right tabular-nums text-gray-500">{riskSummary.byStatus[st]?.count || 0}</td>
+                      <td className="py-1.5 text-right font-semibold tabular-nums">{PKR(riskSummary.byStatus[st]?.amount || 0)}</td>
                     </tr>
-                  ))}</tbody>
-                </table>
+                  ))}
+                </tbody></table>
               </div>
-            ) : <div className={card}><EmptyState icon={TrendingDown} title={`No customers in the ${riskTier} tier`} /></div>}
+              <div className={`${card} p-4 xl:col-span-2`}>
+                <div className="mb-2 flex items-center justify-between">
+                  <h3 className="text-sm font-bold text-dark dark:text-white">Outlet-wise exposure</h3>
+                  <ExportMenu title="Receivables risk by outlet" columns={[
+                    { header: "Outlet", value: (o: (typeof riskSummary.byOutlet)[number]) => o.outlet },
+                    { header: "Accounts", value: (o) => o.accounts, numeric: true },
+                    { header: "Outstanding", value: (o) => o.outstanding, numeric: true },
+                    { header: "Overdue", value: (o) => o.overdue, numeric: true },
+                    { header: "High-risk customers", value: (o) => o.high, numeric: true },
+                    { header: "Owed by high-risk", value: (o) => o.high_amount, numeric: true },
+                  ]} getRows={() => riskSummary.byOutlet} />
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-sm">
+                    <thead className="text-[11px] uppercase text-gray-400"><tr><th className="py-1.5">Outlet</th><th className="py-1.5 text-right">Accounts</th><th className="py-1.5 text-right">Outstanding</th><th className="py-1.5 text-right">Overdue</th><th className="py-1.5 text-right">Overdue %</th><th className="py-1.5 text-right">High risk</th></tr></thead>
+                    <tbody>{riskSummary.byOutlet.map((o) => (
+                      <tr key={o.outlet} className="border-t border-slate-100 dark:border-white/5">
+                        <td className="py-1.5 font-medium text-dark dark:text-white">{o.outlet}</td>
+                        <td className="py-1.5 text-right tabular-nums">{o.accounts}</td>
+                        <td className="py-1.5 text-right tabular-nums">{PKR(o.outstanding)}</td>
+                        <td className="py-1.5 text-right tabular-nums text-rose-600">{PKR(o.overdue)}</td>
+                        <td className="py-1.5 text-right tabular-nums">{o.outstanding ? Math.round((o.overdue / o.outstanding) * 1000) / 10 : 0}%</td>
+                        <td className="py-1.5 text-right tabular-nums"><span className="font-semibold text-rose-600">{o.high}</span><span className="block text-[11px] text-gray-400">{PKR(o.high_amount)}</span></td>
+                      </tr>
+                    ))}</tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            <div className={card}>
+              <div className="flex flex-wrap items-center gap-2 border-b border-slate-100 p-3 dark:border-white/10">
+                <select value={riskLevel} onChange={(e) => setRiskLevel(e.target.value as typeof riskLevel)} className={sel}>
+                  <option value="">All risk levels</option><option value="high">High risk</option><option value="medium">Medium risk</option><option value="low">Low risk</option>
+                </select>
+                <p className="text-xs text-gray-500">{riskList.length} customer(s) · {PKR(riskList.reduce((s2, a) => s2 + a.remaining, 0))} owed</p>
+                <div className="ml-auto">
+                  <ExportMenu title={`Receivables risk${riskLevel ? ` ${riskLevel}` : ""}`} columns={[
+                    { header: "Risk score", value: (a: (typeof riskList)[number]) => a.risk.score, numeric: true },
+                    { header: "Risk", value: (a) => a.risk.level },
+                    { header: "Why", value: (a) => a.risk.reasons.join(", ") },
+                    { header: "Order", value: (a) => a.order_ref },
+                    { header: "Customer", value: (a) => a.customer_name },
+                    { header: "Phone", value: (a) => a.whatsapp_number },
+                    { header: "Outlet", value: (a) => a.outlet_name },
+                    { header: "Status", value: (a) => a.status },
+                    { header: "Overdue", value: (a) => a.overdue, numeric: true },
+                    { header: "Outstanding", value: (a) => a.remaining, numeric: true },
+                    { header: "Last payment", value: (a) => day(a.last_payment) },
+                  ]} getRows={() => riskList} />
+                </div>
+              </div>
+              {riskList.length ? (
+                <div className="max-h-[600px] overflow-auto">
+                  <table className="w-full text-left text-sm">
+                    <thead className={thead}><tr><th className="px-4 py-3">Risk</th><th className="px-4 py-3">Customer / Order</th><th className="px-4 py-3">Outlet</th><th className="px-4 py-3">Why</th><th className="px-4 py-3">Status</th><th className="px-4 py-3 text-right">Overdue</th><th className="px-4 py-3 text-right">Outstanding</th><th className="px-4 py-3"></th></tr></thead>
+                    <tbody>{riskList.map((a) => (
+                      <tr key={a.order_id} className="border-t border-slate-50 dark:border-white/5">
+                        <td className="px-4 py-3"><span className={`inline-flex min-w-[52px] justify-center rounded-full px-2 py-0.5 text-xs font-black ${RISK_STYLE[a.risk.level]}`}>{a.risk.score}</span></td>
+                        <td className="px-4 py-3"><p className="font-medium text-dark dark:text-white">{a.customer_name}</p><p className="font-mono text-[11px] text-gray-400">{a.order_ref} · {a.whatsapp_number}</p></td>
+                        <td className="px-4 py-3 text-gray-600 dark:text-gray-300">{a.outlet_name}</td>
+                        <td className="px-4 py-3 text-xs text-gray-600 dark:text-gray-300">{a.risk.reasons.join(" · ") || "—"}</td>
+                        <td className="px-4 py-3"><span className={`rounded-full px-2 py-0.5 text-[11px] font-bold capitalize ${STATUS_STYLE[a.status] || "bg-gray-100 text-gray-600"}`}>{a.status}</span></td>
+                        <td className="px-4 py-3 text-right tabular-nums text-rose-600">{a.overdue ? PKR(a.overdue) : "—"}</td>
+                        <td className="px-4 py-3 text-right font-bold tabular-nums">{PKR(a.remaining)}</td>
+                        <td className="whitespace-nowrap px-4 py-3 text-right">
+                          <button onClick={() => openSchedule(a)} className="mr-3 text-xs font-semibold text-blue-600 hover:underline">Schedule</button>
+                          <Link href={receiveHref(a.order_id)} className="rounded-lg bg-emerald-600 px-2.5 py-1.5 text-xs font-bold text-white">Receive</Link>
+                        </td>
+                      </tr>
+                    ))}</tbody>
+                  </table>
+                </div>
+              ) : <EmptyState icon={TrendingDown} title="No customers at this risk level" />}
+            </div>
           </div>
-        ) : <div className={card}><EmptyState icon={AlertTriangle} title="No risk data available" /></div>
+        )
       )}
 
       {scheduleOrder && (
