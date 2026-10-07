@@ -53,6 +53,7 @@ const STATUS_COLORS: Record<string, string> = {
 
 export default function OutletInventoryPage() {
     const [inventory, setInventory] = useState<InventoryItem[]>([]);
+    const [allowStockDelete, setAllowStockDelete] = useState<boolean>(true);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState("");
     const [page, setPage] = useState(1);
@@ -130,6 +131,9 @@ export default function OutletInventoryPage() {
                 setTotalPages(data.pagination.totalPages);
                 setTotalItemsCount(data.pagination.total);
                 setTotalStats(data.stats);
+                if (data.allow_stock_delete !== undefined) {
+                    setAllowStockDelete(data.allow_stock_delete !== false);
+                }
                 setSelectedIds([]);
             }
         } catch {
@@ -578,13 +582,15 @@ export default function OutletInventoryPage() {
                                                         >
                                                             {isExpanded ? "Hide" : `${grp.children.length} unit${grp.children.length > 1 ? "s" : ""}`}
                                                         </button>
-                                                        <button
-                                                            onClick={(e) => { e.stopPropagation(); deleteGroup(grp); }}
-                                                            title="Delete this product and all its units/IMEIs"
-                                                            className="text-gray-400 hover:text-red-500 transition-colors p-1"
-                                                        >
-                                                            <Trash2 size={15} />
-                                                        </button>
+                                                        {allowStockDelete && (
+                                                            <button
+                                                                onClick={(e) => { e.stopPropagation(); deleteGroup(grp); }}
+                                                                title="Delete this product and all its units/IMEIs"
+                                                                className="text-gray-400 hover:text-red-500 transition-colors p-1"
+                                                            >
+                                                                <Trash2 size={15} />
+                                                            </button>
+                                                        )}
                                                     </div>
                                                 </td>
                                             </tr>
@@ -688,13 +694,15 @@ export default function OutletInventoryPage() {
                                                                     <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${STATUS_COLORS[item.status] || "bg-gray-100 text-gray-600"}`}>
                                                                         {item.status === "Used Stock" ? "In Stock" : item.status}
                                                                     </span>
-                                                                    <button
-                                                                        onClick={() => deleteItem(item)}
-                                                                        title={item.imei_serial ? "Delete this IMEI/unit" : "Delete this batch"}
-                                                                        className="text-gray-400 hover:text-red-500 transition-colors p-0.5"
-                                                                    >
-                                                                        <Trash2 size={13} />
-                                                                    </button>
+                                                                    {allowStockDelete && (
+                                                                        <button
+                                                                            onClick={() => deleteItem(item)}
+                                                                            title={item.imei_serial ? "Delete this IMEI/unit" : "Delete this batch"}
+                                                                            className="text-gray-400 hover:text-red-500 transition-colors p-0.5"
+                                                                        >
+                                                                            <Trash2 size={13} />
+                                                                        </button>
+                                                                    )}
                                                                 </div>
                                                                 {item.status === "Used Stock" && (
                                                                     <span className="px-1.5 py-0.5 rounded-full text-[8px] font-black bg-orange-100 text-orange-700 dark:bg-orange-900/20 dark:text-orange-400 uppercase tracking-wider border border-orange-200 dark:border-orange-800">
