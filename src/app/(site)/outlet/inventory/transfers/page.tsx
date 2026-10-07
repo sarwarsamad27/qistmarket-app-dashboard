@@ -122,7 +122,7 @@ export default function TransfersPage() {
         };
     }, [socket, user]);
 
-    const inStockItems = useMemo(() => inventory.filter(i => i.status === "In Stock"), [inventory]);
+    const inStockItems = useMemo(() => inventory.filter(i => i.status === "In Stock" || i.status === "Used Stock"), [inventory]);
 
     const grouped = useMemo<GroupedItem[]>(() => {
         const map = new Map<string, GroupedItem>();
@@ -387,7 +387,7 @@ export default function TransfersPage() {
                                                                 <span className="font-mono bg-gray-100 dark:bg-meta-4 px-2 py-0.5 rounded text-xs border border-gray-200 dark:border-strokedark text-gray-700 dark:text-gray-300">
                                                                     {item.imei_serial || "No IMEI"}
                                                                 </span>
-                                                                {item.is_used && (
+                                                                {(item.is_used || item.status === "Used Stock") && (
                                                                     <span className="px-1.5 py-0.5 rounded text-[9px] font-black bg-orange-100 text-orange-700 dark:bg-orange-900/20 dark:text-orange-400 uppercase tracking-wider border border-orange-200 dark:border-orange-800">
                                                                         Used Item
                                                                     </span>
