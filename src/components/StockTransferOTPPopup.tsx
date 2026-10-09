@@ -20,10 +20,8 @@ export const StockTransferOTPPopup = () => {
     useEffect(() => {
         if (!socket || !user) return;
 
-        // Join outlet room if user belongs to an outlet
-        if (user.outlet_id) {
-            socket.emit("join_room", `outlet_${user.outlet_id}`);
-        }
+        // The authenticated notification join adds this user's outlet room on
+        // the server. Do not buffer an unauthenticated join_room on refresh.
 
         socket.on("stock_transfer_initiated", (data) => {
             setIncomingTransfer(data);
