@@ -128,6 +128,14 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
             newSocket.emit("join_admin_notifications", token);
         });
 
+        newSocket.on("force_logout", () => {
+            // Ignore a stale connection after the browser has switched accounts.
+            if (Cookies.get("auth_token") !== token) return;
+            Cookies.remove("auth_token");
+            newSocket.disconnect();
+            window.location.replace("/login");
+        });
+
         newSocket.on("new_notification", (notif: Notification) => {
             setNotifications((prev) => [notif, ...prev]);
             setUnreadCount((prev) => prev + 1);
