@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo, Fragment } from "react";
+import { useEffect, useState, useMemo, useRef, Fragment } from "react";
 import Link from "next/link";
 import Cookies from "js-cookie";
 import {
@@ -8,6 +8,8 @@ import {
     AlertCircle, RefreshCw, ChevronDown, ChevronRight, Save, X, Plus, RotateCcw
 } from "lucide-react";
 import Breadcrumb from "@/components/Breadcrumbs/Breadcrumb";
+
+import { stockValue } from "@/lib/stockValue";
 
 const API_BASE = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
 const getAuthHeaders = () => ({
@@ -26,6 +28,11 @@ type InventoryItem = {
     installment_price: number;
     status: string;
     is_used?: boolean;
+    return_origin?: {
+        return_id: number; order_id: number; order_ref: string; customer_name: string;
+        is_legacy: boolean; returned_at: string; original_sale_amount: number;
+        refund_amount: number; cost_pending: boolean;
+    } | null;
 };
 
 // A "group" is formed by unique (product_name + color_variant).
@@ -53,6 +60,10 @@ export default function OutletInventoryPage() {
     const [inventory, setInventory] = useState<InventoryItem[]>([]);
     const [loading, setLoading] = useState(true);
     const [syncing, setSyncing] = useState(false);
+    const [initialSyncDone, setInitialSyncDone] = useState(false);
+    const [syncError, setSyncError] = useState<string | null>(null);
+    const [syncIssues, setSyncIssues] = useState<{ return_id: number; order_id: number; imei: string | null; reason: string }[]>([]);
+    const inventoryRequest = useRef(0);
     const [search, setSearch] = useState("");
     const [page, setPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
@@ -78,15 +89,29 @@ export default function OutletInventoryPage() {
     const [unitRows, setUnitRows] = useState<{ imei_serial: string, color_variant: string, purchase_price: number, quantity: number }[]>([]);
 
     useEffect(() => {
-        fetchInventory();
-    }, [page, search]);
+        let active = true;
+        requestStockSync().then(data => {
+            if (active) setSyncIssues((data.results || []).filter((item: { outcome: string }) => item.outcome === "review"));
+        }).catch(error => {
+            if (active) setSyncError(error.message || "Returned stock could not be checked. Retry Sync Stock.");
+        }).finally(() => { if (active) setInitialSyncDone(true); });
+        return () => { active = false; };
+    }, []);
+
+    useEffect(() => {
+        if (initialSyncDone) fetchInventory();
+        return () => { inventoryRequest.current++; };
+    }, [page, search, initialSyncDone]);
 
 
     const fetchInventory = async () => {
+        const request = ++inventoryRequest.current;
         setLoading(true);
         try {
             const res = await fetch(`${API_BASE}/api/outlet/inventory/used?page=${page}&limit=${limit}&search=${encodeURIComponent(search)}`, { headers: getAuthHeaders() });
             const data = await res.json();
+            if (request !== inventoryRequest.current) return;
+            if (!res.ok || !data.success) throw new Error(data.message || "Inventory could not be loaded.");
             if (data.success) {
                 setInventory(data.inventory);
                 setTotalPages(data.pagination.totalPages);
@@ -94,26 +119,31 @@ export default function OutletInventoryPage() {
                 setTotalStats(data.stats);
                 setSelectedIds([]);
             }
-        } catch {
-            showAlert("error", "Network error fetching inventory.");
+        } catch (error) {
+            if (request === inventoryRequest.current) showAlert("error", error instanceof Error ? error.message : "Inventory could not be loaded.");
         } finally {
-            setLoading(false);
+            if (request === inventoryRequest.current) setLoading(false);
         }
+    };
+
+    const requestStockSync = async () => {
+        const res = await fetch(`${API_BASE}/api/outlet/inventory/used/sync`, { method: "POST", headers: getAuthHeaders() });
+        const data = await res.json();
+        if (!res.ok || !data.success) throw new Error(data.message || "Stock sync failed.");
+        return data;
     };
 
     const syncStock = async () => {
         setSyncing(true);
+        setSyncError(null);
         try {
-            const res = await fetch(`${API_BASE}/api/outlet/inventory/used/sync`, {
-                method: "POST", headers: getAuthHeaders(),
-            });
-            const data = await res.json();
-            if (!res.ok || !data.success) throw new Error(data.message || "Stock sync failed.");
+            const data = await requestStockSync();
+            setSyncIssues((data.results || []).filter((item: { outcome: string }) => item.outcome === "review"));
             showAlert("success", data.message);
             if (page === 1) await fetchInventory();
             else setPage(1);
         } catch (error) {
-            showAlert("error", error instanceof Error ? error.message : "Stock sync failed.");
+            setSyncError(error instanceof Error ? error.message : "Stock sync failed.");
         } finally {
             setSyncing(false);
         }
@@ -228,21 +258,19 @@ export default function OutletInventoryPage() {
     };
 
     const saveEdit = async (id: number) => {
-        // If it's a quick edit (not in full edit mode), we use the item from inventory state
-        const item = inventory.find(i => i.id === id);
-        const body = editingId === id ? editForm : item;
-
-        const res = await fetch(`${API_BASE}/api/outlet/inventory/${id}`, {
-            method: "PATCH",
-            headers: getAuthHeaders(),
-            body: JSON.stringify(body),
-        });
-        const data = await res.json();
-        if (data.success) {
-            if (editingId === id) setEditingId(null);
-            showAlert("success", "Item updated.");
-        } else {
-            showAlert("error", "Update failed.");
+        const price = Number(editForm.purchase_price);
+        if (!Number.isFinite(price) || price < 0) return showAlert("error", "Enter a valid non-negative base price.");
+        try {
+            const res = await fetch(`${API_BASE}/api/outlet/inventory/${id}`, {
+                method: "PATCH", headers: getAuthHeaders(), body: JSON.stringify({ purchase_price: price }),
+            });
+            const data = await res.json();
+            if (!res.ok || !data.success) throw new Error(data.message || "Update failed.");
+            setEditingId(null);
+            await fetchInventory();
+            showAlert("success", "Base price saved and stock value updated.");
+        } catch (error) {
+            showAlert("error", error instanceof Error ? error.message : "Update failed.");
         }
     };
 
@@ -370,7 +398,8 @@ export default function OutletInventoryPage() {
     const totalItems = inventory.reduce((s, i) => s + i.quantity, 0);
     const totalInStock = inventory.filter(i => i.status === "In Stock" || i.status === "Used Stock").reduce((s, i) => s + i.quantity, 0);
     const totalSold = inventory.filter(i => i.status === "Sold").reduce((s, i) => s + i.quantity, 0);
-    const totalStockValue = inventory.filter(i => i.status === "In Stock" || i.status === "Used Stock").reduce((s, i) => s + (i.quantity * (i.purchase_price || 0)), 0);
+    const totalStockValue = stockValue(inventory);
+    const pendingValuations = inventory.filter(item => item.return_origin?.cost_pending && ["In Stock", "Used Stock"].includes(item.status)).length;
 
     return (
         <div className="p-4 md:p-6 max-w-7xl mx-auto relative">
@@ -401,7 +430,7 @@ export default function OutletInventoryPage() {
                     <Link href="/outlet/inventory/used/history" className="bg-white dark:bg-boxdark border border-stroke dark:border-strokedark text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-meta-4 px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 shadow-sm transition-colors">
                         <RotateCcw size={16} /> View Reversal History
                     </Link>
-                    <button onClick={syncStock} disabled={syncing} className="bg-white dark:bg-boxdark border border-stroke dark:border-strokedark text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-meta-4 px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 shadow-sm transition-colors">
+                    <button onClick={syncStock} disabled={syncing || !initialSyncDone} className="bg-white dark:bg-boxdark border border-stroke dark:border-strokedark text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-meta-4 px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 shadow-sm transition-colors">
                         <RefreshCw size={16} className={syncing ? "animate-spin" : ""} /> {syncing ? "Syncing..." : "Sync Stock"}
                     </button>
                 </div>
@@ -437,6 +466,18 @@ export default function OutletInventoryPage() {
                         className="w-full border border-stroke dark:border-strokedark rounded-lg pl-10 pr-4 py-2.5 text-sm bg-gray-50 dark:bg-form-input focus:border-primary outline-none dark:text-white"
                     />
                 </div>
+            </div>
+
+            {syncError && <div role="alert" className="mb-4 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">{syncError} Use Sync Stock to retry.</div>}
+            {syncIssues.filter(item => !search.trim() || item.imei?.includes(search.trim())).map(item => (
+                <div key={item.return_id} className="mb-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+                    <strong>{item.imei || "No serial"}</strong>: {item.reason}{" "}
+                    <Link href={`/orders/${item.order_id}`} className="underline">View source account</Link>
+                </div>
+            ))}
+            <div className="mb-4 text-sm text-gray-600 dark:text-gray-300">
+                Recorded stock value on this page: <strong>PKR {totalStockValue.toLocaleString()}</strong>
+                {pendingValuations > 0 && <span className="ml-2 text-amber-700">({pendingValuations} legacy unit(s) awaiting base price)</span>}
             </div>
 
             {/* Inventory Grouped Table */}
@@ -493,6 +534,7 @@ export default function OutletInventoryPage() {
                                                 <td className="px-4 py-4" onClick={() => toggleExpand(grp.key)}>
                                                     <div className="flex items-center gap-2">
                                                         <span className="font-bold text-black dark:text-white">{grp.product_name}</span>
+                                                        {grp.children.some(item => item.return_origin?.is_legacy) && <span className="rounded bg-blue-50 px-2 py-1 text-[10px] text-blue-700">Legacy import</span>}
                                                         <span className="px-1.5 py-0.5 text-[10px] tracking-wider uppercase font-bold bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 border border-amber-200 dark:border-amber-800 rounded">Used</span>
                                                     </div>
                                                 </td>
@@ -511,10 +553,10 @@ export default function OutletInventoryPage() {
                                                     </span>
                                                 </td>
                                                 <td className="px-4 py-4" onClick={() => toggleExpand(grp.key)}>
-                                                    <span className="font-medium text-gray-700 dark:text-gray-200">PKR {grp.purchase_price?.toLocaleString() || 0}</span>
+                                                    <span className="font-medium text-gray-700 dark:text-gray-200">{grp.children.some(item => item.return_origin?.cost_pending) ? "Valuation pending" : new Set(grp.children.map(item => item.purchase_price)).size > 1 ? "Varies by unit" : `PKR ${grp.purchase_price.toLocaleString()}`}</span>
                                                 </td>
                                                 <td className="px-4 py-4" onClick={() => toggleExpand(grp.key)}>
-                                                    <span className="font-bold text-amber-600 dark:text-amber-400">PKR {(grp.inStockQty * (grp.purchase_price || 0)).toLocaleString()}</span>
+                                                    <span className="font-bold text-amber-600 dark:text-amber-400">PKR {stockValue(grp.children).toLocaleString()}</span>
                                                 </td>
                                                 <td className="px-4 py-4 text-center">
                                                     <div className="flex items-center justify-center gap-3">
@@ -557,54 +599,22 @@ export default function OutletInventoryPage() {
                                                                     {item.imei_serial || "—"}
                                                                 </span>
                                                             </span>
+                                                            {item.return_origin && <div className="mt-2 space-y-1 text-xs text-gray-500">
+                                                                <div>{item.return_origin.is_legacy ? "Legacy import | " : "Customer return | "}<Link href={`/orders/${item.return_origin.order_id}`} className="text-primary underline">{item.return_origin.order_ref}</Link></div>
+                                                                <div>{item.return_origin.customer_name}</div>
+                                                                <div>Returned: {new Date(item.return_origin.returned_at).toLocaleDateString("en-PK")}</div>
+                                                                <div>Original sale: PKR {item.return_origin.original_sale_amount.toLocaleString()} | Refund: PKR {item.return_origin.refund_amount.toLocaleString()}</div>
+                                                            </div>}
                                                         </td>
 
-                                                        {/* Category */}
-                                                        <td className="px-4 py-3">
-                                                            {isEditing ? (
-                                                                <input
-                                                                    type="text"
-                                                                    value={editForm.category || ""}
-                                                                    onChange={e => setEditForm({ ...editForm, category: e.target.value })}
-                                                                    className="w-full border rounded px-2 py-1 text-xs dark:bg-form-input dark:border-strokedark outline-none"
-                                                                />
-                                                            ) : (
-                                                                <span className="text-gray-500 dark:text-gray-400 text-xs">{item.category || "—"}</span>
-                                                            )}
-                                                        </td>
+                                                        <td className="px-4 py-3 text-xs text-gray-500">{item.category || "-"}</td>
 
                                                         {/* Variant */}
                                                         <td className="px-4 py-3">
                                                             <span className="text-gray-500 dark:text-gray-400 text-xs">{item.color_variant || "—"}</span>
                                                         </td>
 
-                                                        {/* Quantity */}
-                                                        <td className="px-4 py-3 text-center">
-                                                            {isEditing ? (
-                                                                <input
-                                                                    type="number"
-                                                                    min="1"
-                                                                    value={editForm.quantity || 1}
-                                                                    onChange={e => {
-                                                                        const base = { ...editForm, quantity: parseInt(e.target.value) || 1 };
-                                                                        // If it's a serialized record, we lock to 1
-                                                                        if (item.imei_serial) base.quantity = 1;
-                                                                        setEditForm(base);
-                                                                    }}
-                                                                    disabled={!!item.imei_serial}
-                                                                    className="w-16 text-center border rounded px-1 py-1 text-xs disabled:opacity-50 dark:bg-form-input dark:border-strokedark outline-none mx-auto"
-                                                                />
-                                                            ) : (
-                                                                <span className="font-bold"></span>
-                                                            )}
-                                                        </td>
-
-                                                        {/* In-Stock count (same as qty for child row) */}
-                                                        <td className="px-4 py-3 text-center">
-                                                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${STATUS_COLORS[item.status] || "bg-gray-100 text-gray-600"}`}>
-                                                                {item.status === "In Stock" || item.status === "Used Stock" ? item.quantity : 0}
-                                                            </span>
-                                                        </td>
+                                                        <td className="px-4 py-3 text-center font-bold">{item.quantity}</td>
 
                                                         {/* Purchase Price */}
                                                         <td className="px-4 py-3">
@@ -616,9 +626,11 @@ export default function OutletInventoryPage() {
                                                                     className="w-full border rounded px-2 py-1 text-xs dark:bg-form-input dark:border-strokedark outline-none"
                                                                 />
                                                             ) : (
-                                                                <span className="text-xs text-gray-600 dark:text-gray-300">PKR {item.purchase_price?.toLocaleString()}</span>
+                                                                <span className="text-xs text-gray-600 dark:text-gray-300">{item.return_origin?.cost_pending ? "Set base price" : `PKR ${item.purchase_price.toLocaleString()}`}</span>
                                                             )}
                                                         </td>
+
+                                                        <td className="px-4 py-3 text-xs">{item.return_origin?.cost_pending ? "Valuation pending" : `PKR ${stockValue([item]).toLocaleString()}`}</td>
 
                                                         {/* Actions */}
                                                         <td className="px-4 py-3 text-center">
@@ -631,6 +643,10 @@ export default function OutletInventoryPage() {
                                                                         Used Item
                                                                     </span>
                                                                 )}
+                                                                {isEditing ? <div className="flex gap-2">
+                                                                    <button onClick={() => saveEdit(item.id)} className="text-xs text-primary">Save price</button>
+                                                                    <button onClick={() => setEditingId(null)} className="text-xs text-gray-500">Cancel</button>
+                                                                </div> : <button onClick={() => startEdit(item)} className="text-xs text-primary">Edit base price</button>}
                                                                 <button
                                                                     onClick={(e) => { e.stopPropagation(); reverseUsedStatus(item); }}
                                                                     className="mt-1 px-2 py-1 rounded-full text-[10px] font-bold bg-success/10 text-success border border-success/20 hover:bg-success/20 transition-colors"

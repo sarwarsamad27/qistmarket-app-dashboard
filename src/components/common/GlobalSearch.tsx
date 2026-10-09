@@ -56,7 +56,7 @@ export default function GlobalSearch() {
         setLoading(true);
         setIsOpen(true);
         try {
-            const res = await fetch(`${API_BASE}/api/outlet/search?query=${query}&type=${searchType}`, {
+            const res = await fetch(`${API_BASE}/api/outlet/search?query=${encodeURIComponent(query)}&type=${searchType}`, {
                 headers: {
                     Authorization: `Bearer ${Cookies.get("auth_token")}`,
                 },
@@ -131,7 +131,7 @@ export default function GlobalSearch() {
                         {results.length > 0 ? (
                             <div className="p-4 space-y-6">
                                 {/* Customers Section */}
-                                {(searchType === 'all' || searchType === 'customers') && results.filter(i => i.status === 'delivered').length > 0 && (
+                                {(searchType === 'all' || searchType === 'customers') && results.filter(i => ['delivered', 'returned'].includes(String(i.status).toLowerCase())).length > 0 && (
                                     <div>
                                         <div className="flex items-center gap-3 mb-4 px-2">
                                             <div className="h-[1px] flex-1 bg-gradient-to-r from-transparent via-stroke dark:via-strokedark to-transparent" />
@@ -141,7 +141,7 @@ export default function GlobalSearch() {
                                             <div className="h-[1px] flex-1 bg-gradient-to-r from-transparent via-stroke dark:via-strokedark to-transparent" />
                                         </div>
                                         <div className="grid gap-4">
-                                            {results.filter(i => i.status === 'delivered').slice(0, searchType === 'all' ? 5 : 10).map((item) => (
+                                            {results.filter(i => ['delivered', 'returned'].includes(String(i.status).toLowerCase())).slice(0, searchType === 'all' ? 5 : 10).map((item) => (
                                                 <ResultItem key={item.id} item={item} openProfile={openProfile} setIsOpen={setIsOpen} />
                                             ))}
                                         </div>
@@ -149,7 +149,7 @@ export default function GlobalSearch() {
                                 )}
 
                                 {/* Orders Section */}
-                                {(searchType === 'all' || searchType === 'orders') && results.filter(i => i.status !== 'delivered').length > 0 && (
+                                {(searchType === 'all' || searchType === 'orders') && results.filter(i => !['delivered', 'returned'].includes(String(i.status).toLowerCase())).length > 0 && (
                                     <div>
                                         <div className="flex items-center gap-3 mb-4 px-2">
                                             <div className="h-[1px] flex-1 bg-gradient-to-r from-transparent via-stroke dark:via-strokedark to-transparent" />
@@ -159,7 +159,7 @@ export default function GlobalSearch() {
                                             <div className="h-[1px] flex-1 bg-gradient-to-r from-transparent via-stroke dark:via-strokedark to-transparent" />
                                         </div>
                                         <div className="grid gap-4">
-                                            {results.filter(i => i.status !== 'delivered').slice(0, searchType === 'all' ? 5 : 10).map((item) => (
+                                            {results.filter(i => !['delivered', 'returned'].includes(String(i.status).toLowerCase())).slice(0, searchType === 'all' ? 5 : 10).map((item) => (
                                                 <ResultItem key={item.id} item={item} openProfile={openProfile} setIsOpen={setIsOpen} />
                                             ))}
                                         </div>
@@ -173,7 +173,7 @@ export default function GlobalSearch() {
                                 </div>
                                 <h3 className="text-base font-bold text-gray-800 dark:text-white mb-2">No matching records</h3>
                                 <p className="text-xs text-gray-400 max-w-[240px] mx-auto leading-relaxed">
-                                    Try searching with a full CNIC, WhatsApp number or Order reference ID.
+                                    Try searching with a IMEI/serial, CNIC, WhatsApp number or order reference.
                                 </p>
                             </div>
                         ) : null}
@@ -221,6 +221,8 @@ function ResultItem({ item, openProfile, setIsOpen }: any) {
                                 {item.verification?.purchaser?.name || item.customer_name} 
                             </h4>
                         </div>
+                        {item.is_legacy && <span className="rounded bg-blue-50 px-2 py-1 text-[10px] text-blue-700">Legacy import</span>}
+                        {item.imei_serial && <span className="mt-1 block font-mono text-xs text-gray-500">IMEI: {item.imei_serial}</span>}
                         {item.father_name && item.father_name !== 'N/A' && (
                             <span className="text-gray-400 font-bold text-xs uppercase tracking-tight">S/O {item.father_name}</span>
                         )}

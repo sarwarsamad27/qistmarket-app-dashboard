@@ -27,7 +27,7 @@ function SearchResultsContent() {
     const handleSearch = async () => {
         setLoading(true);
         try {
-            const res = await fetch(`${API_BASE}/api/outlet/search?query=${query}&type=${type}`, {
+            const res = await fetch(`${API_BASE}/api/outlet/search?query=${encodeURIComponent(query)}&type=${type}`, {
                 headers: {
                     Authorization: `Bearer ${Cookies.get("auth_token")}`,
                 },
@@ -85,16 +85,16 @@ function SearchResultsContent() {
             ) : results.length > 0 ? (
                 <div className="space-y-8">
                     {/* Customers Section */}
-                    {(type === 'all' || type === 'customers') && results.filter(i => i.status === 'delivered').length > 0 && (
+                    {(type === 'all' || type === 'customers') && results.filter(i => ['delivered', 'returned'].includes(String(i.status).toLowerCase())).length > 0 && (
                         <div>
                             <div className="flex items-center gap-4 mb-6">
                                 <span className="flex items-center gap-2 px-4 py-2 rounded-xl bg-green-500/10 text-green-500 text-xs font-black uppercase tracking-[0.2em] border border-green-500/20">
-                                    <UserCheck size={16} /> Customers ({results.filter(i => i.status === 'delivered').length})
+                                    <UserCheck size={16} /> Customers ({results.filter(i => ['delivered', 'returned'].includes(String(i.status).toLowerCase())).length})
                                 </span>
                                 <div className="h-[1px] flex-1 bg-gradient-to-r from-green-500/20 to-transparent" />
                             </div>
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                                {results.filter(i => i.status === 'delivered').map((item) => (
+                                {results.filter(i => ['delivered', 'returned'].includes(String(i.status).toLowerCase())).map((item) => (
                                     <ResultCard key={item.id} item={item} onProfileClick={() => openProfile(item)} />
                                 ))}
                             </div>
@@ -102,16 +102,16 @@ function SearchResultsContent() {
                     )}
 
                     {/* Orders Section */}
-                    {(type === 'all' || type === 'orders') && results.filter(i => i.status !== 'delivered').length > 0 && (
+                    {(type === 'all' || type === 'orders') && results.filter(i => !['delivered', 'returned'].includes(String(i.status).toLowerCase())).length > 0 && (
                         <div>
                             <div className="flex items-center gap-4 mb-6">
                                 <span className="flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-500/10 text-amber-500 text-xs font-black uppercase tracking-[0.2em] border border-amber-500/20">
-                                    <ClipboardList size={16} /> Orders ({results.filter(i => i.status !== 'delivered').length})
+                                    <ClipboardList size={16} /> Orders ({results.filter(i => !['delivered', 'returned'].includes(String(i.status).toLowerCase())).length})
                                 </span>
                                 <div className="h-[1px] flex-1 bg-gradient-to-r from-amber-500/20 to-transparent" />
                             </div>
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                                {results.filter(i => i.status !== 'delivered').map((item) => (
+                                {results.filter(i => !['delivered', 'returned'].includes(String(i.status).toLowerCase())).map((item) => (
                                     <ResultCard key={item.id} item={item} onProfileClick={() => openProfile(item)} />
                                 ))}
                             </div>
@@ -125,7 +125,7 @@ function SearchResultsContent() {
                     </div>
                     <h3 className="text-xl font-black text-gray-800 dark:text-white mb-3">No matching records found</h3>
                     <p className="text-sm text-gray-400 max-w-md mx-auto leading-relaxed">
-                        We couldn't find any orders or customers matching your search query. Please try searching with different keywords like a full CNIC, Phone number, or Order ID.
+                        We couldn't find any orders or customers matching your search query. Please try searching with different keywords like an IMEI/serial, CNIC, phone number, or order ID.
                     </p>
                     <button 
                         onClick={() => window.history.back()}
@@ -165,6 +165,8 @@ function ResultCard({ item, onProfileClick }: { item: any, onProfileClick: () =>
                         <h4 className="font-black text-gray-900 dark:text-white text-lg truncate mb-1">
                             {item.customer_name}
                         </h4>
+                        {item.is_legacy && <span className="rounded bg-blue-50 px-2 py-1 text-[10px] text-blue-700">Legacy import</span>}
+                        {item.imei_serial && <span className="block font-mono text-xs text-gray-500">IMEI: {item.imei_serial}</span>}
                         <div className="flex items-center gap-1.5 text-xs font-bold text-gray-500 uppercase tracking-tight">
                             <span>S/O:</span>
                             <span className="truncate">{item.father_name || 'N/A'}</span>
