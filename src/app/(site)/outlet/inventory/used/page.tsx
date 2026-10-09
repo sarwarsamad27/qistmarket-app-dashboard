@@ -52,6 +52,7 @@ const STATUS_COLORS: Record<string, string> = {
 export default function OutletInventoryPage() {
     const [inventory, setInventory] = useState<InventoryItem[]>([]);
     const [loading, setLoading] = useState(true);
+    const [syncing, setSyncing] = useState(false);
     const [search, setSearch] = useState("");
     const [page, setPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
@@ -97,6 +98,24 @@ export default function OutletInventoryPage() {
             showAlert("error", "Network error fetching inventory.");
         } finally {
             setLoading(false);
+        }
+    };
+
+    const syncStock = async () => {
+        setSyncing(true);
+        try {
+            const res = await fetch(`${API_BASE}/api/outlet/inventory/used/sync`, {
+                method: "POST", headers: getAuthHeaders(),
+            });
+            const data = await res.json();
+            if (!res.ok || !data.success) throw new Error(data.message || "Stock sync failed.");
+            showAlert("success", data.message);
+            if (page === 1) await fetchInventory();
+            else setPage(1);
+        } catch (error) {
+            showAlert("error", error instanceof Error ? error.message : "Stock sync failed.");
+        } finally {
+            setSyncing(false);
         }
     };
 
@@ -382,8 +401,8 @@ export default function OutletInventoryPage() {
                     <Link href="/outlet/inventory/used/history" className="bg-white dark:bg-boxdark border border-stroke dark:border-strokedark text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-meta-4 px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 shadow-sm transition-colors">
                         <RotateCcw size={16} /> View Reversal History
                     </Link>
-                    <button onClick={fetchInventory} className="bg-white dark:bg-boxdark border border-stroke dark:border-strokedark text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-meta-4 px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 shadow-sm transition-colors">
-                        <RefreshCw size={16} /> Sync Stock
+                    <button onClick={syncStock} disabled={syncing} className="bg-white dark:bg-boxdark border border-stroke dark:border-strokedark text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-meta-4 px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 shadow-sm transition-colors">
+                        <RefreshCw size={16} className={syncing ? "animate-spin" : ""} /> {syncing ? "Syncing..." : "Sync Stock"}
                     </button>
                 </div>
             </div>
@@ -635,7 +654,7 @@ export default function OutletInventoryPage() {
             {/* Pagination & Summary */}
             <div className="mt-8 flex flex-col md:flex-row items-center justify-between gap-4 bg-white dark:bg-boxdark p-4 rounded-xl border border-stroke dark:border-strokedark">
                 <div className="text-xs text-gray-400 dark:text-gray-500 font-bold uppercase tracking-widest">
-                    Showing {(page - 1) * limit + 1} to {Math.min(page * limit, totalItemsCount)} of {totalItemsCount} Records
+                    Showing {totalItemsCount === 0 ? 0 : (page - 1) * limit + 1} to {Math.min(page * limit, totalItemsCount)} of {totalItemsCount} Records
                 </div>
 
                 <div className="flex items-center gap-2">
