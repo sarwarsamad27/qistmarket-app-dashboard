@@ -183,19 +183,26 @@ const ClearedCustomerList = () => {
     },
   ]
 
+  // Name: case-insensitive. Phone/CNIC: digits only, so "42301-95..." and
+  // "4230195..." both match.
+  const query = globalFilter.trim().toLowerCase()
+  const queryDigits = query.replace(/\D/g, '')
+  const filteredData = query
+    ? customers.filter(c => {
+        const digits = (v: any) => String(v || '').replace(/\D/g, '')
+        return String(c.customer.name || '').toLowerCase().includes(query) ||
+          (queryDigits.length > 0 && (
+            digits(c.customer.telephone_number).includes(queryDigits) ||
+            digits(c.customer.cnic_number).includes(queryDigits)
+          ))
+      })
+    : customers;
+
   const table = useReactTable({
-    data: customers,
+    data: filteredData,
     columns,
     getCoreRowModel: getCoreRowModel(),
   })
-
-  const filteredData = globalFilter 
-    ? customers.filter(c => 
-        c.customer.name.toLowerCase().includes(globalFilter.toLowerCase()) ||
-        c.customer.telephone_number.includes(globalFilter) ||
-        (c.customer.cnic_number && c.customer.cnic_number.includes(globalFilter))
-      )
-    : customers;
 
   return (
     <section className="rounded-[2.5rem] bg-white p-8 dark:bg-boxdark">
@@ -246,8 +253,8 @@ const ClearedCustomerList = () => {
                 <td colSpan={columns.length} className="py-20 text-center">
                   <div className="bg-gray-50 dark:bg-meta-4/10 p-10 rounded-[2.5rem] inline-block border border-stroke dark:border-strokedark">
                     <CheckCircle size={48} className="mx-auto text-gray-200 mb-4" />
-                    <p className="text-sm font-black text-gray-400 uppercase tracking-widest">No Cleared Accounts Yet</p>
-                    <p className="text-xs text-gray-400 mt-2">Accounts will appear here once all installments are fully paid.</p>
+                    <p className="text-sm font-black text-gray-400 uppercase tracking-widest">{query ? 'No Matching Customer' : 'No Cleared Accounts Yet'}</p>
+                    <p className="text-xs text-gray-400 mt-2">{query ? 'Try a different name, phone number or CNIC.' : 'Accounts will appear here once all installments are fully paid.'}</p>
                   </div>
                 </td>
               </tr>
