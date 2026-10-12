@@ -70,6 +70,9 @@ const CreateOrders: React.FC = () => {
   const [checkingPhone, setCheckingPhone] = useState(false);
   const [altPhoneMatches, setAltPhoneMatches] = useState<any[]>([]);
   const [checkingAltPhone, setCheckingAltPhone] = useState(false);
+  // Active-order limit (max 2 as purchaser/guarantor). Admin can bypass it.
+  const [activeLimit, setActiveLimit] = useState<{ phone: string; orders: any[] }[]>([]);
+  const isAdmin = ['admin', 'super admin'].includes(String(user?.role || '').toLowerCase());
 
   // Custom Product Calculation States
   const [customCashPrice, setCustomCashPrice] = useState<string>('');
@@ -240,6 +243,33 @@ const CreateOrders: React.FC = () => {
     const timer = setTimeout(checkAltPhone, 500);
     return () => clearTimeout(timer);
   }, [formData.alternate_contact]);
+
+  // Active orders (purchaser/guarantor) for WhatsApp + alternate numbers
+  useEffect(() => {
+    const phones = [formData.whatsapp_number, formData.alternate_contact]
+      .map(p => (p || '').replace(/\s+/g, ''))
+      .filter((p, i, arr) => /^0[0-9]{10}$/.test(p) && arr.indexOf(p) === i);
+    if (!phones.length) { setActiveLimit([]); return; }
+    const timer = setTimeout(async () => {
+      try {
+        const token = Cookies.get("auth_token");
+        const results = await Promise.all(phones.map(async phone => {
+          const response = await fetch(`${BACKEND_URL}/api/verification/check-person`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ phone })
+          });
+          const result = await response.json();
+          return { phone, orders: result.success ? (result.orders || []) : [] };
+        }));
+        setActiveLimit(results.filter(r => r.orders.length > 0));
+      } catch (error) {
+        console.error("Error checking active orders:", error);
+      }
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [formData.whatsapp_number, formData.alternate_contact]);
+  const limitReached = activeLimit.some(r => r.orders.length >= 2);
 
   // Admin-editable formula (EMI Calculator page) — tiers, profit/advance % and rounding.
   const installmentFormula = useInstallmentFormula();
@@ -571,6 +601,7 @@ const CreateOrders: React.FC = () => {
       setCustomCategory('');
       setCustomMonths('');
       setPhoneMatches([]);
+      setActiveLimit([]);
       setErrors({});
 
     } catch (error: any) {
@@ -773,6 +804,32 @@ const CreateOrders: React.FC = () => {
                         <h4 className="text-sm font-black text-red-800 uppercase tracking-wide">CRITICAL: Alternate Contact Blacklisted</h4>
                         <p className="text-xs text-red-600 font-bold mt-1">This alternate contact number is marked as blacklisted in the system. Placing any new orders for them is strictly disabled.</p>
                       </div>
+                    </div>
+                  )}
+                  {activeLimit.length > 0 && (
+                    <div className={`mt-4 p-4 border-2 rounded-2xl ${limitReached ? (isAdmin ? 'bg-amber-50 border-amber-200' : 'bg-red-50 border-red-200') : 'bg-blue-50 border-blue-100'}`}>
+                      {activeLimit.map(r => (
+                        <div key={r.phone} className="mb-2 last:mb-0">
+                          <p className={`text-xs font-black uppercase tracking-wide ${r.orders.length >= 2 ? (isAdmin ? 'text-amber-800' : 'text-red-800') : 'text-blue-800'}`}>
+                            {r.phone}: {r.orders.length} active order(s) mein involved (max 2)
+                          </p>
+                          <ul className="mt-1 space-y-0.5">
+                            {r.orders.map((o: any) => (
+                              <li key={o.id} className="text-[11px] text-gray-700">
+                                <a href={`/orders/${o.id}`} target="_blank" rel="noopener noreferrer" className="font-bold text-blue-600 underline decoration-dotted">{o.order_ref}</a>
+                                {' '}— {o.role || 'Involved'} ({o.status})
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      ))}
+                      {limitReached && (
+                        <p className={`text-xs font-bold mt-2 ${isAdmin ? 'text-amber-700' : 'text-red-600'}`}>
+                          {isAdmin
+                            ? 'Limit puri ho chuki hai, lekin aap Admin hain — order "Created by Admin" ke tor par create ho jayega.'
+                            : 'Limit puri ho chuki hai. Teesra active order sirf Admin create kar sakta hai.'}
+                        </p>
+                      )}
                     </div>
                   )}
                 </div>

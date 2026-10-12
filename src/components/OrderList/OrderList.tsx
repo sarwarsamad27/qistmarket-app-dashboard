@@ -84,6 +84,7 @@ interface Order {
   created_at: string
   updated_at?: string
   created_by: { username: string } | null
+  created_by_admin?: boolean
   assigned_to: { username: string } | null
   delivery_officer: { username: string; full_name: string } | null
   recovery_officer: { username: string; full_name: string } | null
@@ -1121,7 +1122,7 @@ const OrderListContent = ({ forcedStatus, forcedChannel, apiEndpoint, hideAction
     },
     {
       id: 'created_by',
-      accessorFn: (row) => row.created_by?.username || '',
+      accessorFn: (row) => (row.created_by?.username || '') + (row.created_by_admin ? ' (Admin)' : ''),
       header: 'Created By',
       enableColumnFilter: true,
     },

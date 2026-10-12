@@ -266,6 +266,7 @@ interface DummyCustomer {
 interface Order {
     id: number;
     order_ref: string;
+    created_by_admin?: boolean;
     token_number: string;
     customer_name: string;
     whatsapp_number: string;
@@ -1453,6 +1454,11 @@ export default function OrderDetailsPage() {
                         <div>
                             <p className="text-sm text-gray-500 dark:text-gray-400">Reference Number</p>
                             <p className="font-semibold">{order.order_ref}</p>
+                            {order.created_by_admin && (
+                                <span className="inline-block mt-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase bg-purple-100 text-purple-700 border border-purple-200">
+                                    Created by Admin
+                                </span>
+                            )}
                             {accountStatus && (
                                 <div className="mt-3">
                                     <p className="text-sm text-gray-500 dark:text-gray-400">Account Status</p>
@@ -1723,6 +1729,9 @@ export default function OrderDetailsPage() {
                                         <span className="text-sm font-semibold text-blue-800 dark:text-blue-300">
                                             {order.created_by?.full_name || 'System'} (@{order.created_by?.username || 'system'})
                                         </span>
+                                        {order.created_by_admin && (
+                                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-purple-100 text-purple-700">Created by Admin</span>
+                                        )}
                                     </div>
                                 </div>
                                 <div className="text-xs text-blue-700 dark:text-blue-400 mt-2 font-medium">
