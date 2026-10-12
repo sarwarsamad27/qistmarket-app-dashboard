@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useDeferredValue, useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Loader from '@/components/common/Loader'
 import {
@@ -23,6 +23,8 @@ interface CustomerGroup {
 }
 
 const fmt = (n: number) => `Rs. ${Number(n).toLocaleString()}`
+const PAGE_SIZE = 50
+const digitsOnly = (v: any) => String(v || '').replace(/\D/g, '')
 
 const ClearedCustomerList = () => {
   const router = useRouter()
@@ -63,7 +65,7 @@ const ClearedCustomerList = () => {
     }
   }
 
-  const columns: ColumnDef<CustomerGroup>[] = [
+  const columns = useMemo<ColumnDef<CustomerGroup>[]>(() => [
     {
       id: 'customer_name',
       accessorFn: (row) => row.customer.name,
@@ -181,25 +183,34 @@ const ClearedCustomerList = () => {
         </div>
       ),
     },
-  ]
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  ], [router, openProfile])
 
-  // Name: case-insensitive. Phone/CNIC: digits only, so "42301-95..." and
-  // "4230195..." both match.
-  const query = globalFilter.trim().toLowerCase()
+  // Search index built once per fetch, not on every keystroke.
+  const searchIndex = useMemo(() => customers.map(c => ({
+    row: c,
+    name: String(c.customer.name || '').toLowerCase(),
+    digits: digitsOnly(c.customer.telephone_number) + ' ' + digitsOnly(c.customer.cnic_number),
+  })), [customers])
+
+  // Typing stays responsive; filtering runs on the deferred value.
+  const deferredFilter = useDeferredValue(globalFilter)
+  const query = deferredFilter.trim().toLowerCase()
   const queryDigits = query.replace(/\D/g, '')
-  const filteredData = query
-    ? customers.filter(c => {
-        const digits = (v: any) => String(v || '').replace(/\D/g, '')
-        return String(c.customer.name || '').toLowerCase().includes(query) ||
-          (queryDigits.length > 0 && (
-            digits(c.customer.telephone_number).includes(queryDigits) ||
-            digits(c.customer.cnic_number).includes(queryDigits)
-          ))
-      })
-    : customers;
+  const filteredData = useMemo(() => {
+    if (!query) return customers
+    return searchIndex
+      .filter(e => e.name.includes(query) || (queryDigits.length > 0 && e.digits.includes(queryDigits)))
+      .map(e => e.row)
+  }, [customers, searchIndex, query, queryDigits])
+
+  // Render a page at a time — hundreds of rich rows at once froze the page.
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE)
+  useEffect(() => { setVisibleCount(PAGE_SIZE) }, [query])
+  const visibleData = useMemo(() => filteredData.slice(0, visibleCount), [filteredData, visibleCount])
 
   const table = useReactTable({
-    data: filteredData,
+    data: visibleData,
     columns,
     getCoreRowModel: getCoreRowModel(),
   })
@@ -272,6 +283,22 @@ const ClearedCustomerList = () => {
           </tbody>
         </table>
       </div>
+
+      {!loading && filteredData.length > 0 && (
+        <div className="mt-6 flex flex-col items-center gap-3">
+          <p className="text-xs font-bold text-gray-400">
+            Showing {visibleData.length} of {filteredData.length}
+          </p>
+          {visibleData.length < filteredData.length && (
+            <button
+              onClick={() => setVisibleCount(c => c + PAGE_SIZE)}
+              className="rounded-xl bg-emerald-500 px-6 py-2 text-xs font-black uppercase tracking-widest text-white hover:bg-emerald-600"
+            >
+              Show More
+            </button>
+          )}
+        </div>
+      )}
     </section>
   )
 }
