@@ -141,6 +141,7 @@ export const SUB_ADMIN_PAGE_CATALOG: SubAdminGroup[] = [
       { url: "/admin/emi-calculator", title: "EMI Calculator" },
       { url: "/admin/sales-targets", title: "Sales Targets" },
       { url: "/admin/field-ops", title: "Field Ops" },
+      { url: "/admin/officer-tracking", title: "Officer Tracking" },
       { url: "/admin/command-center", title: "Command Center" },
       { url: "/admin/discount-requests", title: "Discount Requests" },
       { url: "/admin/customer-risk", title: "Customer Risk Score" },

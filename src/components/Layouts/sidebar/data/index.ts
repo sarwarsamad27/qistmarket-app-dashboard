@@ -316,6 +316,12 @@ export const NAV_DATA = [
         items: [],
       },
       {
+        title: "Officer Tracking",
+        icon: Icons.ActivityIcon,
+        url: "/admin/officer-tracking",
+        items: [],
+      },
+      {
         title: "Command Center",
         icon: Icons.LayoutDashboardIcon,
         url: "/admin/command-center",
@@ -575,6 +581,12 @@ export const NAV_DATA = [
         ],
       },
       {
+        title: "Officer Tracking",
+        icon: Icons.ActivityIcon,
+        url: "/outlet/officer-tracking",
+        items: [],
+      },
+      {
         title: "Rankings & Leaderboards",
         icon: Icons.BarChartIcon,
         items: [
@@ -753,6 +765,12 @@ export const NAV_DATA = [
         title: "Accounts Dashboard",
         icon: Icons.LayoutDashboardIcon,
         url: "/accounts/dashboard",
+        items: [],
+      },
+      {
+        title: "Officer Tracking",
+        icon: Icons.ActivityIcon,
+        url: "/accounts/officer-tracking",
         items: [],
       },
       {
