@@ -278,7 +278,7 @@ export default function Home() {
     // Belt-and-suspenders fallback only — the socket listener below is what
     // actually keeps this live; this just guards against a missed/dropped event.
     const fallbackInterval = setInterval(() => {
-      loadDashboard(true)
+      if (!document.hidden) loadDashboard(true)
     }, 5 * 60 * 1000)
 
     return () => clearInterval(fallbackInterval)
@@ -293,17 +293,40 @@ export default function Home() {
   useEffect(() => {
     if (!socket) return
 
-    let debounceTimer: ReturnType<typeof setTimeout> | null = null
+    // A full refresh is 13 API calls, and notifications arrive constantly on a
+    // busy day — a 2s debounce meant every open dashboard kept re-running them
+    // all. Throttle to one background refresh per minute, and none while the
+    // tab is hidden (it catches up when the tab is shown again).
+    const MIN_GAP_MS = 60 * 1000
+    let lastRefresh = Date.now()
+    let timer: ReturnType<typeof setTimeout> | null = null
+    let pendingWhileHidden = false
+
+    const refresh = () => {
+      timer = null
+      if (document.hidden) { pendingWhileHidden = true; return }
+      lastRefresh = Date.now()
+      loadDashboard(true)
+    }
     const handleLiveUpdate = () => {
-      if (debounceTimer) clearTimeout(debounceTimer)
-      debounceTimer = setTimeout(() => loadDashboard(true), 2000)
+      if (timer) return
+      const wait = Math.max(2000, lastRefresh + MIN_GAP_MS - Date.now())
+      timer = setTimeout(refresh, wait)
+    }
+    const handleVisible = () => {
+      if (!document.hidden && pendingWhileHidden) {
+        pendingWhileHidden = false
+        handleLiveUpdate()
+      }
     }
 
     socket.on('new_notification', handleLiveUpdate)
+    document.addEventListener('visibilitychange', handleVisible)
 
     return () => {
-      if (debounceTimer) clearTimeout(debounceTimer)
+      if (timer) clearTimeout(timer)
       socket.off('new_notification', handleLiveUpdate)
+      document.removeEventListener('visibilitychange', handleVisible)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [socket])
