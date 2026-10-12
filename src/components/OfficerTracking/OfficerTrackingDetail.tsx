@@ -1,10 +1,10 @@
 "use client";
 
-import { ReactNode, useCallback, useEffect, useMemo, useState } from "react";
+import { Fragment, ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import Cookies from "js-cookie";
-import { ArrowLeft, Circle, Download, Radar, Search } from "lucide-react";
+import { ArrowLeft, ChevronDown, ChevronRight, Circle, Download, Radar, Search } from "lucide-react";
 import Breadcrumb from "@/components/Breadcrumbs/Breadcrumb";
 import EmptyState from "@/components/Accounts/EmptyState";
 import { TableSkeleton } from "@/components/Accounts/Skeleton";
@@ -13,32 +13,54 @@ import { ROLE_META, RoleKey, fmtRs, fmtDate, fmtDateTime, fmtMinutes, monthStart
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
 
-type Column = { key: string; label: string; render?: (row: any) => ReactNode; csv?: (row: any) => any };
-type TabDef = { key: string; label: string; rows: any[]; columns: Column[] };
+type Column = { key: string; label: string; render?: (row: any) => ReactNode; csv?: (row: any) => any; nowrap?: boolean };
+type TabDef = { key: string; label: string; rows: any[]; columns: Column[]; details?: (row: any) => ReactNode };
 
 const OrderLink = ({ row }: { row: any }) =>
   row.order_id ? (
-    <a href={`/orders/${row.order_id}`} target="_blank" rel="noopener noreferrer" className="font-semibold text-blue-600 hover:underline">
+    <a
+      href={`/orders/${row.order_id}`}
+      target="_blank"
+      rel="noopener noreferrer"
+      onClick={(e) => e.stopPropagation()}
+      className="whitespace-nowrap font-semibold text-blue-600 hover:underline"
+    >
       {row.order_ref}
     </a>
   ) : <span>{row.order_ref || "—"}</span>;
 
 const Customer = ({ row }: { row: any }) => (
-  <div>
+  <div className="min-w-[150px]">
     <p className="font-semibold text-dark dark:text-white">{row.customer_name || "—"}</p>
-    <p className="text-xs text-gray-500">{[row.phone, row.cnic].filter(Boolean).join(" · ")}</p>
+    {row.phone && <p className="text-xs text-gray-500">{row.phone}</p>}
+    {row.cnic && <p className="text-xs text-gray-500">{row.cnic}</p>}
   </div>
 );
+
+// Date on one line, time under it — never wraps into four lines.
+const When = ({ value }: { value?: string | null }) => {
+  if (!value) return <span className="text-gray-400">—</span>;
+  const d = new Date(value);
+  return (
+    <div className="whitespace-nowrap">
+      <p className="font-medium">{d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}</p>
+      <p className="text-xs text-gray-500">{d.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true })}</p>
+    </div>
+  );
+};
+
+const humanize = (s?: string | null) =>
+  String(s || "—").replace(/_/g, " ").toLowerCase().replace(/^\w/, (c) => c.toUpperCase());
 
 const Pill = ({ text, tone = "gray" }: { text: string; tone?: "gray" | "green" | "red" | "amber" | "blue" }) => {
   const tones = {
     gray: "bg-gray-100 text-gray-600 dark:bg-dark-3 dark:text-gray-300",
-    green: "bg-emerald-50 text-emerald-700",
-    red: "bg-red-50 text-red-600",
-    amber: "bg-amber-50 text-amber-700",
-    blue: "bg-blue-50 text-blue-700",
+    green: "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400",
+    red: "bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400",
+    amber: "bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400",
+    blue: "bg-blue-50 text-blue-700 dark:bg-blue-500/10 dark:text-blue-400",
   };
-  return <span className={`inline-block whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-bold uppercase ${tones[tone]}`}>{text}</span>;
+  return <span className={`inline-block whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-semibold ${tones[tone]}`}>{text}</span>;
 };
 
 const statusTone = (s?: string) => {
@@ -48,6 +70,25 @@ const statusTone = (s?: string) => {
   if (["pending", "in_progress", "in progress", "new"].includes(v)) return "amber";
   return "gray";
 };
+const StatusPill = ({ value }: { value?: string | null }) =>
+  value ? <Pill text={humanize(value)} tone={statusTone(value) as any} /> : <span className="text-gray-400">—</span>;
+
+// Long free text (feedback, remarks, notes): two lines in the table; the full
+// text is in the row's expanded panel.
+const Clamp = ({ text }: { text?: string | null }) =>
+  text ? <p className="line-clamp-2 max-w-[260px] text-sm text-gray-600 dark:text-gray-300">{text}</p> : <span className="text-gray-400">—</span>;
+
+const realGuarantors = (r: any) => (r.guarantors || []).filter((g: any) => String(g.name || "").trim());
+
+// Expanded-row building blocks
+const DetailBlock = ({ title, children }: { title: string; children: ReactNode }) => (
+  <div>
+    <p className="mb-1.5 text-xs font-bold uppercase tracking-wide text-gray-400">{title}</p>
+    {children}
+  </div>
+);
+const Paragraph = ({ text }: { text?: string | null }) =>
+  text ? <p className="whitespace-pre-line text-sm leading-relaxed text-gray-700 dark:text-gray-200">{text}</p> : <p className="text-sm text-gray-400">Not provided</p>;
 
 function buildTabs(role: RoleKey, data: any): TabDef[] {
   if (role === "verification") {
@@ -57,31 +98,76 @@ function buildTabs(role: RoleKey, data: any): TabDef[] {
       rows: data.verifications || [],
       columns: [
         { key: "order_ref", label: "Order", render: (r) => <OrderLink row={r} /> },
-        { key: "customer_name", label: "Customer", render: (r) => <Customer row={r} />, csv: (r) => `${r.customer_name || ""} ${r.phone || ""} ${r.cnic || ""}` },
-        { key: "product_name", label: "Product", render: (r) => <div><p>{r.product_name}</p><p className="text-xs text-gray-500">{fmtRs(r.total_amount)}</p></div> },
-        { key: "area", label: "Area" },
+        { key: "customer_name", label: "Customer", render: (r) => <Customer row={r} />, csv: (r) => [r.customer_name, r.phone, r.cnic].filter(Boolean).join(" | ") },
+        {
+          key: "product_name", label: "Product",
+          render: (r) => <div className="min-w-[140px]"><p>{r.product_name}</p><p className="text-xs text-gray-500">{fmtRs(r.total_amount)}</p></div>,
+        },
+        { key: "area", label: "Area", render: (r) => <p className="min-w-[110px]">{r.area || "—"}</p> },
         {
           key: "guarantors", label: "Guarantors",
-          render: (r) => r.guarantors.length
-            ? <div className="space-y-0.5 text-xs">{r.guarantors.map((g: any) => <p key={g.number}><b>G{g.number}:</b> {g.name} {g.phone ? `· ${g.phone}` : ""}</p>)}</div>
-            : "—",
-          csv: (r) => r.guarantors.map((g: any) => `G${g.number}: ${g.name}`).join("; "),
+          render: (r) => {
+            const gs = realGuarantors(r);
+            return gs.length
+              ? <div className="min-w-[140px] space-y-0.5 text-sm">{gs.map((g: any) => <p key={g.number}>{g.name}</p>)}</div>
+              : <span className="text-gray-400">None</span>;
+          },
+          csv: (r) => realGuarantors(r).map((g: any) => `G${g.number}: ${g.name} ${g.phone || ""}`.trim()).join("; "),
         },
-        { key: "start_time", label: "Started", render: (r) => fmtDateTime(r.start_time), csv: (r) => fmtDateTime(r.start_time) },
-        { key: "end_time", label: "Finished", render: (r) => fmtDateTime(r.end_time), csv: (r) => fmtDateTime(r.end_time) },
-        { key: "duration_minutes", label: "Time taken", render: (r) => fmtMinutes(r.duration_minutes), csv: (r) => fmtMinutes(r.duration_minutes) },
-        { key: "home_location_verified", label: "Home location", render: (r) => r.home_location_verified ? <Pill text="Verified" tone="green" /> : <Pill text="No" />, csv: (r) => (r.home_location_verified ? "Verified" : "No") },
-        { key: "status", label: "Verification", render: (r) => <Pill text={r.status} tone={statusTone(r.status) as any} /> },
-        { key: "order_status", label: "Order status", render: (r) => <Pill text={r.order_status} tone={statusTone(r.order_status) as any} /> },
+        { key: "start_time", label: "Started", render: (r) => <When value={r.start_time} />, csv: (r) => fmtDateTime(r.start_time) },
+        { key: "end_time", label: "Finished", render: (r) => <When value={r.end_time} />, csv: (r) => fmtDateTime(r.end_time) },
+        { key: "duration_minutes", label: "Time taken", nowrap: true, render: (r) => fmtMinutes(r.duration_minutes), csv: (r) => fmtMinutes(r.duration_minutes) },
+        { key: "home_location_verified", label: "Home location", render: (r) => r.home_location_verified ? <Pill text="Verified" tone="green" /> : <Pill text="Not verified" />, csv: (r) => (r.home_location_verified ? "Verified" : "Not verified") },
+        { key: "status", label: "Verification", render: (r) => <StatusPill value={r.status} />, csv: (r) => humanize(r.status) },
+        { key: "order_status", label: "Order status", render: (r) => <StatusPill value={r.order_status} />, csv: (r) => humanize(r.order_status) },
         {
           key: "reviews", label: "Reviews",
-          render: (r) => r.reviews.length
-            ? <div className="space-y-0.5 text-xs">{r.reviews.map((rv: any, i: number) => <p key={i}><span className={rv.approved ? "text-emerald-600" : "text-red-600"}>{rv.approved ? "✓" : "✗"}</span> {rv.reviewer}{rv.remarks ? ` — ${rv.remarks}` : ""}</p>)}</div>
-            : "—",
-          csv: (r) => r.reviews.map((rv: any) => `${rv.approved ? "Approved" : "Rejected"} by ${rv.reviewer}`).join("; "),
+          render: (r) => {
+            if (!r.reviews.length) return <span className="text-gray-400">—</span>;
+            const ok = r.reviews.filter((x: any) => x.approved).length;
+            const no = r.reviews.length - ok;
+            return (
+              <div className="flex flex-wrap gap-1">
+                {ok > 0 && <Pill text={`${ok} approved`} tone="green" />}
+                {no > 0 && <Pill text={`${no} rejected`} tone="red" />}
+              </div>
+            );
+          },
+          csv: (r) => r.reviews.map((rv: any) => `${rv.approved ? "Approved" : "Rejected"} by ${rv.reviewer}${rv.remarks ? `: ${rv.remarks}` : ""}`).join(" | "),
         },
-        { key: "feedback", label: "Feedback", render: (r) => <p className="max-w-[240px] text-xs">{r.feedback || "—"}</p> },
+        { key: "feedback", label: "Officer feedback", render: (r) => <Clamp text={r.feedback} /> },
       ],
+      details: (r) => (
+        <div className="grid gap-5 md:grid-cols-2">
+          <DetailBlock title="Officer feedback"><Paragraph text={r.feedback} /></DetailBlock>
+          <DetailBlock title="Reviews">
+            {r.reviews.length ? (
+              <div className="space-y-2">
+                {r.reviews.map((rv: any, i: number) => (
+                  <div key={i} className="rounded-lg border border-stroke bg-white p-3 dark:border-dark-3 dark:bg-gray-dark">
+                    <div className="mb-1 flex flex-wrap items-center gap-2">
+                      <Pill text={rv.approved ? "Approved" : "Rejected"} tone={rv.approved ? "green" : "red"} />
+                      <span className="text-sm font-semibold text-dark dark:text-white">{rv.reviewer}</span>
+                      <span className="text-xs text-gray-500">{fmtDateTime(rv.created_at)}</span>
+                    </div>
+                    <Paragraph text={rv.remarks} />
+                  </div>
+                ))}
+              </div>
+            ) : <p className="text-sm text-gray-400">No reviews yet</p>}
+          </DetailBlock>
+          <DetailBlock title="Guarantors">
+            {realGuarantors(r).length ? (
+              <div className="space-y-1 text-sm">
+                {realGuarantors(r).map((g: any) => (
+                  <p key={g.number}><b>Guarantor {g.number}:</b> {g.name}{g.phone ? ` · ${g.phone}` : ""}{g.cnic ? ` · ${g.cnic}` : ""}</p>
+                ))}
+              </div>
+            ) : <p className="text-sm text-gray-400">No guarantors added</p>}
+          </DetailBlock>
+          <DetailBlock title="Address / area"><Paragraph text={r.area} /></DetailBlock>
+        </div>
+      ),
     }];
   }
   if (role === "delivery") {
@@ -92,16 +178,22 @@ function buildTabs(role: RoleKey, data: any): TabDef[] {
         rows: data.deliveries || [],
         columns: [
           { key: "order_ref", label: "Order", render: (r) => <OrderLink row={r} /> },
-          { key: "customer_name", label: "Customer", render: (r) => <Customer row={r} />, csv: (r) => `${r.customer_name || ""} ${r.phone || ""}` },
-          { key: "product_name", label: "Product", render: (r) => <div><p>{r.product_name}</p><p className="text-xs text-gray-500">{r.imei ? `IMEI ${r.imei}` : ""}</p></div>, csv: (r) => `${r.product_name} ${r.imei || ""}` },
-          { key: "area", label: "Area" },
-          { key: "advance_amount", label: "Advance", render: (r) => fmtRs(r.advance_amount) },
-          { key: "assigned_at", label: "Assigned", render: (r) => fmtDateTime(r.assigned_at), csv: (r) => fmtDateTime(r.assigned_at) },
-          { key: "end_time", label: "Delivered at", render: (r) => fmtDateTime(r.end_time), csv: (r) => fmtDateTime(r.end_time) },
+          { key: "customer_name", label: "Customer", render: (r) => <Customer row={r} />, csv: (r) => [r.customer_name, r.phone].filter(Boolean).join(" | ") },
+          { key: "product_name", label: "Product", render: (r) => <div className="min-w-[140px]"><p>{r.product_name}</p>{r.imei && <p className="text-xs text-gray-500">IMEI {r.imei}</p>}</div>, csv: (r) => `${r.product_name} ${r.imei || ""}`.trim() },
+          { key: "area", label: "Area", render: (r) => <p className="min-w-[110px]">{r.area || "—"}</p> },
+          { key: "advance_amount", label: "Advance", nowrap: true, render: (r) => fmtRs(r.advance_amount) },
+          { key: "assigned_at", label: "Assigned", render: (r) => <When value={r.assigned_at} />, csv: (r) => fmtDateTime(r.assigned_at) },
+          { key: "end_time", label: "Delivered at", render: (r) => <When value={r.end_time} />, csv: (r) => fmtDateTime(r.end_time) },
           { key: "self_pickup", label: "Type", render: (r) => r.self_pickup ? <Pill text="Self pickup" tone="blue" /> : <Pill text="Home delivery" />, csv: (r) => (r.self_pickup ? "Self pickup" : "Home delivery") },
-          { key: "status", label: "Status", render: (r) => <Pill text={r.status} tone={statusTone(r.status) as any} /> },
-          { key: "feedback", label: "Feedback", render: (r) => <p className="max-w-[240px] text-xs">{r.feedback || "—"}</p> },
+          { key: "status", label: "Status", render: (r) => <StatusPill value={r.status} />, csv: (r) => humanize(r.status) },
+          { key: "feedback", label: "Feedback", render: (r) => <Clamp text={r.feedback} /> },
         ],
+        details: (r) => (
+          <div className="grid gap-5 md:grid-cols-2">
+            <DetailBlock title="Delivery feedback"><Paragraph text={r.feedback} /></DetailBlock>
+            <DetailBlock title="Address / area"><Paragraph text={r.area} /></DetailBlock>
+          </div>
+        ),
       },
       {
         key: "cash",
@@ -109,15 +201,15 @@ function buildTabs(role: RoleKey, data: any): TabDef[] {
         rows: data.cash || [],
         columns: [
           { key: "order_ref", label: "Order", render: (r) => <OrderLink row={r} /> },
-          { key: "customer_name", label: "Customer" },
-          { key: "product_name", label: "Product" },
-          { key: "type", label: "Type" },
-          { key: "amount", label: "Amount", render: (r) => <b>{fmtRs(r.amount)}</b> },
+          { key: "customer_name", label: "Customer", render: (r) => <p className="min-w-[140px] font-semibold">{r.customer_name || "—"}</p> },
+          { key: "product_name", label: "Product", render: (r) => <p className="min-w-[140px]">{r.product_name || "—"}</p> },
+          { key: "type", label: "Type", render: (r) => <p className="min-w-[120px]">{r.type || "—"}</p> },
+          { key: "amount", label: "Amount", nowrap: true, render: (r) => <b>{fmtRs(r.amount)}</b> },
           { key: "payment_method", label: "Method" },
-          { key: "submitted_amount", label: "Submitted", render: (r) => fmtRs(r.submitted_amount) },
-          { key: "pending_amount", label: "Still with officer", render: (r) => r.pending_amount > 0 ? <span className="font-bold text-red-600">{fmtRs(r.pending_amount)}</span> : fmtRs(0) },
-          { key: "status", label: "Status", render: (r) => <Pill text={r.status} tone={statusTone(r.status) as any} /> },
-          { key: "created_at", label: "Taken at", render: (r) => fmtDateTime(r.created_at), csv: (r) => fmtDateTime(r.created_at) },
+          { key: "submitted_amount", label: "Submitted", nowrap: true, render: (r) => fmtRs(r.submitted_amount) },
+          { key: "pending_amount", label: "Still with officer", nowrap: true, render: (r) => r.pending_amount > 0 ? <span className="font-bold text-red-600">{fmtRs(r.pending_amount)}</span> : fmtRs(0) },
+          { key: "status", label: "Status", render: (r) => <StatusPill value={r.status} />, csv: (r) => humanize(r.status) },
+          { key: "created_at", label: "Taken at", render: (r) => <When value={r.created_at} />, csv: (r) => fmtDateTime(r.created_at) },
         ],
       },
     ];
@@ -129,16 +221,17 @@ function buildTabs(role: RoleKey, data: any): TabDef[] {
       rows: data.collections || [],
       columns: [
         { key: "order_ref", label: "Order", render: (r) => <OrderLink row={r} /> },
-        { key: "customer_name", label: "Customer", render: (r) => <Customer row={r} />, csv: (r) => `${r.customer_name || ""} ${r.phone || ""}` },
-        { key: "product_name", label: "Product" },
-        { key: "area", label: "Area" },
-        { key: "month", label: "Installment", render: (r) => r.month ? `Month ${r.month}` : (r.payment_type || "—"), csv: (r) => (r.month ? `Month ${r.month}` : r.payment_type) },
-        { key: "amount", label: "Amount", render: (r) => <b>{fmtRs(r.amount)}</b> },
+        { key: "customer_name", label: "Customer", render: (r) => <Customer row={r} />, csv: (r) => [r.customer_name, r.phone].filter(Boolean).join(" | ") },
+        { key: "product_name", label: "Product", render: (r) => <p className="min-w-[140px]">{r.product_name || "—"}</p> },
+        { key: "area", label: "Area", render: (r) => <p className="min-w-[110px]">{r.area || "—"}</p> },
+        { key: "month", label: "Installment", nowrap: true, render: (r) => r.month ? `Month ${r.month}` : humanize(r.payment_type), csv: (r) => (r.month ? `Month ${r.month}` : r.payment_type) },
+        { key: "amount", label: "Amount", nowrap: true, render: (r) => <b>{fmtRs(r.amount)}</b> },
         { key: "method", label: "Method" },
-        { key: "paid_at", label: "Collected at", render: (r) => fmtDateTime(r.paid_at), csv: (r) => fmtDateTime(r.paid_at) },
-        { key: "submitted", label: "Submitted to outlet", render: (r) => r.submitted ? <Pill text="Yes" tone="green" /> : <Pill text="No" tone="amber" />, csv: (r) => (r.submitted ? "Yes" : "No") },
-        { key: "remarks", label: "Remarks", render: (r) => <p className="max-w-[240px] text-xs">{r.remarks || "—"}</p> },
+        { key: "paid_at", label: "Collected at", render: (r) => <When value={r.paid_at} />, csv: (r) => fmtDateTime(r.paid_at) },
+        { key: "submitted", label: "Submitted to outlet", render: (r) => r.submitted ? <Pill text="Submitted" tone="green" /> : <Pill text="Not submitted" tone="amber" />, csv: (r) => (r.submitted ? "Yes" : "No") },
+        { key: "remarks", label: "Remarks", render: (r) => <Clamp text={r.remarks} /> },
       ],
+      details: (r) => <DetailBlock title="Remarks"><Paragraph text={r.remarks} /></DetailBlock>,
     },
     {
       key: "visits",
@@ -146,21 +239,27 @@ function buildTabs(role: RoleKey, data: any): TabDef[] {
       rows: data.visits || [],
       columns: [
         { key: "order_ref", label: "Order", render: (r) => <OrderLink row={r} /> },
-        { key: "customer_name", label: "Customer", render: (r) => <Customer row={r} />, csv: (r) => `${r.customer_name || ""} ${r.phone || ""}` },
-        { key: "area", label: "Area" },
-        { key: "visit_time", label: "Visited at", render: (r) => fmtDateTime(r.visit_time), csv: (r) => fmtDateTime(r.visit_time) },
+        { key: "customer_name", label: "Customer", render: (r) => <Customer row={r} />, csv: (r) => [r.customer_name, r.phone].filter(Boolean).join(" | ") },
+        { key: "area", label: "Area", render: (r) => <p className="min-w-[110px]">{r.area || "—"}</p> },
+        { key: "visit_time", label: "Visited at", render: (r) => <When value={r.visit_time} />, csv: (r) => fmtDateTime(r.visit_time) },
         { key: "payment_collected", label: "Payment", render: (r) => r.payment_collected ? <Pill text={fmtRs(r.amount)} tone="green" /> : <Pill text="Not collected" />, csv: (r) => (r.payment_collected ? r.amount : "Not collected") },
-        { key: "promised_date", label: "Promised date", render: (r) => fmtDate(r.promised_date), csv: (r) => fmtDate(r.promised_date) },
-        { key: "feedback", label: "Customer feedback", render: (r) => <p className="max-w-[240px] text-xs">{r.feedback || "—"}</p> },
-        { key: "notes", label: "Notes", render: (r) => <p className="max-w-[240px] text-xs">{r.notes || "—"}</p> },
+        { key: "promised_date", label: "Promised date", nowrap: true, render: (r) => fmtDate(r.promised_date), csv: (r) => fmtDate(r.promised_date) },
+        { key: "feedback", label: "Customer feedback", render: (r) => <Clamp text={r.feedback} /> },
+        { key: "notes", label: "Notes", render: (r) => <Clamp text={r.notes} /> },
         {
           key: "location", label: "Location",
           render: (r) => r.latitude && r.longitude
-            ? <a href={`https://maps.google.com/?q=${r.latitude},${r.longitude}`} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">Map</a>
-            : "—",
+            ? <a href={`https://maps.google.com/?q=${r.latitude},${r.longitude}`} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="whitespace-nowrap text-blue-600 hover:underline">View map</a>
+            : <span className="text-gray-400">—</span>,
           csv: (r) => (r.latitude ? `${r.latitude},${r.longitude}` : ""),
         },
       ],
+      details: (r) => (
+        <div className="grid gap-5 md:grid-cols-2">
+          <DetailBlock title="Customer feedback"><Paragraph text={r.feedback} /></DetailBlock>
+          <DetailBlock title="Officer notes"><Paragraph text={r.notes} /></DetailBlock>
+        </div>
+      ),
     },
   ];
 }
@@ -212,6 +311,12 @@ export default function OfficerTrackingDetail({ id, basePath }: { id: string; ba
   const [error, setError] = useState<string | null>(null);
   const [tabKey, setTabKey] = useState<string | null>(null);
   const [search, setSearch] = useState("");
+  const [expanded, setExpanded] = useState<Set<number>>(new Set());
+  const toggle = (rowId: number) => setExpanded((prev) => {
+    const next = new Set(prev);
+    if (next.has(rowId)) next.delete(rowId); else next.add(rowId);
+    return next;
+  });
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -309,7 +414,7 @@ export default function OfficerTrackingDetail({ id, basePath }: { id: string; ba
                 {tabs.map((t) => (
                   <button
                     key={t.key}
-                    onClick={() => setTabKey(t.key)}
+                    onClick={() => { setTabKey(t.key); setExpanded(new Set()); }}
                     className={`rounded-lg px-4 py-1.5 text-sm font-semibold transition ${tab.key === t.key ? "bg-white text-[#ff3d3d] shadow-sm dark:bg-boxdark" : "text-gray-500 hover:text-gray-700 dark:text-gray-400"}`}
                   >
                     {t.label} ({t.rows.length})
@@ -343,19 +448,41 @@ export default function OfficerTrackingDetail({ id, basePath }: { id: string; ba
                 <table className="w-full text-left text-sm">
                   <thead>
                     <tr className="border-b border-stroke text-[11px] uppercase tracking-wide text-gray-400 dark:border-dark-3">
+                      {tab.details && <th className="w-8 px-2 py-2" />}
                       {tab.columns.map((c) => <th key={c.key} className="whitespace-nowrap px-3 py-2 font-bold">{c.label}</th>)}
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-stroke dark:divide-dark-3">
-                    {rows.map((r) => (
-                      <tr key={r.id} className="align-top hover:bg-gray-50 dark:hover:bg-dark-2">
-                        {tab.columns.map((c) => (
-                          <td key={c.key} className="px-3 py-2.5 text-dark dark:text-gray-200">
-                            {c.render ? c.render(r) : (r[c.key] ?? "—")}
-                          </td>
-                        ))}
-                      </tr>
-                    ))}
+                  <tbody>
+                    {rows.map((r) => {
+                      const open = expanded.has(r.id);
+                      return (
+                        <Fragment key={r.id}>
+                          <tr
+                            onClick={tab.details ? () => toggle(r.id) : undefined}
+                            className={`border-b border-stroke align-top dark:border-dark-3 ${tab.details ? "cursor-pointer" : ""} ${open ? "bg-gray-50 dark:bg-dark-2" : "hover:bg-gray-50 dark:hover:bg-dark-2"}`}
+                          >
+                            {tab.details && (
+                              <td className="px-2 py-3 text-gray-400">
+                                {open ? <ChevronDown className="size-4" /> : <ChevronRight className="size-4" />}
+                              </td>
+                            )}
+                            {tab.columns.map((c) => (
+                              <td key={c.key} className={`px-3 py-3 text-dark dark:text-gray-200 ${c.nowrap ? "whitespace-nowrap" : ""}`}>
+                                {c.render ? c.render(r) : (r[c.key] ?? "—")}
+                              </td>
+                            ))}
+                          </tr>
+                          {open && tab.details && (
+                            <tr className="border-b border-stroke bg-gray-50 dark:border-dark-3 dark:bg-dark-2">
+                              <td />
+                              <td colSpan={tab.columns.length} className="px-3 pb-5 pt-1">
+                                {tab.details(r)}
+                              </td>
+                            </tr>
+                          )}
+                        </Fragment>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
