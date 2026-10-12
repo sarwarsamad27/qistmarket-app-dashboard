@@ -39,6 +39,7 @@ export default function PayTriggerAdminPage() {
   const [activeTab, setActiveTab] = useState<"device" | "global">("device");
   const [imei, setImei] = useState("");
   const [searching, setSearching] = useState(false);
+  const [autoSyncing, setAutoSyncing] = useState(false);
   const [device, setDevice] = useState<DeviceInfo | null>(null);
   const [error, setError] = useState("");
   const [actionLoading, setActionLoading] = useState<string | null>(null);
@@ -100,13 +101,33 @@ export default function PayTriggerAdminPage() {
     setSearching(true);
     setDevice(null);
     setError("");
-    await loadDevice(q);
+    const found = await loadDevice(q);
     setSearching(false);
+    if (found) autoSync(q);
+  };
+
+  // Same as pressing "Refresh Status", done automatically once the device is
+  // shown: pulls PayTrigger's live state and, when nothing is overdue and no
+  // admin locked it, re-pushes the ledger schedule + unlock (the backend decides).
+  const autoSync = async (q: string) => {
+    setAutoSyncing(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/paytrigger/device/${encodeURIComponent(q)}/sync`, {
+        method: "POST", headers: getAuthHeaders(),
+      });
+      const data = await res.json().catch(() => null);
+      if (data?.completion?.completed) toast.success("Device is active — order marked as delivered.", { duration: 6000 });
+      await loadDevice(q, true);
+    } catch {
+      /* the manual Refresh Status button is still there */
+    } finally {
+      setAutoSyncing(false);
+    }
   };
 
   // silent = background auto-refresh: keeps the current card on screen and
   // swallows errors instead of blanking the page.
-  const loadDevice = async (q: string, silent = false) => {
+  const loadDevice = async (q: string, silent = false): Promise<boolean> => {
     try {
       const res = await fetch(`${API_BASE}/api/paytrigger/device/${encodeURIComponent(q)}/status`, {
         headers: getAuthHeaders(),
@@ -127,12 +148,14 @@ export default function PayTriggerAdminPage() {
           last_sync_at: local.last_sync_at || "",
           raw_state: data.data.remote || data.data.local?.raw_state,
         });
+        return !!data.data.local;
       } else if (!silent) {
         setError(data.message || "Device not found or API error");
       }
     } catch (e) {
       if (!silent) setError(getErrorMessage(e, "Connection failed. Is the backend running?"));
     }
+    return false;
   };
 
   // Until the device is ACTIVE the backend reconcile job keeps updating its
@@ -182,6 +205,8 @@ export default function PayTriggerAdminPage() {
       if (data.success && (!ptResult || ptResult.code === 200 || !ptResult.code)) {
         toast.success(`${action} command sent successfully`);
         if (action === "sync-device-status" && data.completion?.completed) toast.success("Device is active — order marked as delivered.", { duration: 6000 });
+        if (action === "sync-device-status" && data.schedule?.reason === "overdue") toast("Installment overdue — status refreshed, lock kept. Use Temp/Force Unlock if needed.", { icon: "⚠️", duration: 7000 });
+        if (action === "sync-device-status" && data.schedule?.reason === "admin_locked") toast("Locked by an admin — status refreshed, lock kept.", { icon: "🔒", duration: 7000 });
         if (action === "sync-device-status" && data.completion?.error) toast.error(`Device active but delivery completion failed: ${data.completion.error}`, { duration: 8000 });
         if (action === "get-device-tag" && ptResult?.data?.deviceTag) toast.success(`Tag retrieved: ${ptResult.data.deviceTag}`, { duration: 5000 });
         if (action === "offline-pin" && ptResult?.data?.verifyCode) toast.success(`Unlock PIN: ${ptResult.data.verifyCode}`, { duration: 10000 });
@@ -344,7 +369,11 @@ export default function PayTriggerAdminPage() {
                 <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-6 flex flex-col items-center text-center">
                   <h2 className="text-sm uppercase tracking-widest text-gray-500 font-bold mb-4">Current Device Status</h2>
                   {getLockBadge()}
-                  <p className="text-xs text-gray-400 mt-4">Last synced: {device.last_sync_at ? new Date(device.last_sync_at).toLocaleString() : "Never"}</p>
+                  <p className="text-xs text-gray-400 mt-4">
+                    {autoSyncing
+                      ? <span className="inline-flex items-center gap-1 text-blue-600"><RefreshCw className="w-3 h-3 animate-spin" /> Syncing with PayTrigger…</span>
+                      : <>Last synced: {device.last_sync_at ? new Date(device.last_sync_at).toLocaleString() : "Never"}</>}
+                  </p>
                   
                   <div className="w-full mt-6 space-y-3">
                     <ActionBtn label="Refresh Status" icon={<RefreshCw className="w-4 h-4"/>} onClick={() => handleAction("sync-device-status")} loading={actionLoading === "sync-device-status"} color="bg-blue-50 hover:bg-blue-100 text-blue-700 w-full" />
