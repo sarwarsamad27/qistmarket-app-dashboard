@@ -382,6 +382,13 @@ function InstallmentsContent() {
     const [pagination, setPagination] = useState({ total: 0, page: 1, limit: 10, totalPages: 1 });
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState(initialSearch);
+    // Typing an IMEI used to fire one heavy due-list request per keystroke.
+    const [debouncedSearch, setDebouncedSearch] = useState(initialSearch);
+    useEffect(() => {
+        const t = setTimeout(() => setDebouncedSearch(search), 400);
+        return () => clearTimeout(t);
+    }, [search]);
+    const fetchSeq = useRef(0);
     const [activeTab, setActiveTab] = useState<'all' | 'regular' | 'fresh' | 'overdue' | 'blacklist' | 'defaulter' | 'ptp' | 'paid'>('all');
     const [startDate, setStartDate] = useState("");
     const [endDate, setEndDate] = useState("");
@@ -423,14 +430,15 @@ function InstallmentsContent() {
 
     useEffect(() => {
         fetchInstallments();
-    }, [pagination.page, search, activeTab, startDate, endDate, item, ptpStatus, lockStatus, roId, minAmount, maxAmount, minBalance, maxBalance]);
+    }, [pagination.page, debouncedSearch, activeTab, startDate, endDate, item, ptpStatus, lockStatus, roId, minAmount, maxAmount, minBalance, maxBalance]);
 
     const fetchInstallments = async () => {
+        const seq = ++fetchSeq.current;
         setLoading(true);
         try {
             const query = new URLSearchParams({
                 page: pagination.page.toString(),
-                search,
+                search: debouncedSearch,
                 category: activeTab,
                 ...(startDate && { start_date: startDate }),
                 ...(endDate && { end_date: endDate }),
@@ -448,6 +456,7 @@ function InstallmentsContent() {
                 headers: getAuthHeaders(),
             });
             const result = await res.json();
+            if (seq !== fetchSeq.current) return; // a newer search already went out
             if (result.success) {
                 setData(result.data.installments);
                 setPagination(result.data.pagination);
@@ -458,7 +467,7 @@ function InstallmentsContent() {
         } catch (e) {
             console.error(e);
         } finally {
-            setLoading(false);
+            if (seq === fetchSeq.current) setLoading(false);
         }
     };
 

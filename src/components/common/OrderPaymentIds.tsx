@@ -34,20 +34,32 @@ const CopyRow = ({ label, value }: { label: string; value?: string | null }) => 
 export const OrderPaymentIds = ({ orderId }: { orderId: number }) => {
     const [data, setData] = useState<PaymentIds | null>(null);
     const [loading, setLoading] = useState(true);
+    const [qrLoading, setQrLoading] = useState(false);
 
     useEffect(() => {
         let cancelled = false;
+        const get = async (withQr: boolean) => {
+            const res = await fetch(`${BACKEND_URL}/api/orders/${orderId}/payment-ids${withQr ? '' : '?qr=0'}`, {
+                headers: { Authorization: `Bearer ${Cookies.get('auth_token')}` },
+            });
+            const json = await res.json();
+            return json.success ? (json.data as PaymentIds) : null;
+        };
         (async () => {
             try {
-                const res = await fetch(`${BACKEND_URL}/api/orders/${orderId}/payment-ids`, {
-                    headers: { Authorization: `Bearer ${Cookies.get('auth_token')}` },
-                });
-                const json = await res.json();
-                if (!cancelled && json.success) setData(json.data);
+                // IDs and amount first (instant); the QR can need a slow SmartPay call.
+                const basic = await get(false);
+                if (cancelled) return;
+                setData(basic);
+                setLoading(false);
+                if (!basic?.hasLedger || !basic.smartPayId || !(basic.amount && basic.amount > 0)) return;
+                setQrLoading(true);
+                const full = await get(true);
+                if (!cancelled && full) setData((prev) => ({ ...(prev || full), qrImage: full.qrImage }));
             } catch {
                 /* card is informational — stay hidden on failure */
             } finally {
-                if (!cancelled) setLoading(false);
+                if (!cancelled) { setLoading(false); setQrLoading(false); }
             }
         })();
         return () => { cancelled = true; };
@@ -73,6 +85,11 @@ export const OrderPaymentIds = ({ orderId }: { orderId: number }) => {
                         <img src={data.qrImage} alt="SmartPay QR" className="h-36 w-36 rounded-lg border border-stroke bg-white object-contain p-1" />
                         <p className="mt-1 text-[10px] font-bold uppercase tracking-wider text-gray-400">SmartPay QR</p>
                     </>
+                ) : qrLoading ? (
+                    <div className="flex h-36 w-36 flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-stroke text-xs text-gray-400 dark:border-dark-3">
+                        <span className="h-5 w-5 animate-spin rounded-full border-2 border-gray-300 border-t-primary" />
+                        Generating QR...
+                    </div>
                 ) : (
                     <p className="max-w-[9rem] text-center text-xs text-gray-400">
                         {data.amount ? 'QR could not be generated.' : 'No amount due — no QR.'}

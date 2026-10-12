@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, Suspense, useCallback } from "react";
+import { useEffect, useState, Suspense, useCallback, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import Cookies from "js-cookie";
 import toast from "react-hot-toast";
@@ -64,6 +64,13 @@ function InstallmentsViewContent() {
 
   // Query state
   const [search, setSearch] = useState(initialSearch);
+  // One due-list request after typing pauses, not one per keystroke.
+  const [debouncedSearch, setDebouncedSearch] = useState(initialSearch);
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(search), 400);
+    return () => clearTimeout(t);
+  }, [search]);
+  const fetchSeq = useRef(0);
   const [category, setCategory] = useState<'all' | 'regular' | 'fresh' | 'overdue' | 'blacklist' | 'defaulter' | 'ptp' | 'impacted'>(initialCategory);
   const [showAdvFilters, setShowAdvFilters] = useState(false);
   
@@ -227,12 +234,13 @@ function InstallmentsViewContent() {
 
   // Fetch installments data from backend
   const fetchInstallments = useCallback(async () => {
+    const seq = ++fetchSeq.current;
     setLoading(true);
     try {
       const queryParams = new URLSearchParams({
         page: page.toString(),
         limit: limit.toString(),
-        search,
+        search: debouncedSearch,
         category,
         month: selectedMonth.toString(),
         year: selectedYear.toString(),
@@ -252,6 +260,7 @@ function InstallmentsViewContent() {
       });
 
       const resData = await res.json();
+      if (seq !== fetchSeq.current) return; // a newer search already went out
       if (resData.success) {
         setInstallments(resData.data.installments || []);
         setStats(resData.data.stats || {
@@ -278,9 +287,9 @@ function InstallmentsViewContent() {
       console.error(err);
       toast.error(getErrorMessage(err, "Error connecting to backend"));
     } finally {
-      setLoading(false);
+      if (seq === fetchSeq.current) setLoading(false);
     }
-  }, [page, limit, search, category, selectedMonth, selectedYear, advFilters, colFilters.status]);
+  }, [page, limit, debouncedSearch, category, selectedMonth, selectedYear, advFilters, colFilters.status]);
 
   useEffect(() => {
     fetchInstallments();
