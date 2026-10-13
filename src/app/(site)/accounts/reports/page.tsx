@@ -27,7 +27,7 @@ const globalReports = [
 ];
 
 interface ReportType { key: string; label: string; dated: boolean }
-interface ScheduledReport { id: number; report_type: string; frequency: string; recipients: string; is_active: boolean; last_sent_at: string | null; created_by: { full_name: string } | null }
+interface ScheduledReport { id: number; report_type: string; frequency: string; recipients: string; format?: string; is_active: boolean; last_sent_at: string | null; created_by: { full_name: string } | null }
 type Row = Record<string, string | number | null>;
 
 const ymd = (d: Date) => new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
@@ -88,7 +88,7 @@ export default function AccountsReportsPage() {
   const [types, setTypes] = useState<ReportType[]>([]);
   const [scheduled, setScheduled] = useState<ScheduledReport[]>([]);
   const [scheduledLoading, setScheduledLoading] = useState(true);
-  const [form, setForm] = useState({ report_type: "daybook", frequency: "weekly", recipients: "" });
+  const [form, setForm] = useState({ report_type: "daybook", frequency: "weekly", format: "xlsx", recipients: "" });
   const [creating, setCreating] = useState(false);
   const [sending, setSending] = useState<number | null>(null);
 
@@ -186,7 +186,7 @@ export default function AccountsReportsPage() {
 
       <div>
         <h2 className="mb-1 text-sm font-black uppercase tracking-widest text-gray-400">Scheduled Reports (email)</h2>
-        <p className="mb-4 text-xs text-gray-500">Sent automatically as an Excel-ready CSV attachment. Daily = yesterday, weekly = last 7 days, monthly = last 30 days for dated reports. Use “Send now” to test.</p>
+        <p className="mb-4 text-xs text-gray-500">Sent automatically by email as an Excel, PDF or CSV attachment (your choice). Daily = yesterday, weekly = last 7 days, monthly = last 30 days for dated reports. Use “Send now” to test.</p>
         <div className="mb-4 rounded-2xl border border-slate-100 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-boxdark">
           <form onSubmit={handleCreateScheduled} className="flex flex-wrap items-end gap-3">
             <div>
@@ -203,6 +203,14 @@ export default function AccountsReportsPage() {
                 <option value="monthly">Monthly</option>
               </select>
             </div>
+            <div>
+              <label className="mb-1.5 block text-xs font-medium text-gray-500">Format</label>
+              <select value={form.format} onChange={(e) => setForm({ ...form, format: e.target.value })} className="rounded-xl border border-stroke bg-white px-4 py-2.5 text-sm outline-none dark:border-dark-3 dark:bg-gray-dark dark:text-white">
+                <option value="xlsx">Excel (.xlsx)</option>
+                <option value="pdf">PDF</option>
+                <option value="csv">CSV</option>
+              </select>
+            </div>
             <div className="flex-1">
               <label className="mb-1.5 block text-xs font-medium text-gray-500">Recipients (comma-separated emails)</label>
               <input value={form.recipients} onChange={(e) => setForm({ ...form, recipients: e.target.value })} placeholder="finance@qistmarket.pk, ceo@qistmarket.pk" className="w-full rounded-xl border border-stroke bg-white px-4 py-2.5 text-sm outline-none dark:border-dark-3 dark:bg-gray-dark dark:text-white" />
@@ -214,12 +222,13 @@ export default function AccountsReportsPage() {
         {scheduledLoading ? <TableSkeleton /> : scheduled.length > 0 ? (
           <div className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm dark:border-white/10 dark:bg-boxdark">
             <table className="w-full text-left text-sm">
-              <thead className="bg-gray-50 text-[11px] uppercase tracking-wide text-gray-500 dark:bg-dark-2 dark:text-gray-400"><tr><th className="px-4 py-3 font-bold">Report</th><th className="px-4 py-3 font-bold">Frequency</th><th className="px-4 py-3 font-bold">Recipients</th><th className="px-4 py-3 font-bold">Last Sent</th><th className="px-4 py-3 font-bold">Active</th><th className="px-4 py-3"></th></tr></thead>
+              <thead className="bg-gray-50 text-[11px] uppercase tracking-wide text-gray-500 dark:bg-dark-2 dark:text-gray-400"><tr><th className="px-4 py-3 font-bold">Report</th><th className="px-4 py-3 font-bold">Frequency</th><th className="px-4 py-3 font-bold">Format</th><th className="px-4 py-3 font-bold">Recipients</th><th className="px-4 py-3 font-bold">Last Sent</th><th className="px-4 py-3 font-bold">Active</th><th className="px-4 py-3"></th></tr></thead>
               <tbody>
                 {scheduled.map((s) => (
                   <tr key={s.id} className="border-t border-slate-50 dark:border-white/5">
                     <td className="px-4 py-3.5 font-medium text-dark dark:text-white">{labelOf(s.report_type)}{s.created_by && <p className="text-xs font-normal text-gray-400">by {s.created_by.full_name}</p>}</td>
                     <td className="px-4 py-3.5 capitalize text-gray-600 dark:text-gray-300">{s.frequency}</td>
+                    <td className="px-4 py-3.5"><span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold uppercase text-slate-600 dark:bg-white/10">{s.format === "pdf" ? "PDF" : s.format === "csv" ? "CSV" : "Excel"}</span></td>
                     <td className="px-4 py-3.5 text-xs text-gray-500">{s.recipients}</td>
                     <td className="px-4 py-3.5 text-gray-500">{s.last_sent_at ? new Date(s.last_sent_at).toLocaleString() : <span className="inline-flex items-center gap-1"><Clock className="size-3" /> Never</span>}</td>
                     <td className="px-4 py-3.5"><button onClick={() => toggleScheduled(s.id, s.is_active)} className={`rounded-full px-2.5 py-1 text-xs font-bold ${s.is_active ? "bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10" : "bg-slate-100 text-slate-500 dark:bg-white/10"}`}>{s.is_active ? "Active" : "Paused"}</button></td>
