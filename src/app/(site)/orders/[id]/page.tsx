@@ -13,6 +13,7 @@ import DeliveredProductDetails from '@/components/common/DeliveredProductDetails
 import RecoveryVisitDetails from '@/components/common/RecoveryVisitDetails';
 import { MediaCard } from '@/components/common/MediaCard';
 import { formatExactDate } from "@/utils/dateUtils";
+import { describeExpiry, expiredFromLabel, formatExpiryDuration } from "@/lib/orderExpiry";
 import LinkedAccountsBadge from '@/components/common/LinkedAccountsBadge';
 import EditTimelineDatesModal from '@/components/Orders/EditTimelineDatesModal';
 import MissingGrantorForm from '@/components/Orders/MissingGrantorForm';
@@ -267,6 +268,10 @@ interface Order {
     id: number;
     order_ref: string;
     created_by_admin?: boolean;
+    expired_at?: string | null;
+    expired_from_status?: string | null;
+    expired_status_since?: string | null;
+    updated_at?: string;
     token_number: string;
     customer_name: string;
     whatsapp_number: string;
@@ -1427,6 +1432,9 @@ export default function OrderDetailsPage() {
                             )}>
                                 {order.status}
                             </span>
+                            {describeExpiry(order) && (
+                                <p className="mt-1 text-xs text-red-600 dark:text-red-400">Expired {describeExpiry(order)}</p>
+                            )}
                             {user?.role === 'Super Admin' && (
                                 <div className="mt-3 flex items-center gap-2">
                                     <select
@@ -1495,6 +1503,21 @@ export default function OrderDetailsPage() {
                         </div>
                     </div>
                 </div>
+
+                {/* Expiry Info — which status it was stuck in and for how long */}
+                {order.status === 'expired' && (
+                    <div className="lg:col-span-2 rounded-lg border border-red-200 bg-red-50 p-6 dark:border-red-900/30 dark:bg-red-900/10">
+                        <h3 className="text-xl font-bold text-red-800 dark:text-red-400 mb-4">Expiry Details</h3>
+                        <div className="space-y-2">
+                            <p><span className="font-medium text-red-700 dark:text-red-300">Expired From Status:</span> {expiredFromLabel(order.expired_from_status) || 'N/A'}</p>
+                            <p><span className="font-medium text-red-700 dark:text-red-300">In That Status Since:</span> {order.expired_status_since ? formatExactDate(new Date(order.expired_status_since)) : 'N/A'}</p>
+                            <p><span className="font-medium text-red-700 dark:text-red-300">Expired At:</span> {order.expired_at ? formatExactDate(new Date(order.expired_at)) : (order.updated_at ? formatExactDate(new Date(order.updated_at)) : 'N/A')}</p>
+                            {order.expired_at && order.expired_status_since && (
+                                <p><span className="font-medium text-red-700 dark:text-red-300">Expired After:</span> {formatExpiryDuration(new Date(order.expired_at).getTime() - new Date(order.expired_status_since).getTime())} with no action</p>
+                            )}
+                        </div>
+                    </div>
+                )}
 
                 {/* Cancellation Info (Spans full width if shown) */}
                 {order.status === 'cancelled' && (

@@ -11,6 +11,7 @@ import {
 import Cookies from "js-cookie";
 import { toast } from "react-hot-toast";
 import { getErrorMessage } from "@/lib/apiErrors";
+import { describeExpiry } from "@/lib/orderExpiry";
 
 const API_BASE = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
 
@@ -544,9 +545,14 @@ export default function OfficerDetailsPage({ params }: { params: Promise<{ id: s
                                                             <div className="flex flex-col h-full justify-between">
                                                                 <div>
                                                                     <div className="flex items-start justify-between gap-3 mb-4">
-                                                                        <span className={`text-[9px] font-black uppercase tracking-widest px-3 py-1 rounded-full ${statusBadgeColor}`}>
-                                                                            {displayStatus.toUpperCase()}
-                                                                        </span>
+                                                                        <div className="flex flex-col items-start gap-1">
+                                                                            <span className={`text-[9px] font-black uppercase tracking-widest px-3 py-1 rounded-full ${statusBadgeColor}`}>
+                                                                                {displayStatus.toUpperCase()}
+                                                                            </span>
+                                                                            {describeExpiry(item) && (
+                                                                                <span className="text-[10px] font-semibold text-gray-500 dark:text-gray-400">{describeExpiry(item)}</span>
+                                                                            )}
+                                                                        </div>
                                                                         <div className="text-right">
                                                                             <p className="text-[10px] font-black uppercase tracking-widest text-gray-500 dark:text-gray-400 mb-0.5">Date</p>
                                                                             <p className={`text-[11px] font-bold tabular-nums ${textColor}`}>

@@ -27,6 +27,7 @@ import { ArrowRightLeft, Send } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { formatExactDate } from "@/utils/dateUtils";
 import { apiErrorMessage } from "@/lib/apiErrors";
+import { describeExpiry } from "@/lib/orderExpiry"
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL
 
@@ -63,6 +64,9 @@ interface VerificationNested {
 interface Order {
   id: number
   order_ref: string
+  expired_at?: string | null
+  expired_from_status?: string | null
+  expired_status_since?: string | null
   token_number: string
   customer_name: string
   whatsapp_number: string
@@ -1115,6 +1119,16 @@ const OrderListContent = ({ forcedStatus, forcedChannel, apiEndpoint, hideAction
             label = status ? status.charAt(0).toUpperCase() + status.slice(1) : 'Unknown';
             className += ' bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300';
             break;
+        }
+
+        const expiryNote = describeExpiry(order);
+        if (expiryNote) {
+          return (
+            <div className="flex flex-col items-start gap-0.5">
+              <span className={className}>{label}</span>
+              <span className="text-[11px] text-gray-500 dark:text-gray-400 whitespace-nowrap">{expiryNote}</span>
+            </div>
+          );
         }
 
         return <span className={className}>{label}</span>;

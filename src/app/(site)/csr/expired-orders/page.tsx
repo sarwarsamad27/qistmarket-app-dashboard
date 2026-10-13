@@ -7,6 +7,7 @@ import Pagination from "@/components/common/Pagination";
 import Loader from "@/components/common/Loader";
 import { Calendar, Clock, User, MapPin, Phone, DollarSign, AlertTriangle } from "lucide-react";
 import { formatExactDate } from "@/utils/dateUtils";
+import { describeExpiry } from "@/lib/orderExpiry";
 
 interface ExpiredOrder {
   id: number;
@@ -24,6 +25,9 @@ interface ExpiredOrder {
   months: number;
   status: string;
   updated_at: string;
+  expired_at?: string | null;
+  expired_from_status?: string | null;
+  expired_status_since?: string | null;
   created_at: string;
 }
 
@@ -137,9 +141,14 @@ export default function ExpiredOrdersPage() {
                         Token: {order.token_number}
                       </p>
                     </div>
-                    <span className="rounded-full bg-red-100 px-3 py-1 text-xs font-semibold text-red-700 dark:bg-red-900/30 dark:text-red-300">
-                      EXPIRED
-                    </span>
+                    <div className="flex flex-col items-end gap-1">
+                      <span className="rounded-full bg-red-100 px-3 py-1 text-xs font-semibold text-red-700 dark:bg-red-900/30 dark:text-red-300">
+                        EXPIRED
+                      </span>
+                      {describeExpiry(order) && (
+                        <span className="text-[11px] text-red-600 dark:text-red-400">{describeExpiry(order)}</span>
+                      )}
+                    </div>
                   </div>
 
                   {/* Grid - Details */}
@@ -219,7 +228,7 @@ export default function ExpiredOrdersPage() {
                     <div className="flex items-center gap-2 text-xs">
                       <Clock size={14} className="text-red-500" />
                       <span className="font-medium text-red-600 dark:text-red-400">
-                        Expired: {formatExactDate(order.updated_at)}
+                        Expired: {formatExactDate(order.expired_at || order.updated_at)}
                       </span>
                     </div>
                   </div>
