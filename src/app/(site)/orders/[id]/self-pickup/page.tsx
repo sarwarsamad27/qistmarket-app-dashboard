@@ -365,10 +365,14 @@ export default function SelfPickupPage() {
     if (!token) return;
 
     const socket = io(BACKEND_URL as string, {
-      auth: { token },
       reconnection: true,
-      reconnectionAttempts: 10,
+      // Keep trying for as long as the page is open — the status check on every
+      // (re)connect is what catches a webhook that landed while we were offline.
+      reconnectionAttempts: Infinity,
       reconnectionDelay: 1000,
+      reconnectionDelayMax: 10000,
+      transports: ['websocket', 'polling'],
+      tryAllTransports: true,
     });
     socketRef.current = socket;
 

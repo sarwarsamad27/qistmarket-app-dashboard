@@ -1,5 +1,6 @@
 "use client";
 
+import { useLiveRefresh } from "@/lib/liveRefresh";
 import { useState, useEffect, useMemo, Fragment, useRef } from "react";
 import Cookies from "js-cookie";
 import Breadcrumb from "@/components/Breadcrumbs/Breadcrumb";
@@ -101,6 +102,8 @@ export default function TransfersPage() {
 
     const fetchDataRef = useRef(fetchData);
     useEffect(() => { fetchDataRef.current = fetchData; }, [fetchData]);
+    // Reload after the live connection / network / tab comes back (events may have been missed).
+    useLiveRefresh(() => fetchDataRef.current(), { minGapMs: 0 });
 
     useEffect(() => {
         fetchDataRef.current();
@@ -110,15 +113,21 @@ export default function TransfersPage() {
     useEffect(() => {
         if (!socket || !user) return;
         const handleUpdate = () => { fetchDataRef.current(); };
-        socket.on("stock_transfer_initiated", handleUpdate);
-        socket.on("stock_transfer_cancelled", handleUpdate);
-        socket.on("stock_transfer_completed", handleUpdate);
-        socket.on("stock_transfer_status", handleUpdate);
+        // Remove exactly these handlers on cleanup — socket.off(event) with no handler also
+        // removed every OTHER component's listener for that event on the shared socket
+        // (leaving a transfers page silently switched off the global stock popup).
+        const registered: [string, (data: any) => void][] = [];
+        const listen = (event: string, handler: (data: any) => void) => {
+            socket.on(event, handler);
+            registered.push([event, handler]);
+        };
+
+        listen("stock_transfer_initiated", handleUpdate);
+        listen("stock_transfer_cancelled", handleUpdate);
+        listen("stock_transfer_completed", handleUpdate);
+        listen("stock_transfer_status", handleUpdate);
         return () => {
-            socket.off("stock_transfer_initiated", handleUpdate);
-            socket.off("stock_transfer_cancelled", handleUpdate);
-            socket.off("stock_transfer_completed");
-            socket.off("stock_transfer_status");
+            registered.forEach(([event, handler]) => socket.off(event, handler));
         };
     }, [socket, user]);
 

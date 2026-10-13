@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import Cookies from 'js-cookie'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -10,6 +10,7 @@ import { useNotifications } from '../../../../contexts/NotificationContext'
 import { useAuth } from '../../../../contexts/AuthContext'
 import { getRoleHome } from '@/lib/roleHome'
 import { apiErrorMessage } from "@/lib/apiErrors";
+import { useLiveRefresh } from '@/lib/liveRefresh'
 
 const BACKEND_URL =
   process.env.NEXT_PUBLIC_BACKEND_URL;
@@ -140,8 +141,10 @@ export default function Home() {
   // Which data sources have loaded at least once. Until then a card shows a
   // loading skeleton (or "—" if its source failed) instead of a misleading 0.
   const [loaded, setLoaded] = useState<Record<string, boolean>>({})
+  // Bumped on every load with failures — drives the automatic retry below.
+  const [failTick, setFailTick] = useState(0)
 
-  const { notifications, unreadCount, socket, hasLoaded: notificationsLoaded } = useNotifications()
+  const { notifications, unreadCount, hasLoaded: notificationsLoaded } = useNotifications()
   const { user, loading: authLoading } = useAuth()
   const router = useRouter()
   const roleHome = getRoleHome(user?.role)
@@ -207,6 +210,7 @@ export default function Home() {
       }
     })
 
+    if (failedCount > 0) setFailTick((n) => n + 1)
     setError(
       failedCount === 0
         ? null
@@ -275,7 +279,7 @@ export default function Home() {
   useEffect(() => {
     loadDashboard()
 
-    // Belt-and-suspenders fallback only — the socket listener below is what
+    // Belt-and-suspenders fallback only — the live refresh below is what
     // actually keeps this live; this just guards against a missed/dropped event.
     const fallbackInterval = setInterval(() => {
       if (!document.hidden) loadDashboard(true)
@@ -285,51 +289,29 @@ export default function Home() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token])
 
-  // Live updates: refresh dashboard data the moment something actually
-  // changes (new order, status change, delivery/recovery activity, etc.)
-  // instead of blindly re-polling every few seconds. `new_notification` is
-  // already broadcast admin-wide by notifyAdmins() across the order/delivery/
-  // recovery lifecycle, so it's a reliable "something changed" signal.
+  // Live updates: refresh when something actually changes (new order, status change,
+  // delivery/recovery activity — `new_notification` is broadcast admin-wide across that
+  // lifecycle), and after the connection / network / tab comes back. A full refresh is 13
+  // API calls, so at most one per minute and none while the tab is hidden.
+  useLiveRefresh(() => loadDashboard(true), { events: ['new_notification'] })
+
+  // Some or all sections failed (server restarting, laptop waking up, network blip):
+  // try again on our own — 10s, 20s, 40s, then every minute — instead of leaving
+  // "Failed to load" up until a socket event or a manual refresh.
+  const retryAttempt = useRef(0)
   useEffect(() => {
-    if (!socket) return
-
-    // A full refresh is 13 API calls, and notifications arrive constantly on a
-    // busy day — a 2s debounce meant every open dashboard kept re-running them
-    // all. Throttle to one background refresh per minute, and none while the
-    // tab is hidden (it catches up when the tab is shown again).
-    const MIN_GAP_MS = 60 * 1000
-    let lastRefresh = Date.now()
-    let timer: ReturnType<typeof setTimeout> | null = null
-    let pendingWhileHidden = false
-
-    const refresh = () => {
-      timer = null
-      if (document.hidden) { pendingWhileHidden = true; return }
-      lastRefresh = Date.now()
-      loadDashboard(true)
+    if (!error) {
+      retryAttempt.current = 0
+      return
     }
-    const handleLiveUpdate = () => {
-      if (timer) return
-      const wait = Math.max(2000, lastRefresh + MIN_GAP_MS - Date.now())
-      timer = setTimeout(refresh, wait)
-    }
-    const handleVisible = () => {
-      if (!document.hidden && pendingWhileHidden) {
-        pendingWhileHidden = false
-        handleLiveUpdate()
-      }
-    }
-
-    socket.on('new_notification', handleLiveUpdate)
-    document.addEventListener('visibilitychange', handleVisible)
-
-    return () => {
-      if (timer) clearTimeout(timer)
-      socket.off('new_notification', handleLiveUpdate)
-      document.removeEventListener('visibilitychange', handleVisible)
-    }
+    const delay = Math.min(60 * 1000, 10 * 1000 * 2 ** retryAttempt.current)
+    const t = setTimeout(() => {
+      retryAttempt.current += 1
+      if (!document.hidden) loadDashboard(true)
+    }, delay)
+    return () => clearTimeout(t)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [socket])
+  }, [error, failTick])
 
   const paymentsChartData = useMemo(() => {
     const trend = reportSummary?.dailyTrend ?? []

@@ -3,6 +3,8 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import io, { Socket } from "socket.io-client";
 import Cookies from "js-cookie";
+import { usePathname } from "next/navigation";
+import { LIVE_RESYNC_EVENT } from "@/lib/liveEvents";
 import { toast } from "react-hot-toast";
 
 interface Notification {
@@ -111,21 +113,61 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
         }
     };
 
+    // The login cookie can appear / change without a page reload (sign-in navigates with
+    // router.push), so re-read it on navigation, focus and tab show — a socket built only on
+    // first mount stayed absent until a manual refresh after logging in.
+    const pathname = usePathname();
+    const [token, setToken] = useState<string | undefined>(() => Cookies.get("auth_token"));
     useEffect(() => {
+        const sync = () => setToken(Cookies.get("auth_token"));
+        sync();
+        window.addEventListener("focus", sync);
+        document.addEventListener("visibilitychange", sync);
+        return () => {
+            window.removeEventListener("focus", sync);
+            document.removeEventListener("visibilitychange", sync);
+        };
+    }, [pathname]);
+
+    useEffect(() => {
+        if (!token) {
+            setSocket(null);
+            return;
+        }
         fetchNotifications();
 
-        const token = Cookies.get("auth_token");
-        if (!token) return;
-
         const newSocket = io(backendUrl, {
+            // Never give up: a tab left open across a server restart, a sleeping laptop or a
+            // Wi-Fi drop used to stop after 5 quick attempts and stay dead (no live updates,
+            // stale "Failed to load" screens) until the page was refreshed.
             reconnection: true,
-            reconnectionAttempts: 5,
+            reconnectionAttempts: Infinity,
             reconnectionDelay: 1000,
-            transports: ["websocket"],
+            reconnectionDelayMax: 10000,
+            // WebSocket first; if it can't get through (proxy / network blocking it) fall back
+            // to long-polling instead of never connecting.
+            transports: ["websocket", "polling"],
+            tryAllTransports: true,
         });
 
+        let everConnected = false;
         newSocket.on("connect", () => {
             newSocket.emit("join_admin_notifications", token);
+            // Back after a drop: anything broadcast meanwhile was missed — reload what's shown.
+            if (everConnected) {
+                fetchNotifications();
+                window.dispatchEvent(new Event(LIVE_RESYNC_EVENT));
+            }
+            everConnected = true;
+        });
+
+        // The server couldn't verify the session just now (e.g. a database hiccup) — retry
+        // joining instead of silently staying out of the notification rooms.
+        newSocket.on("auth_error", (payload: { retryable?: boolean } | undefined) => {
+            if (!payload?.retryable) return;
+            setTimeout(() => {
+                if (newSocket.connected) newSocket.emit("join_admin_notifications", token);
+            }, 3000);
         });
 
         newSocket.on("force_logout", () => {
@@ -136,9 +178,19 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
             window.location.replace("/login");
         });
 
+        // Broadcast notifications arrive with a placeholder id (the server saves one row per
+        // recipient in bulk and can't send each person their own id), so marking one as read
+        // used to hit a non-existent id. Show it at once, then re-read the list shortly after
+        // to swap in the real rows and the true unread count (one re-read per burst).
+        let resyncTimer: ReturnType<typeof setTimeout> | null = null;
         newSocket.on("new_notification", (notif: Notification) => {
             setNotifications((prev) => [notif, ...prev]);
             setUnreadCount((prev) => prev + 1);
+            if (resyncTimer) clearTimeout(resyncTimer);
+            resyncTimer = setTimeout(() => {
+                resyncTimer = null;
+                fetchNotifications();
+            }, 1500);
             toast.success(
                 <div className="flex flex-col gap-1 text-sm">
                     <strong className="font-bold">{notif.title}</strong>
@@ -148,12 +200,45 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
             );
         });
 
+        // Network back / tab shown again after a while: reconnect at once rather than waiting
+        // out the backoff, and have pages reload — browsers pause background tabs, and a
+        // sleeping laptop drops the connection without anyone noticing.
+        let hiddenAt: number | null = document.hidden ? Date.now() : null;
+        const wake = () => {
+            if (!newSocket.connected) newSocket.connect();
+        };
+        const handleOnline = () => {
+            wake();
+            fetchNotifications();
+            window.dispatchEvent(new Event(LIVE_RESYNC_EVENT));
+        };
+        const handleVisibility = () => {
+            if (document.hidden) {
+                hiddenAt = Date.now();
+                return;
+            }
+            const away = hiddenAt ? Date.now() - hiddenAt : 0;
+            hiddenAt = null;
+            wake();
+            if (away > 60 * 1000) {
+                fetchNotifications();
+                window.dispatchEvent(new Event(LIVE_RESYNC_EVENT));
+            }
+        };
+        window.addEventListener("online", handleOnline);
+        document.addEventListener("visibilitychange", handleVisibility);
+
         setSocket(newSocket);
 
         return () => {
+            if (resyncTimer) clearTimeout(resyncTimer);
+            window.removeEventListener("online", handleOnline);
+            document.removeEventListener("visibilitychange", handleVisibility);
+            newSocket.removeAllListeners();
             newSocket.disconnect();
         };
-    }, []);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [token]);
 
     return (
         <NotificationContext.Provider

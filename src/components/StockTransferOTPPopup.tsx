@@ -23,7 +23,16 @@ export const StockTransferOTPPopup = () => {
         // The authenticated notification join adds this user's outlet room on
         // the server. Do not buffer an unauthenticated join_room on refresh.
 
-        socket.on("stock_transfer_initiated", (data) => {
+        // Remove exactly these handlers on cleanup — socket.off(event) with no handler also
+        // removed every OTHER component's listener for that event on the shared socket
+        // (leaving a transfers page silently switched off the global stock popup).
+        const registered: [string, (data: any) => void][] = [];
+        const listen = (event: string, handler: (data: any) => void) => {
+            socket.on(event, handler);
+            registered.push([event, handler]);
+        };
+
+        listen("stock_transfer_initiated", (data) => {
             setIncomingTransfer(data);
             setShow(true);
             
@@ -60,20 +69,20 @@ export const StockTransferOTPPopup = () => {
             ), { duration: 10000 });
         });
 
-        socket.on("stock_transfer_cancelled", (data) => {
+        listen("stock_transfer_cancelled", (data) => {
              // If we had a specific ID we'd check it, but for now let's just close if something was cancelled
              setShow(false);
              setIncomingTransfer(null);
              toast.error("A pending transfer was cancelled.");
         });
 
-        socket.on("stock_transfer_completed", (data) => {
+        listen("stock_transfer_completed", (data) => {
             setShow(false);
             setIncomingTransfer(null);
             toast.success("Transfer completed and stock received!");
         });
 
-        socket.on("stock_back_initiated", (data) => {
+        listen("stock_back_initiated", (data) => {
             setStockBackData(data);
             setShow(true);
             setOtpInput("");
@@ -85,7 +94,7 @@ export const StockTransferOTPPopup = () => {
             toast.success(message);
         });
 
-        socket.on("stock_back_completed", (data) => {
+        listen("stock_back_completed", (data) => {
             setShow(false);
             setStockBackData(null);
             setIncomingTransfer(null);
@@ -93,11 +102,7 @@ export const StockTransferOTPPopup = () => {
         });
 
         return () => {
-            socket.off("stock_transfer_initiated");
-            socket.off("stock_transfer_cancelled");
-            socket.off("stock_transfer_completed");
-            socket.off("stock_back_initiated");
-            socket.off("stock_back_completed");
+            registered.forEach(([event, handler]) => socket.off(event, handler));
         };
     }, [socket, user]);
 

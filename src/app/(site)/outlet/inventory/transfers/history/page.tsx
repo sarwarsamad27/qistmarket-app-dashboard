@@ -1,5 +1,6 @@
 "use client";
 
+import { useLiveRefresh } from "@/lib/liveRefresh";
 import { useState, useEffect, useMemo, Fragment, useRef } from "react";
 import Cookies from "js-cookie";
 import Breadcrumb from "@/components/Breadcrumbs/Breadcrumb";
@@ -121,6 +122,8 @@ export default function TransferHistoryPage() {
 
     const fetchHistoryRef = useRef(fetchHistory);
     useEffect(() => { fetchHistoryRef.current = fetchHistory; }, [fetchHistory]);
+    // Reload after the live connection / network / tab comes back (events may have been missed).
+    useLiveRefresh(() => fetchHistoryRef.current(), { minGapMs: 0 });
 
     useEffect(() => {
         fetchHistoryRef.current();
@@ -130,34 +133,38 @@ export default function TransferHistoryPage() {
     useEffect(() => {
         if (!socket || !user) return;
         const handleUpdate = () => { fetchHistoryRef.current(); };
-        socket.on("stock_transfer_initiated", handleUpdate);
-        socket.on("stock_transfer_cancelled", handleUpdate);
-        socket.on("stock_transfer_completed", (data: any) => { 
+        // Remove exactly these handlers on cleanup — socket.off(event) with no handler also
+        // removed every OTHER component's listener for that event on the shared socket
+        // (leaving a transfers page silently switched off the global stock popup).
+        const registered: [string, (data: any) => void][] = [];
+        const listen = (event: string, handler: (data: any) => void) => {
+            socket.on(event, handler);
+            registered.push([event, handler]);
+        };
+
+        listen("stock_transfer_initiated", handleUpdate);
+        listen("stock_transfer_cancelled", handleUpdate);
+        listen("stock_transfer_completed", (data: any) => { 
             toast.success("Stock transfer confirmed!"); 
             setSelectedPendingIds(new Set()); 
             handleUpdate(); 
         });
-        socket.on("stock_transfer_status", (data: any) => { 
+        listen("stock_transfer_status", (data: any) => { 
             if (data.status === 'completed') toast.success("Transfer completed!"); 
             setSelectedPendingIds(new Set()); 
             handleUpdate(); 
         });
-        socket.on("stock_back_initiated", (data: any) => { 
+        listen("stock_back_initiated", (data: any) => { 
             toast.success("Stock back initiated!"); 
             handleUpdate(); 
         });
-        socket.on("stock_back_completed", (data: any) => { 
+        listen("stock_back_completed", (data: any) => { 
             toast.success("Stock back confirmed!"); 
             setSelectedTransferredIds(new Set()); 
             handleUpdate(); 
         });
         return () => {
-            socket.off("stock_transfer_initiated", handleUpdate);
-            socket.off("stock_transfer_cancelled", handleUpdate);
-            socket.off("stock_transfer_completed");
-            socket.off("stock_transfer_status");
-            socket.off("stock_back_initiated", handleUpdate);
-            socket.off("stock_back_completed");
+            registered.forEach(([event, handler]) => socket.off(event, handler));
         };
     }, [socket, user]);
 

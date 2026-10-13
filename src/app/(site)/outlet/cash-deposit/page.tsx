@@ -3,7 +3,7 @@
 import { useState, useEffect, Fragment } from "react";
 import Cookies from "js-cookie";
 import { toast } from "react-hot-toast";
-import io from "socket.io-client";
+import { useLiveRefresh } from "@/lib/liveRefresh";
 import Breadcrumb from "@/components/Breadcrumbs/Breadcrumb";
 import { formatExactDate } from "@/utils/dateUtils";
 import { DollarSign, Building, FileText, CheckCircle, XCircle, ArrowRightLeft, ArrowDownLeft, ArrowUpRight, Search } from "lucide-react";
@@ -157,18 +157,13 @@ export default function CashDepositPage() {
         return () => clearInterval(interval);
     }, []);
 
-    // Live updates: the moment 1Bill/QR payment is confirmed by the webhook,
+    // Live updates: the moment 1Bill/QR payment is confirmed by the webhook (sent to this
+    // outlet's room, which only the shared connection joins), and after a reconnect,
     // refresh history + accountant busy-state without a manual refresh.
-    useEffect(() => {
-        const token = Cookies.get("auth_token");
-        if (!token) return;
-        const socket = io(API_BASE, { auth: { token }, reconnection: true });
-        socket.on("bank_deposit_updated", () => {
-            fetchDepositHistory();
-            fetchCashInHand();
-        });
-        return () => { socket.disconnect(); };
-    }, []);
+    useLiveRefresh(() => {
+        fetchDepositHistory();
+        fetchCashInHand();
+    }, { events: ["bank_deposit_updated"], minGapMs: 0, debounceMs: 300 });
 
     const isRoutedMethod = paymentMethod === "1bill" || paymentMethod === "qr_payment";
 

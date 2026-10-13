@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { LIVE_RESYNC_EVENT } from "@/lib/liveEvents";
 import Cookies from 'js-cookie';
 import toast from 'react-hot-toast';
 import Loader from '@/components/common/Loader';
@@ -105,14 +106,24 @@ export default function RecoveryOfficersPage() {
             reconnectionAttempts: Infinity, // never give up: a dead admin socket = stale online/offline
       reconnectionDelayMax: 5000,
             reconnectionDelay: 1000,
+            transports: ['websocket', 'polling'], // fall back to polling if WebSocket can't get through
+            tryAllTransports: true,
         });
 
         socketRef.current.on('connect', () => {
             socketRef.current.emit('join_admin_notifications', token);
         });
 
+        // Tab shown again / network back: reconnect now and reload the list (a background tab
+        // or a sleeping laptop can miss presence/location events).
+        const resync = () => {
+            if (socketRef.current && !socketRef.current.connected) socketRef.current.connect();
+            fetchOfficers();
+        };
+        window.addEventListener(LIVE_RESYNC_EVENT, resync);
+
         // Events fired while this socket was down are lost — re-load the list on every reconnect.
-    socketRef.current.io.on('reconnect', () => {
+        socketRef.current.io.on('reconnect', () => {
       fetchOfficers();
     });
 
@@ -199,6 +210,7 @@ export default function RecoveryOfficersPage() {
         });
 
         return () => {
+            window.removeEventListener(LIVE_RESYNC_EVENT, resync);
             socketRef.current?.disconnect();
         };
     }, []);

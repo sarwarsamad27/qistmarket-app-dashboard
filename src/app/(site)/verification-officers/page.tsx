@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { LIVE_RESYNC_EVENT } from "@/lib/liveEvents";
 import Cookies from 'js-cookie';
 import toast from 'react-hot-toast';
 import Loader from '@/components/common/Loader';
@@ -105,6 +106,8 @@ export default function VerificationOfficersPage() {
             reconnectionAttempts: Infinity, // never give up: a dead admin socket = stale online/offline
       reconnectionDelayMax: 5000,
             reconnectionDelay: 1000,
+            transports: ['websocket', 'polling'], // fall back to polling if WebSocket can't get through
+            tryAllTransports: true,
         });
 
         socketRef.current.on('connect', () => {
@@ -113,8 +116,16 @@ export default function VerificationOfficersPage() {
         });
 
         // Real-time officer status (online/offline)
+        // Tab shown again / network back: reconnect now and reload the list (a background tab
+        // or a sleeping laptop can miss presence/location events).
+        const resync = () => {
+            if (socketRef.current && !socketRef.current.connected) socketRef.current.connect();
+            fetchOfficers();
+        };
+        window.addEventListener(LIVE_RESYNC_EVENT, resync);
+
         // Events fired while this socket was down are lost — re-load the list on every reconnect.
-    socketRef.current.io.on('reconnect', () => {
+        socketRef.current.io.on('reconnect', () => {
       fetchOfficers();
     });
 
@@ -239,6 +250,7 @@ export default function VerificationOfficersPage() {
             socketRef.current?.off('officer_monthly_update');
             socketRef.current?.off('officer_daily_update');
             socketRef.current?.off('connect_error');
+            window.removeEventListener(LIVE_RESYNC_EVENT, resync);
             socketRef.current?.disconnect();
         };
     }, []);

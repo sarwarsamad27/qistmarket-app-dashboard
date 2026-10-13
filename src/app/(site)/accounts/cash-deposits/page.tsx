@@ -3,7 +3,7 @@
 import { useEffect, useState, Fragment } from "react";
 import Cookies from "js-cookie";
 import { toast } from "react-hot-toast";
-import io from "socket.io-client";
+import { useLiveRefresh } from "@/lib/liveRefresh";
 import Breadcrumb from "@/components/Breadcrumbs/Breadcrumb";
 import { CheckCircle, XCircle, Clock, ExternalLink, Image as ImageIcon } from "lucide-react";
 import { formatExactDate } from "@/utils/dateUtils";
@@ -62,17 +62,10 @@ export default function AccountsCashDepositsPage() {
         fetchDeposits();
     }, [selectedStatus]);
 
-    // Live updates: refetch the moment a 1Bill/QR deposit is auto-verified by the webhook.
-    // Re-attached whenever selectedStatus changes so the refetch always uses the current filter.
-    useEffect(() => {
-        const token = Cookies.get("auth_token");
-        if (!token) return;
-        const socket = io(API_BASE, { auth: { token }, reconnection: true });
-        socket.on("bank_deposit_updated", () => {
-            fetchDeposits();
-        });
-        return () => { socket.disconnect(); };
-    }, [selectedStatus]);
+    // Live updates: refetch the moment a 1Bill/QR deposit is auto-verified by the webhook
+    // (sent to this accountant's room — this page's own socket never joined it, so it never
+    // arrived), and after a reconnect. Always uses the current filter.
+    useLiveRefresh(() => fetchDeposits(), { events: ["bank_deposit_updated"], minGapMs: 0, debounceMs: 300 });
 
     const copyText = (text: string) => {
         navigator.clipboard.writeText(text);
