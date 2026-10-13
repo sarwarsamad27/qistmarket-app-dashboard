@@ -2,7 +2,8 @@
 
 import { Fragment, useEffect, useState } from "react";
 import Cookies from "js-cookie";
-import { HandCoins, Wallet, Wifi, CheckCircle2, AlertCircle, PieChart, Search, ReceiptText, LayoutDashboard, ListChecks } from "lucide-react";
+import { HandCoins, Wallet, Wifi, CheckCircle2, AlertCircle, PieChart, Search, ReceiptText, LayoutDashboard, ListChecks, FastForward, Landmark } from "lucide-react";
+import DateRangeFilter, { DateRange } from "@/components/Accounts/DateRangeFilter";
 import Breadcrumb from "@/components/Breadcrumbs/Breadcrumb";
 import OutletSelector from "@/components/common/OutletSelector";
 import PageHeader from "@/components/Accounts/PageHeader";
@@ -15,28 +16,34 @@ import CollectionsPanel from "./_components/CollectionsPanel";
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
 
-interface HistoryEntry { date: string; month: number; amount: number; channel: "cash" | "online" | "other" }
+interface HistoryEntry { date: string; month: number; amount: number; channel: "cash" | "online" | "other"; method?: string | null }
 interface DueRow { order_id: number; order_ref: string; customer_name: string; outlet_name: string; month: number; dueDate: string; amount: number; history?: HistoryEntry[] }
 interface OrderRow { order_id: number; order_ref: string; customer_name: string; outlet_name: string | null; month?: number | null; amount: number; history?: HistoryEntry[] }
-interface EventRow { order_id: number; order_ref: string; customer_name: string; outlet_name: string | null; month: number; date: string; amount: number }
+interface EventRow { order_id: number; order_ref: string; customer_name: string; outlet_name: string | null; month: number; date: string; amount: number; method?: string }
 interface Overview {
+  startDate: string; endDate: string;
   dueCount: number;
+  dueAmount: number;
   due: DueRow[];
   advancePending: number;
   advancePendingOrders: OrderRow[];
+  advancePaid: number;
+  advancePaidOrders: (OrderRow & { months_covered: number })[];
   mix: { fullyPaidCount: number; partialCount: number; otherCount: number };
   fullyPaidOrders: OrderRow[];
   partialOrders: OrderRow[];
-  collections: { cash: number; online: number };
+  collections: { cash: number; online: number; bank: number };
   cashEvents: EventRow[];
   onlineEvents: EventRow[];
+  bankEvents: EventRow[];
 }
 
 // A single shape every card's underlying list gets normalized into, so one table can render
 // whichever "history" is currently selected instead of needing a bespoke table per card.
 type DisplayRow = { key: string; order_id: number; order_ref: string; customer_name: string; outlet_name: string | null; month: number | null; date: string | null; amount: number; history?: HistoryEntry[] };
 
-type CardKey = "due" | "advance" | "partial" | "full" | "cash" | "online";
+type CardKey = "due" | "advance" | "advancePaid" | "partial" | "full" | "cash" | "online" | "bank";
+const ymd = (d: Date) => new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
 
 export default function InstallmentReceivingPage() {
   const [data, setData] = useState<Overview | null>(null);
@@ -56,15 +63,31 @@ export default function InstallmentReceivingPage() {
   const [section, setSection] = useState<"receive" | "overview" | "collections">("receive");
   const [receiveOrderId, setReceiveOrderId] = useState<number | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
+  // Dates for the Cash / Online / Bank collection cards (default: this month).
+  const [range, setRange] = useState<DateRange>(() => { const n = new Date(); return { from: ymd(new Date(n.getFullYear(), n.getMonth(), 1)), to: ymd(n) }; });
 
   // Each card's own list (from the API) normalized into one shared shape, so the table
   // below can render whichever card is selected without a bespoke table per card.
   const getCardRows = (): { title: string; dateLabel: string | null; rows: DisplayRow[]; emptyTitle: string } => {
     if (!data) return { title: "", dateLabel: null, rows: [], emptyTitle: "" };
     switch (activeCard) {
+      case "advancePaid":
+        return {
+          title: "Paid in Advance (future months already paid)",
+          dateLabel: null,
+          rows: data.advancePaidOrders.map((r) => ({ key: `${r.order_id}`, order_id: r.order_id, order_ref: r.order_ref, customer_name: r.customer_name, outlet_name: r.outlet_name, month: r.month ?? null, date: null, amount: r.amount, history: r.history })),
+          emptyTitle: "No customer has paid ahead",
+        };
+      case "bank":
+        return {
+          title: "Bank Transfer & Other Collections",
+          dateLabel: "Payment Date",
+          rows: data.bankEvents.map((r, i) => ({ key: `${r.order_id}-${i}`, order_id: r.order_id, order_ref: r.order_ref, customer_name: r.customer_name, outlet_name: r.outlet_name, month: r.month, date: r.date, amount: r.amount })),
+          emptyTitle: "No bank / other collections in these dates",
+        };
       case "advance":
         return {
-          title: "Advance Pending",
+          title: "Down Payment Pending",
           dateLabel: null,
           rows: data.advancePendingOrders.map((r) => ({ key: `${r.order_id}`, order_id: r.order_id, order_ref: r.order_ref, customer_name: r.customer_name, outlet_name: r.outlet_name, month: null, date: null, amount: r.amount, history: r.history })),
           emptyTitle: "No orders with a pending advance",
@@ -112,12 +135,12 @@ export default function InstallmentReceivingPage() {
     const token = Cookies.get("auth_token");
     if (!token) return;
     setLoading(true);
-    fetch(`${BACKEND_URL}/api/accounts/installment-receiving?outletId=${outletId}`, { headers: { Authorization: `Bearer ${token}` } })
+    fetch(`${BACKEND_URL}/api/accounts/installment-receiving?outletId=${outletId}${range.from ? `&startDate=${range.from}` : ""}${range.to ? `&endDate=${range.to}` : ""}`, { headers: { Authorization: `Bearer ${token}` } })
       .then((res) => res.json())
       .then((json) => { if (json.success) setData(json.data); })
       .catch((err) => console.error("Failed to load installment receiving overview:", err))
       .finally(() => setLoading(false));
-  }, [outletId, refreshKey]);
+  }, [outletId, refreshKey, range]);
 
   // Deep link from Receivables: /accounts/installment-receiving?order=<id> opens that account.
   useEffect(() => {
@@ -150,17 +173,32 @@ export default function InstallmentReceivingPage() {
 
       {section === "overview" && (<>
 
-      <div className="mb-6 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
+      <p className="mb-2 text-[11px] font-black uppercase tracking-widest text-gray-400">Installments status (today)</p>
+      <div className="mb-5 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
         {loading ? (
-          Array.from({ length: 6 }).map((_, i) => <StatCardSkeleton key={i} />)
+          Array.from({ length: 5 }).map((_, i) => <StatCardSkeleton key={i} />)
         ) : (
           <>
-            <StatCard icon={AlertCircle} label="Due Installments" value={data?.dueCount ?? 0} accent="text-rose-600" bg="bg-rose-50 dark:bg-rose-500/10" bar="bg-rose-500" onClick={() => selectCard("due")} active={activeCard === "due"} />
-            <StatCard icon={Wallet} label="Advance Pending" value={PKR(data?.advancePending || 0)} accent="text-amber-600" bg="bg-amber-50 dark:bg-amber-500/10" bar="bg-amber-500" onClick={() => selectCard("advance")} active={activeCard === "advance"} />
+            <StatCard icon={AlertCircle} label={`Due / overdue · ${PKR(data?.dueAmount || 0)}`} value={data?.dueCount ?? 0} accent="text-rose-600" bg="bg-rose-50 dark:bg-rose-500/10" bar="bg-rose-500" onClick={() => selectCard("due")} active={activeCard === "due"} />
             <StatCard icon={PieChart} label="Partially Paid Orders" value={data?.mix.partialCount ?? 0} accent="text-purple-600" bg="bg-purple-50 dark:bg-purple-500/10" bar="bg-purple-500" onClick={() => selectCard("partial")} active={activeCard === "partial"} />
+            <StatCard icon={FastForward} label={`Paid in Advance · ${data?.advancePaidOrders.length ?? 0} customers`} value={PKR(data?.advancePaid || 0)} accent="text-teal-600" bg="bg-teal-50 dark:bg-teal-500/10" bar="bg-teal-500" onClick={() => selectCard("advancePaid")} active={activeCard === "advancePaid"} />
+            <StatCard icon={Wallet} label="Down Payment Pending" value={PKR(data?.advancePending || 0)} accent="text-amber-600" bg="bg-amber-50 dark:bg-amber-500/10" bar="bg-amber-500" onClick={() => selectCard("advance")} active={activeCard === "advance"} />
             <StatCard icon={CheckCircle2} label="Fully Paid Orders" value={data?.mix.fullyPaidCount ?? 0} accent="text-emerald-600" bg="bg-emerald-50 dark:bg-emerald-500/10" bar="bg-emerald-500" onClick={() => selectCard("full")} active={activeCard === "full"} />
-            <StatCard icon={HandCoins} label="Cash Collected" value={PKR(data?.collections.cash || 0)} accent="text-orange-600" bg="bg-orange-50 dark:bg-orange-500/10" bar="bg-orange-500" onClick={() => selectCard("cash")} active={activeCard === "cash"} />
-            <StatCard icon={Wifi} label="Online Collected" value={PKR(data?.collections.online || 0)} accent="text-blue-600" bg="bg-blue-50 dark:bg-blue-500/10" bar="bg-blue-500" onClick={() => selectCard("online")} active={activeCard === "online"} />
+          </>
+        )}
+      </div>
+      <div className="mb-2 flex flex-wrap items-center gap-3">
+        <p className="text-[11px] font-black uppercase tracking-widest text-gray-400">Collected in these dates</p>
+        <DateRangeFilter value={range} onChange={setRange} />
+      </div>
+      <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
+        {loading ? (
+          Array.from({ length: 3 }).map((_, i) => <StatCardSkeleton key={i} />)
+        ) : (
+          <>
+            <StatCard icon={HandCoins} label="Cash (outlet, officer, Head Office)" value={PKR(data?.collections.cash || 0)} accent="text-orange-600" bg="bg-orange-50 dark:bg-orange-500/10" bar="bg-orange-500" onClick={() => selectCard("cash")} active={activeCard === "cash"} />
+            <StatCard icon={Wifi} label="Online (1Bill / SmartPay QR)" value={PKR(data?.collections.online || 0)} accent="text-blue-600" bg="bg-blue-50 dark:bg-blue-500/10" bar="bg-blue-500" onClick={() => selectCard("online")} active={activeCard === "online"} />
+            <StatCard icon={Landmark} label="Bank transfer & other" value={PKR(data?.collections.bank || 0)} accent="text-violet-600" bg="bg-violet-50 dark:bg-violet-500/10" bar="bg-violet-500" onClick={() => selectCard("bank")} active={activeCard === "bank"} />
           </>
         )}
       </div>
@@ -250,7 +288,7 @@ export default function InstallmentReceivingPage() {
                               {dateLabel && <td className="px-4 py-3.5 text-gray-500">{row.date ? new Date(row.date).toLocaleDateString() : "—"}</td>}
                               <td className="px-4 py-3.5 text-right tabular-nums font-bold text-dark dark:text-white">{PKR(row.amount)}</td>
                               <td className="px-4 py-3.5 text-right">
-                                {["due", "partial", "advance"].includes(activeCard) && (
+                                {["due", "partial", "advance", "advancePaid"].includes(activeCard) && (
                                   <button onClick={(e) => { e.stopPropagation(); openReceive(row.order_id); }} className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-emerald-700">Receive</button>
                                 )}
                               </td>
@@ -274,7 +312,7 @@ export default function InstallmentReceivingPage() {
                                           <tr key={hi} className="border-t border-slate-50 dark:border-white/5">
                                             <td className="px-3 py-2 text-gray-500">{new Date(h.date).toLocaleString()}</td>
                                             <td className="px-3 py-2 text-gray-500">{h.month}</td>
-                                            <td className="px-3 py-2 capitalize text-gray-500">{h.channel}</td>
+                                            <td className="px-3 py-2 text-gray-500"><span className="capitalize">{h.channel}</span>{h.method ? <span className="text-gray-400"> · {h.method}</span> : null}</td>
                                             <td className="px-3 py-2 text-right tabular-nums font-bold text-emerald-600">{PKR(h.amount)}</td>
                                           </tr>
                                         ))}

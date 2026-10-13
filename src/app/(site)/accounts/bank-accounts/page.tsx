@@ -23,6 +23,7 @@ interface BankAccount {
   bank_name: string;
   account_title: string;
   account_number: string;
+  statement_mapping?: unknown;
   iban: string | null;
   branch_code: string | null;
   opening_balance: number;

@@ -82,7 +82,7 @@ const guessMapping = (headers: string[]): Mapping => {
  * row, map the columns once (remembered per account), preview, then send the normalised lines
  * to the backend, which stores them and auto-matches them against the system transactions.
  */
-export default function StatementImport({ account, onImported }: { account: { id: number; bank_name: string; account_number: string }; onImported: (statementId: number) => void }) {
+export default function StatementImport({ account, onImported }: { account: { id: number; bank_name: string; account_number: string; statement_mapping?: unknown }; onImported: (statementId: number) => void }) {
   const [file, setFile] = useState<File | null>(null);
   const [grid, setGrid] = useState<Cell[][]>([]);
   const [headerRow, setHeaderRow] = useState(0);
@@ -102,8 +102,9 @@ export default function StatementImport({ account, onImported }: { account: { id
     // Header row = first row with at least 3 text cells (banks often put the account info above it).
     const hr = Math.max(0, rows.findIndex((r) => r.filter((c) => typeof c === "string" && c.trim()).length >= 3));
     setHeaderRow(hr);
-    let saved: (Mapping & { headerRow?: number; dateFormat?: DateFormat }) | null = null;
-    try { saved = JSON.parse(localStorage.getItem(storageKey) || "null"); } catch { saved = null; }
+    // The layout saved on the bank account (shared by every accountant), else this browser's copy.
+    let saved: (Mapping & { headerRow?: number; dateFormat?: DateFormat }) | null = (account.statement_mapping && typeof account.statement_mapping === "object" ? account.statement_mapping as Mapping & { dateFormat?: DateFormat } : null);
+    if (!saved) { try { saved = JSON.parse(localStorage.getItem(storageKey) || "null"); } catch { saved = null; } }
     const hdrs = (rows[hr] || []).map((h) => String(h ?? ""));
     if (saved && saved.date !== NONE && saved.date < hdrs.length) {
       setMapping(saved);
@@ -140,6 +141,8 @@ export default function StatementImport({ account, onImported }: { account: { id
     setUploading(true);
     try {
       try { localStorage.setItem(storageKey, JSON.stringify({ ...mapping, dateFormat })); } catch { /* storage unavailable */ }
+      // Remember this bank's column layout on the account, so the next import maps itself on any computer.
+      fetch(`${BACKEND_URL}/api/accounts/bank-accounts/${account.id}`, { method: "PATCH", headers: { Authorization: `Bearer ${Cookies.get("auth_token")}`, "Content-Type": "application/json" }, body: JSON.stringify({ statement_mapping: { ...mapping, dateFormat } }) }).catch(() => { /* not critical */ });
       const fd = new FormData();
       if (file) fd.append("file", file);
       fd.append("bank_account_id", String(account.id));
