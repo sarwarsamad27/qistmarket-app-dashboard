@@ -17,8 +17,9 @@ import CollectionsPanel from "./_components/CollectionsPanel";
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
 
 interface HistoryEntry { date: string; month: number; amount: number; channel: "cash" | "online" | "other"; method?: string | null }
-interface DueRow { order_id: number; order_ref: string; customer_name: string; outlet_name: string; month: number; dueDate: string; amount: number; history?: HistoryEntry[] }
-interface OrderRow { order_id: number; order_ref: string; customer_name: string; outlet_name: string | null; month?: number | null; amount: number; history?: HistoryEntry[] }
+interface OrderTotals { order_total?: number; order_paid?: number; order_remaining?: number }
+interface DueRow extends OrderTotals { order_id: number; order_ref: string; customer_name: string; outlet_name: string; month: number; dueDate: string; amount: number; installment_amount?: number; paid_amount?: number; history?: HistoryEntry[] }
+interface OrderRow extends OrderTotals { order_id: number; order_ref: string; customer_name: string; outlet_name: string | null; month?: number | null; amount: number; installment_amount?: number | null; paid_amount?: number | null; history?: HistoryEntry[] }
 interface EventRow { order_id: number; order_ref: string; customer_name: string; outlet_name: string | null; month: number; date: string; amount: number; method?: string }
 interface Overview {
   startDate: string; endDate: string;
@@ -40,7 +41,7 @@ interface Overview {
 
 // A single shape every card's underlying list gets normalized into, so one table can render
 // whichever "history" is currently selected instead of needing a bespoke table per card.
-type DisplayRow = { key: string; order_id: number; order_ref: string; customer_name: string; outlet_name: string | null; month: number | null; date: string | null; amount: number; history?: HistoryEntry[] };
+type DisplayRow = OrderTotals & { key: string; order_id: number; order_ref: string; customer_name: string; outlet_name: string | null; month: number | null; date: string | null; amount: number; installment_amount?: number | null; paid_amount?: number | null; history?: HistoryEntry[] };
 
 type CardKey = "due" | "advance" | "advancePaid" | "partial" | "full" | "cash" | "online" | "bank";
 const ymd = (d: Date) => new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
@@ -75,7 +76,7 @@ export default function InstallmentReceivingPage() {
         return {
           title: "Paid in Advance (future months already paid)",
           dateLabel: null,
-          rows: data.advancePaidOrders.map((r) => ({ key: `${r.order_id}`, order_id: r.order_id, order_ref: r.order_ref, customer_name: r.customer_name, outlet_name: r.outlet_name, month: r.month ?? null, date: null, amount: r.amount, history: r.history })),
+          rows: data.advancePaidOrders.map((r) => ({ key: `${r.order_id}`, order_id: r.order_id, order_ref: r.order_ref, customer_name: r.customer_name, outlet_name: r.outlet_name, month: r.month ?? null, date: null, amount: r.amount, order_total: r.order_total, order_paid: r.order_paid, order_remaining: r.order_remaining, history: r.history })),
           emptyTitle: "No customer has paid ahead",
         };
       case "bank":
@@ -96,14 +97,14 @@ export default function InstallmentReceivingPage() {
         return {
           title: "Partially Paid Orders",
           dateLabel: null,
-          rows: data.partialOrders.map((r) => ({ key: `${r.order_id}`, order_id: r.order_id, order_ref: r.order_ref, customer_name: r.customer_name, outlet_name: r.outlet_name, month: r.month ?? null, date: null, amount: r.amount, history: r.history })),
+          rows: data.partialOrders.map((r) => ({ key: `${r.order_id}`, order_id: r.order_id, order_ref: r.order_ref, customer_name: r.customer_name, outlet_name: r.outlet_name, month: r.month ?? null, date: null, amount: r.amount, installment_amount: r.installment_amount, paid_amount: r.paid_amount, order_total: r.order_total, order_paid: r.order_paid, order_remaining: r.order_remaining, history: r.history })),
           emptyTitle: "No partially paid orders",
         };
       case "full":
         return {
           title: "Fully Paid Orders",
           dateLabel: null,
-          rows: data.fullyPaidOrders.map((r) => ({ key: `${r.order_id}`, order_id: r.order_id, order_ref: r.order_ref, customer_name: r.customer_name, outlet_name: r.outlet_name, month: null, date: null, amount: r.amount, history: r.history })),
+          rows: data.fullyPaidOrders.map((r) => ({ key: `${r.order_id}`, order_id: r.order_id, order_ref: r.order_ref, customer_name: r.customer_name, outlet_name: r.outlet_name, month: null, date: null, amount: r.amount, order_total: r.order_total, order_paid: r.order_paid, order_remaining: r.order_remaining, history: r.history })),
           emptyTitle: "No fully paid orders yet",
         };
       case "cash":
@@ -125,7 +126,7 @@ export default function InstallmentReceivingPage() {
         return {
           title: "Due Installments",
           dateLabel: "Due Date",
-          rows: data.due.map((r) => ({ key: `${r.order_id}-${r.month}`, order_id: r.order_id, order_ref: r.order_ref, customer_name: r.customer_name, outlet_name: r.outlet_name, month: r.month, date: r.dueDate, amount: r.amount, history: r.history })),
+          rows: data.due.map((r) => ({ key: `${r.order_id}-${r.month}`, order_id: r.order_id, order_ref: r.order_ref, customer_name: r.customer_name, outlet_name: r.outlet_name, month: r.month, date: r.dueDate, amount: r.amount, installment_amount: r.installment_amount, paid_amount: r.paid_amount, order_total: r.order_total, order_paid: r.order_paid, order_remaining: r.order_remaining, history: r.history })),
           emptyTitle: "No due installments",
         };
     }
@@ -222,7 +223,12 @@ export default function InstallmentReceivingPage() {
             { header: "Outlet", value: (r) => r.outlet_name || "" },
             { header: "Month", value: (r) => r.month ?? "" },
             { header: getCardRows().dateLabel || "Date", value: (r) => (r.date ? new Date(r.date).toLocaleDateString() : "") },
+            { header: "Installment", value: (r) => r.installment_amount ?? "", numeric: true },
+            { header: "Paid (this month)", value: (r) => r.paid_amount ?? "", numeric: true },
             { header: "Amount", value: (r) => r.amount, numeric: true },
+            { header: "Order total", value: (r) => r.order_total ?? "", numeric: true },
+            { header: "Order paid", value: (r) => r.order_paid ?? "", numeric: true },
+            { header: "Order remaining", value: (r) => r.order_remaining ?? "", numeric: true },
           ]} getRows={() => getCardRows().rows} />
         </div>
         </div>
@@ -233,6 +239,9 @@ export default function InstallmentReceivingPage() {
       ) : data ? (
         (() => {
           const { title, dateLabel, rows, emptyTitle } = getCardRows();
+          // Due / Partial rows: the month's installment, what's paid of it and what's left; plus the whole order.
+          const showSplit = activeCard === "due" || activeCard === "partial";
+          const showOrder = ["due", "partial", "advancePaid", "full"].includes(activeCard);
           const q = search.trim().toLowerCase();
           const filtered = q
             ? rows.filter((row) =>
@@ -262,7 +271,10 @@ export default function InstallmentReceivingPage() {
                         <th className="px-4 py-3 font-bold">Outlet</th>
                         {rows.some((r) => r.month !== null) && <th className="px-4 py-3 font-bold">Month</th>}
                         {dateLabel && <th className="px-4 py-3 font-bold">{dateLabel}</th>}
-                        <th className="px-4 py-3 text-right font-bold">Amount</th>
+                        {showSplit && <th className="px-4 py-3 text-right font-bold">Installment</th>}
+                        {showSplit && <th className="px-4 py-3 text-right font-bold">Paid</th>}
+                        <th className="px-4 py-3 text-right font-bold">{showSplit ? "Remaining" : "Amount"}</th>
+                        {showOrder && <th className="px-4 py-3 text-right font-bold">Order: paid / remaining</th>}
                         <th className="px-4 py-3"></th>
                       </tr>
                     </thead>
@@ -270,7 +282,7 @@ export default function InstallmentReceivingPage() {
                       {filtered.map((row, i) => {
                         const hasHistory = !!row.history && row.history.length > 0;
                         const isExpanded = expandedRowKey === row.key;
-                        const colCount = 4 + (rows.some((r) => r.month !== null) ? 1 : 0) + (dateLabel ? 1 : 0) + 2;
+                        const colCount = 4 + (rows.some((r) => r.month !== null) ? 1 : 0) + (dateLabel ? 1 : 0) + 2 + (showSplit ? 2 : 0) + (showOrder ? 1 : 0);
                         return (
                           <Fragment key={row.key}>
                             <tr
@@ -286,7 +298,10 @@ export default function InstallmentReceivingPage() {
                               <td className="px-4 py-3.5 text-gray-600 dark:text-gray-300">{row.outlet_name || "—"}</td>
                               {rows.some((r) => r.month !== null) && <td className="px-4 py-3.5 text-gray-500">{row.month ?? "—"}</td>}
                               {dateLabel && <td className="px-4 py-3.5 text-gray-500">{row.date ? new Date(row.date).toLocaleDateString() : "—"}</td>}
-                              <td className="px-4 py-3.5 text-right tabular-nums font-bold text-dark dark:text-white">{PKR(row.amount)}</td>
+                              {showSplit && <td className="px-4 py-3.5 text-right tabular-nums text-gray-500">{row.installment_amount != null ? PKR(row.installment_amount) : "—"}</td>}
+                              {showSplit && <td className="px-4 py-3.5 text-right tabular-nums text-emerald-600">{row.paid_amount ? PKR(row.paid_amount) : "—"}</td>}
+                              <td className={`px-4 py-3.5 text-right tabular-nums font-bold ${showSplit ? "text-rose-600" : "text-dark dark:text-white"}`}>{PKR(row.amount)}</td>
+                              {showOrder && <td className="px-4 py-3.5 text-right text-xs tabular-nums"><span className="text-emerald-600">{PKR(row.order_paid || 0)}</span><span className="text-gray-400"> / </span><span className="font-semibold text-rose-600">{PKR(row.order_remaining || 0)}</span><span className="block text-[10px] text-gray-400">of {PKR(row.order_total || 0)}</span></td>}
                               <td className="px-4 py-3.5 text-right">
                                 {["due", "partial", "advance", "advancePaid"].includes(activeCard) && (
                                   <button onClick={(e) => { e.stopPropagation(); openReceive(row.order_id); }} className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-emerald-700">Receive</button>
@@ -296,6 +311,13 @@ export default function InstallmentReceivingPage() {
                             {isExpanded && hasHistory && (
                               <tr className="bg-slate-50 dark:bg-white/5">
                                 <td colSpan={colCount} className="px-4 py-3">
+                                  {row.order_total != null && (
+                                    <div className="mb-3 grid grid-cols-3 gap-2 text-xs sm:max-w-lg">
+                                      <div className="rounded-lg bg-white p-2 dark:bg-boxdark"><p className="text-gray-400">Order total (installments)</p><p className="font-bold tabular-nums">{PKR(row.order_total)}</p></div>
+                                      <div className="rounded-lg bg-white p-2 dark:bg-boxdark"><p className="text-gray-400">Paid so far</p><p className="font-bold tabular-nums text-emerald-600">{PKR(row.order_paid || 0)}</p></div>
+                                      <div className="rounded-lg bg-white p-2 dark:bg-boxdark"><p className="text-gray-400">Still to pay</p><p className="font-bold tabular-nums text-rose-600">{PKR(row.order_remaining || 0)}</p></div>
+                                    </div>
+                                  )}
                                   <p className="mb-2 text-[11px] font-bold uppercase tracking-wide text-gray-400">Payment History — every real payment against this order, oldest first</p>
                                   <div className="overflow-hidden rounded-xl border border-slate-100 bg-white dark:border-white/10 dark:bg-boxdark">
                                     <table className="w-full text-left text-xs">
@@ -312,7 +334,7 @@ export default function InstallmentReceivingPage() {
                                           <tr key={hi} className="border-t border-slate-50 dark:border-white/5">
                                             <td className="px-3 py-2 text-gray-500">{new Date(h.date).toLocaleString()}</td>
                                             <td className="px-3 py-2 text-gray-500">{h.month}</td>
-                                            <td className="px-3 py-2 text-gray-500"><span className="capitalize">{h.channel}</span>{h.method ? <span className="text-gray-400"> · {h.method}</span> : null}</td>
+                                            <td className="px-3 py-2 text-gray-500">{h.method || <span className="capitalize">{h.channel}</span>}</td>
                                             <td className="px-3 py-2 text-right tabular-nums font-bold text-emerald-600">{PKR(h.amount)}</td>
                                           </tr>
                                         ))}
