@@ -17,6 +17,7 @@ import * as XLSX from "xlsx";
 import Loader from "@/components/common/Loader";
 import toast from "react-hot-toast";
 import { getErrorMessage } from "@/lib/apiErrors";
+import { pktDate } from '@/utils/pkt'
 
 const API_BASE = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
 const getAuthHeaders = () => ({
@@ -298,7 +299,7 @@ export default function VendorPurchasesPage() {
         const worksheet = XLSX.utils.json_to_sheet(dataToExport);
         const workbook = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(workbook, worksheet, exportOptions.includeItems ? "Detailed_Report" : "Summary_Report");
-        XLSX.writeFile(workbook, `Procurement_${exportOptions.includeItems ? 'Detailed' : 'Summary'}_${new Date().toISOString().split('T')[0]}.xlsx`);
+        XLSX.writeFile(workbook, `Procurement_${exportOptions.includeItems ? 'Detailed' : 'Summary'}_${pktDate()}.xlsx`);
         setShowExportModal(false);
     };
 

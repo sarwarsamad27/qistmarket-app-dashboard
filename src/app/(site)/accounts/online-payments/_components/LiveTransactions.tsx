@@ -9,9 +9,10 @@ import { TableSkeleton } from "@/components/Accounts/Skeleton";
 import { PKR } from "@/components/Accounts/StatCard";
 import ExportMenu from "@/components/Accounts/ExportMenu";
 import DateRangeFilter, { DateRange } from "@/components/Accounts/DateRangeFilter";
+import { pktDate } from '@/utils/pkt'
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
-const ymd = (d: Date) => new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+const ymd = (d: Date) => pktDate(d);
 
 export interface OnlineTxn {
   channel: "1bill" | "smartpay"; log_id: number; gateway_txn_id: string; consumer_number: string; amount: number; date: string; bank: string | null;

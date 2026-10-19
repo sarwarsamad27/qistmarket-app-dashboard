@@ -8,6 +8,7 @@ import Breadcrumb from "@/components/Breadcrumbs/Breadcrumb";
 import PageHeader from "@/components/Accounts/PageHeader";
 import { useNotifications } from "../../../../../contexts/NotificationContext";
 import { ListSkeleton, TableRowsSkeleton } from "@/components/ui/LoadingStates";
+import { pktDate } from '@/utils/pkt'
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
 const authHeaders = () => ({ Authorization: `Bearer ${Cookies.get("auth_token")}` });
@@ -37,7 +38,7 @@ export default function AdminCommandCenterPage() {
   const [failed, setFailed] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
-    const todayStr = new Date().toISOString().slice(0, 10);
+    const todayStr = pktDate();
 
     const load = (key: string, url: string, apply: (json: any) => void) =>
       fetch(url, { headers: authHeaders() })

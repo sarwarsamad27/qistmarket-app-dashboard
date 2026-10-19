@@ -13,6 +13,7 @@ import StatCard, { PKR } from "@/components/Accounts/StatCard";
 import ExportMenu from "@/components/Accounts/ExportMenu";
 import ReceivePanel from "./_components/ReceivePanel";
 import CollectionsPanel from "./_components/CollectionsPanel";
+import { pktDate, pktMonthStart } from '@/utils/pkt'
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
 
@@ -44,7 +45,7 @@ interface Overview {
 type DisplayRow = OrderTotals & { key: string; order_id: number; order_ref: string; customer_name: string; outlet_name: string | null; month: number | null; date: string | null; amount: number; installment_amount?: number | null; paid_amount?: number | null; history?: HistoryEntry[] };
 
 type CardKey = "due" | "advance" | "advancePaid" | "partial" | "full" | "cash" | "online" | "bank";
-const ymd = (d: Date) => new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+const ymd = (d: Date) => pktDate(d);
 
 export default function InstallmentReceivingPage() {
   const [data, setData] = useState<Overview | null>(null);
@@ -65,7 +66,7 @@ export default function InstallmentReceivingPage() {
   const [receiveOrderId, setReceiveOrderId] = useState<number | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
   // Dates for the Cash / Online / Bank collection cards (default: this month).
-  const [range, setRange] = useState<DateRange>(() => { const n = new Date(); return { from: ymd(new Date(n.getFullYear(), n.getMonth(), 1)), to: ymd(n) }; });
+  const [range, setRange] = useState<DateRange>(() => ({ from: pktMonthStart(), to: pktDate() }));
 
   // Each card's own list (from the API) normalized into one shared shape, so the table
   // below can render whichever card is selected without a bespoke table per card.

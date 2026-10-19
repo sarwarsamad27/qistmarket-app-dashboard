@@ -118,12 +118,16 @@ export default function GlobalSalesReportPage() {
               const summary: any = data.summary || {};
               const installmentReceived: number = summary.totalInstallmentsReceived ?? 0;
               const cashSalesReceived: number = summary.totalCashSalesReceived ?? 0;
-              const totalAmountReceive = installmentReceived + cashSalesReceived;
+              const advanceReceived: number = summary.totalAdvanceReceived ?? 0;
+              // Advance + installments + cash sales — the same figure as the Dashboard's
+              // "Total Collected (This Month)" when filtered to this month.
+              const totalAmountReceive: number = summary.totalAmountReceived ?? (advanceReceived + installmentReceived + cashSalesReceived);
 
               return (
-                <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+                <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
                   <StatCard label="Total Orders" value={summary.totalOrders || data.orders.length} icon={ClipboardCheck} color="blue" />
                   <StatCard label="Gross Sales" value={summary.totalGrossAmount || 0} icon={DollarSign} color="emerald" isCurrency />
+                  <StatCard label="Advance Received" value={advanceReceived} icon={TrendingUp} color="blue" isCurrency />
                   <StatCard label="Total Installment Receiving" value={installmentReceived} icon={TrendingUp} color="purple" isCurrency />
                   <StatCard label="Total Cash Sale" value={cashSalesReceived} icon={ShoppingBag} color="orange" isCurrency />
                   <StatCard label="Total Amount Receive" value={totalAmountReceive} icon={DollarSign} color="emerald" isCurrency />

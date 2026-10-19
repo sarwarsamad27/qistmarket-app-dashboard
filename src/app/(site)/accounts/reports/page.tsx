@@ -14,6 +14,7 @@ import { TableSkeleton } from "@/components/Accounts/Skeleton";
 import ExportMenu, { ExportColumn } from "@/components/Accounts/ExportMenu";
 import DateRangeFilter, { DateRange } from "@/components/Accounts/DateRangeFilter";
 import { apiErrorMessage, getErrorMessage } from "@/lib/apiErrors";
+import { pktDate } from '@/utils/pkt'
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
 const authHeaders = () => ({ Authorization: `Bearer ${Cookies.get("auth_token")}`, "Content-Type": "application/json" });
@@ -30,7 +31,7 @@ interface ReportType { key: string; label: string; dated: boolean }
 interface ScheduledReport { id: number; report_type: string; frequency: string; recipients: string; format?: string; is_active: boolean; last_sent_at: string | null; created_by: { full_name: string } | null }
 type Row = Record<string, string | number | null>;
 
-const ymd = (d: Date) => new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+const ymd = (d: Date) => pktDate(d);
 const titleCase = (k: string) => k.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 // Columns come from the report's own fields; amounts are right-aligned in the PDF.
 const columnsFor = (rows: Row[]): ExportColumn<Row>[] =>

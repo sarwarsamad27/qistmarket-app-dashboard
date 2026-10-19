@@ -10,12 +10,13 @@ import {
 } from "lucide-react";
 import { toast } from "react-hot-toast";
 import { getErrorMessage } from "@/lib/apiErrors";
+import { pktDate, pktMonthStart } from '@/utils/pkt'
 
 const API_BASE = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
 const authHeaders = () => ({ Authorization: `Bearer ${Cookies.get("auth_token")}` });
 
-const TODAY = new Date().toISOString().split("T")[0];
-const MONTH_START = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split("T")[0];
+const TODAY = pktDate();
+const MONTH_START = pktMonthStart();
 
 export default function DeliveryAgentsListing() {
   const [officers, setOfficers] = useState<any[]>([]);

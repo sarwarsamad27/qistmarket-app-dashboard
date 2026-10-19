@@ -5,6 +5,7 @@ import Cookies from 'js-cookie'
 import Breadcrumb from '@/components/Breadcrumbs/Breadcrumb'
 import Loader from '@/components/common/Loader'
 import { ArrowUp, ArrowDown, Banknote } from 'lucide-react'
+import { pktDate } from '@/utils/pkt'
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
 
@@ -40,7 +41,7 @@ interface Expense {
 export default function DaybookPage() {
   const [loading, setLoading] = useState(true)
   const [data, setData] = useState<{ summary: SummaryData; payments: Payment[]; expenses: Expense[] } | null>(null)
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0])
+  const [date, setDate] = useState(pktDate())
   const token = useMemo(() => Cookies.get('auth_token'), [])
 
   const fetchDaybook = async (selectedDate: string) => {

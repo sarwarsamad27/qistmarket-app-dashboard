@@ -15,6 +15,7 @@ import { ChartSkeleton, TableSkeleton } from "@/components/Accounts/Skeleton";
 import { PKR } from "@/components/Accounts/StatCard";
 import ExportMenu from "@/components/Accounts/ExportMenu";
 import { apiErrorMessage } from "@/lib/apiErrors";
+import { pktDate } from '@/utils/pkt'
 
 const Chart = dynamic(() => import("react-apexcharts"), { ssr: false });
 
@@ -44,7 +45,7 @@ const STATUS_STYLE: Record<string, string> = {
   unpaid: "bg-slate-100 text-slate-600 dark:bg-white/10",
   overdue: "bg-rose-50 text-rose-700 dark:bg-rose-500/10",
 };
-const thisMonth = () => { const n = new Date(); return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, "0")}`; };
+const thisMonth = () => pktDate().slice(0, 7);
 
 export default function MonthlyInstallmentsPage() {
   const [months, setMonths] = useState<MonthRow[]>([]);

@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import Loader from "@/components/common/Loader";
 import { getErrorMessage } from "@/lib/apiErrors";
+import { pktDate } from '@/utils/pkt'
 
 const API_BASE = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
 const getAuthHeaders = () => ({
@@ -33,7 +34,7 @@ export default function AddExpenseVoucherPage() {
     const [success, setSuccess] = useState("");
     
     const [paymentMethod, setPaymentMethod] = useState("Cash");
-    const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+    const [date, setDate] = useState(pktDate());
     const [notes, setNotes] = useState("");
 
     const [items, setItems] = useState<ExpenseItemInput[]>([

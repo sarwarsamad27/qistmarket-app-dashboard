@@ -30,6 +30,7 @@ import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
 import { formatExactDate } from "@/utils/dateUtils";
 import { getErrorMessage } from "@/lib/apiErrors";
+import { pktDate } from '@/utils/pkt'
 const API_BASE = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
 
 const getAuthHeaders = () => {
@@ -160,14 +161,14 @@ function InstallmentsViewContent() {
   const tomorrowStr = (() => {
     const d = new Date();
     d.setDate(d.getDate() + 1);
-    return d.toISOString().split("T")[0];
+    return pktDate(d);
   })();
 
   // PTP can unlock the device for at most 10 days
   const maxPtpStr = (() => {
     const d = new Date();
     d.setDate(d.getDate() + 10);
-    return d.toISOString().split("T")[0];
+    return pktDate(d);
   })();
 
   const openPtpModal = (inst: any) => {
@@ -178,7 +179,7 @@ function InstallmentsViewContent() {
     const defaultDate = new Date();
     defaultDate.setDate(defaultDate.getDate() + 7);
     setPtpRow(inst);
-    setPtpDate(defaultDate.toISOString().split("T")[0]);
+    setPtpDate(pktDate(defaultDate));
     setPtpModalOpen(true);
   };
 
@@ -1581,7 +1582,7 @@ function InstallmentsViewContent() {
                   {[3, 7, 10].map(days => {
                     const d = new Date();
                     d.setDate(d.getDate() + days);
-                    const dStr = d.toISOString().split('T')[0];
+                    const dStr = pktDate(d);
                     return (
                       <button
                         key={days}

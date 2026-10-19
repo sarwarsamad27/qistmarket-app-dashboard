@@ -6,6 +6,7 @@ import toast from "react-hot-toast";
 import { Plus, Trash2, X } from "lucide-react";
 import { PKR } from "@/components/Accounts/StatCard";
 import { apiErrorMessage } from "@/lib/apiErrors";
+import { pktDate } from '@/utils/pkt'
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
 
@@ -18,7 +19,7 @@ const blankRow = (): Row => ({ product_name: "", category: "", color_variant: ""
  * one unit each.
  */
 export default function HoPurchaseForm({ vendors, onClose, onSaved }: { vendors: { id: number; name: string; outlet: { name: string } | null }[]; onClose: () => void; onSaved: () => void }) {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = pktDate();
   const [vendorId, setVendorId] = useState("");
   const [purchaseDate, setPurchaseDate] = useState(today);
   const [dueDate, setDueDate] = useState("");

@@ -5,6 +5,7 @@ import Cookies from "js-cookie";
 import SmartPayQrModal from "./SmartPayQrModal";
 import { formatExactDate } from "@/utils/dateUtils";
 import { findCurrentInstallmentIndex } from "@/lib/currentInstallment";
+import { pktDate } from '@/utils/pkt'
 
 const API_BASE = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
 const pkr = (n: number) => `PKR ${Number(n || 0).toLocaleString()}`;
@@ -88,17 +89,17 @@ export default function InstallmentsTable({ data, onPay, selectedIds = [], onSel
     // Get tomorrow's date string for min date
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
-    const tomorrowStr = tomorrow.toISOString().split("T")[0];
+    const tomorrowStr = pktDate(tomorrow);
 
     // PTP can unlock the device for at most 10 days
     const maxPtp = new Date();
     maxPtp.setDate(maxPtp.getDate() + 10);
-    const maxPtpStr = maxPtp.toISOString().split("T")[0];
+    const maxPtpStr = pktDate(maxPtp);
 
     // Pre-fill date 7 days from now (matching recovery app default)
     const defaultPtpDate = new Date();
     defaultPtpDate.setDate(defaultPtpDate.getDate() + 7);
-    const defaultPtpDateStr = defaultPtpDate.toISOString().split("T")[0];
+    const defaultPtpDateStr = pktDate(defaultPtpDate);
 
     const openPtpModal = (order: OrderInstallment) => {
         setPtpOrder(order);
@@ -885,7 +886,7 @@ export default function InstallmentsTable({ data, onPay, selectedIds = [], onSel
                                     {[3, 7, 10].map(days => {
                                         const d = new Date();
                                         d.setDate(d.getDate() + days);
-                                        const dStr = d.toISOString().split('T')[0];
+                                        const dStr = pktDate(d);
                                         return (
                                             <button
                                                 key={days}

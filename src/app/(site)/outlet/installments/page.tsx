@@ -11,6 +11,7 @@ import autoTable from "jspdf-autotable";
 import { formatExactDate } from "@/utils/dateUtils";
 import { findCurrentInstallmentIndex } from "@/lib/currentInstallment";
 import { ValueSkeleton } from "@/components/ui/LoadingStates";
+import { pktDate } from '@/utils/pkt'
 
 const API_BASE = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
 
@@ -550,7 +551,7 @@ function InstallmentsContent() {
                     rowData.push(
                         ledgerRow.dueAmount || 0,
                         safeString(ledgerRow.status || 'pending'),
-                        safeString(ledgerRow.paidAt ? new Date(ledgerRow.paidAt).toISOString().split('T')[0] : 'N/A')
+                        safeString(ledgerRow.paidAt ? pktDate(ledgerRow.paidAt) : 'N/A')
                     );
                 } else {
                     rowData.push('""', '""', '""'); // empty cells if ledger doesn't go this high
@@ -565,7 +566,7 @@ function InstallmentsContent() {
         const link = document.createElement("a");
         const url = URL.createObjectURL(blob);
         link.setAttribute("href", url);
-        link.setAttribute("download", `installments_export_${activeTab}_${new Date().toISOString().split('T')[0]}.csv`);
+        link.setAttribute("download", `installments_export_${activeTab}_${pktDate()}.csv`);
         link.style.visibility = 'hidden';
         document.body.appendChild(link);
         link.click();
@@ -614,7 +615,7 @@ function InstallmentsContent() {
             headStyles: { fillColor: [41, 128, 185] }
         });
 
-        doc.save(`installments_export_${activeTab}_${new Date().toISOString().split('T')[0]}.pdf`);
+        doc.save(`installments_export_${activeTab}_${pktDate()}.pdf`);
     };
 
     const handleSendBulkReminders = async () => {

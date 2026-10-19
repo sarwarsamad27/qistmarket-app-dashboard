@@ -1,4 +1,5 @@
 import { ShieldCheck, Truck, RotateCcw } from "lucide-react";
+import { pktDate, pktMonthStart } from "@/utils/pkt";
 
 export type RoleKey = "verification" | "delivery" | "recovery";
 
@@ -10,11 +11,8 @@ export const ROLE_META: Record<RoleKey, { label: string; icon: any; color: strin
 
 export const fmtRs = (n: any) => `Rs. ${Math.round(Number(n) || 0).toLocaleString()}`;
 
-// Local YYYY-MM-DD (toISOString would shift to UTC and show yesterday after midnight PKT).
-const ymd = (d: Date) =>
-  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-export const today = () => ymd(new Date());
-export const monthStart = () => { const d = new Date(); return ymd(new Date(d.getFullYear(), d.getMonth(), 1)); };
+export const today = () => pktDate();
+export const monthStart = () => pktMonthStart();
 
 export const fmtDateTime = (v?: string | null) =>
   v

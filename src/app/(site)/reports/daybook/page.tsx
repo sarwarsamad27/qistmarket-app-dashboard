@@ -6,6 +6,7 @@ import Breadcrumb from '@/components/Breadcrumbs/Breadcrumb'
 import Loader from '@/components/common/Loader'
 import { ArrowUp, ArrowDown, Banknote } from 'lucide-react'
 import OutletSelector from '@/components/common/OutletSelector'
+import { pktDate } from '@/utils/pkt'
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
 
@@ -41,7 +42,7 @@ interface Expense {
 export default function GlobalDaybookPage() {
   const [loading, setLoading] = useState(true)
   const [data, setData] = useState<{ summary: SummaryData; payments: Payment[]; expenses: Expense[] } | null>(null)
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0])
+  const [date, setDate] = useState(pktDate())
   const [outletId, setOutletId] = useState('all')
   const token = useMemo(() => Cookies.get('auth_token'), [])
 

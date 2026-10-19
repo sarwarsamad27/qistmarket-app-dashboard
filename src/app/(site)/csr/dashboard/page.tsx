@@ -29,6 +29,7 @@ import {
   Trophy,
   Activity
 } from 'lucide-react';
+import { pktDate } from '@/utils/pkt'
 
 const Chart = dynamic(() => import('react-apexcharts'), { ssr: false });
 
@@ -139,8 +140,8 @@ export default function CsrDashboardPage() {
   const [loading, setLoading] = useState(true);
 
   const [filterType, setFilterType] = useState<"today" | "month" | "custom">("month");
-  const [startDate, setStartDate] = useState(() => new Date().toISOString().split("T")[0]);
-  const [endDate, setEndDate] = useState(() => new Date().toISOString().split("T")[0]);
+  const [startDate, setStartDate] = useState(() => pktDate());
+  const [endDate, setEndDate] = useState(() => pktDate());
 
   const getFilterQueryParams = () => {
     if (filterType === "today") return "?dateRange=Day";

@@ -6,6 +6,7 @@ import Link from "next/link";
 import { Search, Fingerprint, RefreshCw, Clock, CalendarOff, Trash2, Plus } from "lucide-react";
 import toast from "react-hot-toast";
 import BulkAttendance from "@/components/EmployeePortal/BulkAttendance";
+import { pktDate } from '@/utils/pkt'
 
 interface Employee {
   id: number;
@@ -183,7 +184,7 @@ export default function HrAttendancePage() {
     const dates: string[] = [];
     const end = new Date(`${to && to >= from ? to : from}T00:00:00Z`);
     for (let d = new Date(`${from}T00:00:00Z`); d <= end && dates.length < 60; d = new Date(d.getTime() + 86400000)) {
-      dates.push(d.toISOString().slice(0, 10));
+      dates.push(pktDate(d));
     }
     addHolidays(dates, title);
   };

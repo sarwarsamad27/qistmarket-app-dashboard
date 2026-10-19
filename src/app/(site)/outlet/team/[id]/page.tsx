@@ -12,6 +12,7 @@ import Cookies from "js-cookie";
 import { toast } from "react-hot-toast";
 import { getErrorMessage } from "@/lib/apiErrors";
 import { describeExpiry } from "@/lib/orderExpiry";
+import { pktDate } from '@/utils/pkt'
 
 const API_BASE = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
 
@@ -26,7 +27,7 @@ export default function OfficerDetailsPage({ params }: { params: Promise<{ id: s
 
     const [statusLoading, setStatusLoading] = useState(false);
     const [traceModalOpen, setTraceModalOpen] = useState(false);
-    const [traceDate, setTraceDate] = useState(() => new Date().toISOString().split('T')[0]);
+    const [traceDate, setTraceDate] = useState(() => pktDate());
     const [locationHistory, setLocationHistory] = useState<any[]>([]);
     const [fetchingTrace, setFetchingTrace] = useState(false);
 

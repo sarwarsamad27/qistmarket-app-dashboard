@@ -17,6 +17,7 @@ import toast from "react-hot-toast";
 import { cn } from "@/lib/utils";
 import SerialOrEngineChassisInput from "@/components/VendorPurchase/SerialOrEngineChassisInput";
 import { getErrorMessage } from "@/lib/apiErrors";
+import { pktDate } from '@/utils/pkt'
 
 const API_BASE = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
 const getAuthHeaders = () => ({
@@ -43,7 +44,7 @@ export default function AddVendorPurchasePage() {
 
     const [vendorId, setVendorId] = useState<string>("");
     const [vendorName, setVendorName] = useState("");
-    const [purchaseDate, setPurchaseDate] = useState(new Date().toISOString().split('T')[0]);
+    const [purchaseDate, setPurchaseDate] = useState(pktDate());
     const [dueDate, setDueDate] = useState("");
     const [notes, setNotes] = useState("");
     const [isFullView, setIsFullView] = useState(false);

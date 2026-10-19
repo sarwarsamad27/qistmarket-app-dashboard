@@ -15,6 +15,7 @@ import StatCard, { PKR } from "@/components/Accounts/StatCard";
 import PageHeader from "@/components/Accounts/PageHeader";
 import EmptyState from "@/components/Accounts/EmptyState";
 import { StatCardSkeleton, ChartSkeleton } from "@/components/Accounts/Skeleton";
+import { pktDate } from '@/utils/pkt'
 
 const Chart = dynamic(() => import("react-apexcharts"), { ssr: false });
 
@@ -58,7 +59,7 @@ type Range = (typeof RANGES)[number];
 interface TrendBucket { key: string; tick: string; label: string; cash: number; online: number }
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-const ymd = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+const ymd = (d: Date) => pktDate(d);
 const parseYmd = (s: string) => { const [y, m, d] = s.split("-").map(Number); return new Date(y, m - 1, d); };
 const dayLabel = (d: Date) => `${d.getDate()} ${MONTHS[d.getMonth()]}`;
 const mondayOf = (d: Date) => { const r = new Date(d); r.setDate(r.getDate() - ((r.getDay() + 6) % 7)); return r; };

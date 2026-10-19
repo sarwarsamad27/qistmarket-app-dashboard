@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { ConfirmModal } from "@/components/Modals/ConfirmModal";
+import { pktDate } from '@/utils/pkt'
 
 interface Employee {
   id: number; employee_id: string; full_name: string; department?: string;
@@ -112,7 +113,7 @@ export default function HrEmployeesPage() {
     const csv = [headers.join(","), ...rows.map((r) => r.map((c) => `"${c}"`).join(","))].join("\n");
     const blob = new Blob([csv], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement("a"); a.href = url; a.download = `employees_${new Date().toISOString().slice(0, 10)}.csv`; a.click();
+    const a = document.createElement("a"); a.href = url; a.download = `employees_${pktDate()}.csv`; a.click();
     URL.revokeObjectURL(url);
     toast.success("CSV exported");
   };

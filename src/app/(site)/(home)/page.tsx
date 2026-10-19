@@ -410,7 +410,7 @@ export default function Home() {
           title="Total Collected (This Month)"
           value={loaded.reportSummaryRes && reportSummary ? reportSummary.totalReceived ?? 0 : null}
           loading={loading}
-          subtitle="Advance + installment payments received"
+          subtitle="Advance + installments + cash sales received"
           tone="success"
           isCurrency
         />
@@ -418,7 +418,7 @@ export default function Home() {
           title="Total Sales (Delivered This Month)"
           value={loaded.reportSummaryRes && reportSummary ? reportSummary.totalSalesAmount ?? 0 : null}
           loading={loading}
-          subtitle="Sum of delivered order amounts"
+          subtitle="Gross sales of orders delivered this month"
           tone="primary"
           isCurrency
         />
@@ -426,7 +426,7 @@ export default function Home() {
           title="Pending Receivables (This Month)"
           value={loaded.reportSummaryRes && reportSummary ? reportSummary.totalPending ?? 0 : null}
           loading={loading}
-          subtitle="Outstanding amount across this month's orders"
+          subtitle="Still owed on orders delivered this month"
           tone="danger"
           isCurrency
         />

@@ -8,6 +8,7 @@ import { TableSkeleton } from "@/components/Accounts/Skeleton";
 import { PKR } from "@/components/Accounts/StatCard";
 import ExportMenu from "@/components/Accounts/ExportMenu";
 import DateRangeFilter, { DateRange } from "@/components/Accounts/DateRangeFilter";
+import { pktDate } from '@/utils/pkt'
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
 
@@ -23,7 +24,7 @@ const CHANNEL_STYLE: Record<string, string> = {
 
 /** Every installment payment received in a period — cash, online, bank — with who took it. */
 export default function CollectionsPanel({ refreshKey }: { refreshKey: number }) {
-  const ymd = (d: Date) => new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+  const ymd = (d: Date) => pktDate(d);
   const [range, setRange] = useState<DateRange>(() => { const d = new Date(); d.setDate(d.getDate() - 29); return { from: ymd(d), to: ymd(new Date()) }; });
   const [channel, setChannel] = useState("");
   const [search, setSearch] = useState("");

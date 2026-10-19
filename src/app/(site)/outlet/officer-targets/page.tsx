@@ -9,6 +9,7 @@ import {
 import Loader from "@/components/common/Loader";
 import toast from "react-hot-toast";
 import { getErrorMessage } from "@/lib/apiErrors";
+import { pktDate } from '@/utils/pkt'
 
 const API_BASE = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
 
@@ -27,13 +28,13 @@ export default function OfficerTargetsPage() {
     
     // Assignment form state
     const [selectedOfficer, setSelectedOfficer] = useState("");
-    const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7)); // YYYY-MM
+    const [selectedMonth, setSelectedMonth] = useState(pktDate().slice(0, 7)); // YYYY-MM
     const [targetAmount, setTargetAmount] = useState("");
     const [targetCustomers, setTargetCustomers] = useState("");
     const [submitting, setSubmitting] = useState(false);
     
     // Table filter state
-    const [filterMonth, setFilterMonth] = useState(new Date().toISOString().slice(0, 7));
+    const [filterMonth, setFilterMonth] = useState(pktDate().slice(0, 7));
 
     const getAuthHeaders = () => ({
         Authorization: `Bearer ${Cookies.get("auth_token")}`,

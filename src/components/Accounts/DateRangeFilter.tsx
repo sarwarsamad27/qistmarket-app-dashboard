@@ -1,22 +1,20 @@
 "use client";
 
 import { CalendarDays, X } from "lucide-react";
+import { pktAddDays, pktDate, pktMonthStart } from '@/utils/pkt'
 
 export interface DateRange { from: string; to: string }
 
-const ymd = (d: Date) => {
-  const z = new Date(d.getTime() - d.getTimezoneOffset() * 60000);
-  return z.toISOString().slice(0, 10);
-};
+const ymd = (d: Date) => pktDate(d);
 
 const PRESETS: { label: string; range: () => DateRange }[] = [
   { label: "Today", range: () => ({ from: ymd(new Date()), to: ymd(new Date()) }) },
-  { label: "7 days", range: () => { const d = new Date(); d.setDate(d.getDate() - 6); return { from: ymd(d), to: ymd(new Date()) }; } },
-  { label: "30 days", range: () => { const d = new Date(); d.setDate(d.getDate() - 29); return { from: ymd(d), to: ymd(new Date()) }; } },
-  { label: "This month", range: () => { const d = new Date(); return { from: ymd(new Date(d.getFullYear(), d.getMonth(), 1)), to: ymd(d) }; } },
+  { label: "7 days", range: () => ({ from: pktAddDays(-6), to: pktDate() }) },
+  { label: "30 days", range: () => ({ from: pktAddDays(-29), to: pktDate() }) },
+  { label: "This month", range: () => ({ from: pktMonthStart(), to: pktDate() }) },
 ];
 
-/** True when `date` falls inside the (inclusive, local-day) range; an empty side is open-ended. */
+/** True when `date` falls inside the (inclusive, Pakistan-day) range; an empty side is open-ended. */
 export function inDateRange(date: string | Date | null | undefined, range: DateRange) {
   if (!range.from && !range.to) return true;
   if (!date) return false;

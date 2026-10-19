@@ -13,6 +13,7 @@ import EmployeeAvatar from "@/components/EmployeePortal/EmployeeAvatar";
 import EmployeeOrders from "@/components/EmployeePortal/EmployeeOrders";
 import { apiErrorMessage } from "@/lib/apiErrors";
 import { roleLabel } from "@/lib/roleLabels";
+import { pktDate } from '@/utils/pkt'
 
 interface Employee {
   id: number; employee_id: string; full_name: string; username: string; portal_active: boolean;
@@ -899,7 +900,7 @@ export default function HrEmployeeDetailPage() {
                 <textarea name="description" rows={3} className="mt-1 w-full rounded-lg border border-stroke px-3 py-2 text-sm text-dark dark:border-stroke-dark dark:bg-dark-3 dark:text-white" />
               </label>
               <label className="block text-xs text-gray-500">Date
-                <input name="event_date" type="date" defaultValue={new Date().toISOString().slice(0, 10)} className="mt-1 w-full rounded-lg border border-stroke px-3 py-2 text-sm text-dark dark:border-stroke-dark dark:bg-dark-3 dark:text-white" />
+                <input name="event_date" type="date" defaultValue={pktDate()} className="mt-1 w-full rounded-lg border border-stroke px-3 py-2 text-sm text-dark dark:border-stroke-dark dark:bg-dark-3 dark:text-white" />
               </label>
             </div>
             <div className="mt-5 flex gap-2">

@@ -6,6 +6,7 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import toast from "react-hot-toast";
 import { Download, FileSpreadsheet, FileText, FileDown, ChevronDown } from "lucide-react";
+import { pktDate } from '@/utils/pkt'
 
 export interface ExportColumn<T> {
   header: string;
@@ -18,7 +19,7 @@ export interface ExportColumn<T> {
 type Format = "xlsx" | "csv" | "pdf";
 
 const safeName = (s: string) => s.replace(/[^\w\- ]+/g, "").trim().replace(/\s+/g, "_") || "export";
-const stamp = () => new Date().toISOString().slice(0, 10);
+const stamp = () => pktDate();
 
 /** Writes `rows` as an Excel, CSV or PDF file using the given column definitions. */
 export function exportRows<T>(format: Format, title: string, columns: ExportColumn<T>[], rows: T[], subtitle?: string) {

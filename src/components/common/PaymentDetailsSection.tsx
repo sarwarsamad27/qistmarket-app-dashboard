@@ -5,6 +5,7 @@ import { cn } from '@/lib/utils';
 import { formatExactDate } from '@/utils/dateUtils';
 import { Modal } from '@/components/Modal/Modal';
 import { OrderPaymentIds } from './OrderPaymentIds';
+import { pktDate } from '@/utils/pkt'
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5000';
 
@@ -235,7 +236,7 @@ export const PaymentDetailsSection = ({
         setEditedRows(installments.map((inst: any) => ({
             month: inst.month,
             label: inst.label,
-            due_date: inst.due_date ? new Date(inst.due_date).toISOString().slice(0, 10) : '',
+            due_date: inst.due_date ? pktDate(inst.due_date) : '',
             amount: String(inst.due_amount ?? 0),
             // What was actually collected against THIS row — not the capped due_amount an
             // overpayment shows as elsewhere on the page. Editing this and saving is what

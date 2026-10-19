@@ -11,10 +11,11 @@ import { PKR } from "@/components/Accounts/StatCard";
 import ExportMenu from "@/components/Accounts/ExportMenu";
 import DateRangeFilter, { DateRange } from "@/components/Accounts/DateRangeFilter";
 import { apiErrorMessage } from "@/lib/apiErrors";
+import { pktDate } from '@/utils/pkt'
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
 const authHeaders = () => ({ Authorization: `Bearer ${Cookies.get("auth_token")}`, "Content-Type": "application/json" });
-const ymd = (d: Date) => new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+const ymd = (d: Date) => pktDate(d);
 const day = (d?: string | null) => (d ? new Date(d).toLocaleDateString() : "—");
 
 interface DailyRow { date: string; channel: string; channel_label: string; count: number; amount: number; batched: number; settled: number; pending: number }

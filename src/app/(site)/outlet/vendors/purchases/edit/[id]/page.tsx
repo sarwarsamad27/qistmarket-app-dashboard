@@ -15,6 +15,7 @@ import Loader from "@/components/common/Loader";
 import SearchableSelect from "@/components/common/SearchableSelect";
 import SerialOrEngineChassisInput from "@/components/VendorPurchase/SerialOrEngineChassisInput";
 import { getErrorMessage } from "@/lib/apiErrors";
+import { pktDate } from '@/utils/pkt'
 
 const API_BASE = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
 const getAuthHeaders = () => ({
@@ -44,7 +45,7 @@ export default function EditVendorPurchasePage() {
 
     const [vendorId, setVendorId] = useState<string>("");
     const [vendorName, setVendorName] = useState("");
-    const [purchaseDate, setPurchaseDate] = useState(new Date().toISOString().split('T')[0]);
+    const [purchaseDate, setPurchaseDate] = useState(pktDate());
     const [dueDate, setDueDate] = useState("");
     const [notes, setNotes] = useState("");
     const [isFullView, setIsFullView] = useState(false);
@@ -82,8 +83,8 @@ export default function EditVendorPurchasePage() {
                         const p = purData.purchase;
                         setVendorId(p.vendor_id?.toString() || "");
                         setVendorName(p.vendor_name);
-                        setPurchaseDate(new Date(p.purchase_date).toISOString().split('T')[0]);
-                        if (p.due_date) setDueDate(new Date(p.due_date).toISOString().split('T')[0]);
+                        setPurchaseDate(pktDate(p.purchase_date));
+                        if (p.due_date) setDueDate(pktDate(p.due_date));
                         setNotes(p.notes || "");
                         
                         // Map items

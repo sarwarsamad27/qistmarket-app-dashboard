@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "../../../../../contexts/AuthContext";
 import { getRoleHome } from "@/lib/roleHome";
+import { pktDate } from '@/utils/pkt'
 
 const Chart = dynamic(() => import("react-apexcharts"), { ssr: false });
 
@@ -155,8 +156,8 @@ export default function OutletDashboardPage() {
   const [refreshing, setRefreshing] = useState(false);
 
   const [filterType, setFilterType] = useState<"today" | "month" | "custom">("today");
-  const [startDate, setStartDate] = useState(() => new Date().toISOString().split("T")[0]);
-  const [endDate, setEndDate] = useState(() => new Date().toISOString().split("T")[0]);
+  const [startDate, setStartDate] = useState(() => pktDate());
+  const [endDate, setEndDate] = useState(() => pktDate());
 
   const getFilterQueryParams = () => {
     if (filterType === "today") return "?dateRange=Day";
