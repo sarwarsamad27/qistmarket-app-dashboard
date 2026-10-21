@@ -387,7 +387,7 @@ export default function RecycleBinPage() {
               <thead className="bg-gray-50 dark:bg-gray-900/40">
                 <tr className="border-b border-gray-100 dark:border-gray-800 text-gray-400 uppercase tracking-wider font-bold text-xs">
                   {selectAll}
-                  <th className={th}>Order Ref</th>
+                  <th className={th}>S.No</th><th className={th}>Order Ref</th>
                   <th className={th}>Name</th>
                   <th className={th}>Phone</th>
                   <th className={th}>Item</th>
@@ -397,8 +397,8 @@ export default function RecycleBinPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-                {filteredOrders.map((o) => (
-                  <tr key={o.id} className={rowClass(o.id)}>
+                {filteredOrders.map((o, idx) => (
+                  <tr key={o.id} className={rowClass(o.id)}><td className="py-2 px-3 font-medium text-gray-500 tabular-nums">{idx + 1}</td>
                     {selectOne(o.id, `order ${o.order_ref}`)}
                     <td className="py-2 px-3 font-medium text-gray-700 dark:text-gray-200">
                       <Link href={`/orders/${o.id}`} className="text-blue-600 hover:underline">{o.order_ref}</Link>
@@ -422,7 +422,7 @@ export default function RecycleBinPage() {
               <thead className="bg-gray-50 dark:bg-gray-900/40">
                 <tr className="border-b border-gray-100 dark:border-gray-800 text-gray-400 uppercase tracking-wider font-bold text-xs">
                   {selectAll}
-                  <th className={th}>Code</th>
+                  <th className={th}>S.No</th><th className={th}>Code</th>
                   <th className={th}>Name</th>
                   <th className={th}>Address</th>
                   <th className={th}>Linked Records</th>
@@ -432,8 +432,8 @@ export default function RecycleBinPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-                {filteredOutlets.map((o) => (
-                  <tr key={o.id} className={rowClass(o.id)}>
+                {filteredOutlets.map((o, idx) => (
+                  <tr key={o.id} className={rowClass(o.id)}><td className="py-2 px-3 font-medium text-gray-500 tabular-nums">{idx + 1}</td>
                     {selectOne(o.id, `outlet ${o.name}`)}
                     <td className="py-2 px-3 font-medium text-gray-700 dark:text-gray-200">{o.code}</td>
                     <td className={td}>{o.name}</td>
@@ -459,7 +459,7 @@ export default function RecycleBinPage() {
               <thead className="bg-gray-50 dark:bg-gray-900/40">
                 <tr className="border-b border-gray-100 dark:border-gray-800 text-gray-400 uppercase tracking-wider font-bold text-xs">
                   {selectAll}
-                  <th className={th}>Name</th>
+                  <th className={th}>S.No</th><th className={th}>Name</th>
                   <th className={th}>Username</th>
                   <th className={th}>Role</th>
                   <th className={th}>Outlet</th>
@@ -470,8 +470,8 @@ export default function RecycleBinPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-                {filteredUsers.map((u) => (
-                  <tr key={u.id} className={rowClass(u.id)}>
+                {filteredUsers.map((u, idx) => (
+                  <tr key={u.id} className={rowClass(u.id)}><td className="py-2 px-3 font-medium text-gray-500 tabular-nums">{idx + 1}</td>
                     {selectOne(u.id, `user ${u.full_name}`)}
                     <td className="py-2 px-3 font-medium text-gray-700 dark:text-gray-200">{u.full_name}</td>
                     <td className={td}>@{u.username}</td>

@@ -101,15 +101,15 @@ export default function CustomerLedgerPage() {
                     <table className="w-full text-left text-sm">
                       <thead>
                         <tr className="border-b border-stroke text-gray-500 dark:border-dark-3">
-                          <th className="pb-3 pr-4 flex items-center gap-1.5"><Calendar className="h-3.5 w-3.5" /> Date</th>
+                          <th className="pb-3 pr-4 flex items-center gap-1.5">S.No</th><th className="pb-3 pr-4 flex items-center gap-1.5"><Calendar className="h-3.5 w-3.5" /> Date</th>
                           <th className="pb-3 pr-4">Type</th>
                           <th className="pb-3 pr-4">Method</th>
                           <th className="pb-3 text-right flex items-center justify-end gap-1.5"><Banknote className="h-3.5 w-3.5" /> Amount</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {order.payments.map((p) => (
-                          <tr key={p.id} className="border-b border-stroke last:border-0 dark:border-dark-3 transition-colors hover:bg-gray-50 dark:hover:bg-dark-3 italic">
+                        {order.payments.map((p, idx) => (
+                          <tr key={p.id} className="border-b border-stroke last:border-0 dark:border-dark-3 transition-colors hover:bg-gray-50 dark:hover:bg-dark-3 italic"><td className="py-3 pr-4 text-gray-500 tabular-nums">{idx + 1}</td>
                             <td className="py-3 pr-4 text-gray-600 dark:text-gray-400">{formatExactDate(p.paidAt, 'DD MMM YYYY, hh:mm A')}</td>
                             <td className="py-3 pr-4 uppercase text-[11px] font-bold text-blue-500">{p.paymentType}</td>
                             <td className="py-3 pr-4 text-gray-500 text-xs">{p.paymentMethod || 'CASH'}</td>

@@ -10,6 +10,7 @@ import PageHeader from "@/components/Accounts/PageHeader";
 import EmptyState from "@/components/Accounts/EmptyState";
 import { ChartSkeleton } from "@/components/Accounts/Skeleton";
 import { PKR } from "@/components/Accounts/StatCard";
+import DateRangeFilter, { type DateRange } from "@/components/Accounts/DateRangeFilter";
 
 const Chart = dynamic(() => import("react-apexcharts"), { ssr: false });
 
@@ -34,6 +35,10 @@ export default function RecoveryAnalyticsPage() {
   const [data, setData] = useState<RecoveryAnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [range, setRange] = useState<(typeof RANGES)[number]>("Month");
+  // A picked From–To overrides the preset buttons (sent as range=Custom).
+  const [custom, setCustom] = useState<DateRange>({ from: "", to: "" });
+  const isCustom = !!(custom.from || custom.to);
+  const rq = isCustom ? `range=Custom&startDate=${custom.from}&endDate=${custom.to}` : `range=${range}`;
 
   const [channelData, setChannelData] = useState<ChannelData | null>(null);
   const [channelLoading, setChannelLoading] = useState(true);
@@ -43,7 +48,7 @@ export default function RecoveryAnalyticsPage() {
     if (!token) return;
 
     setLoading(true);
-    fetch(`${BACKEND_URL}/api/accounts/recovery-analytics?range=${range}`, { headers: { Authorization: `Bearer ${token}` } })
+    fetch(`${BACKEND_URL}/api/accounts/recovery-analytics?${rq}`, { headers: { Authorization: `Bearer ${token}` } })
       .then((res) => res.json())
       .then((json) => {
         if (json.success) setData(json.data);
@@ -52,14 +57,14 @@ export default function RecoveryAnalyticsPage() {
       .finally(() => setLoading(false));
 
     setChannelLoading(true);
-    fetch(`${BACKEND_URL}/api/accounts/recovery-analytics/channel-wise?range=${range}`, { headers: { Authorization: `Bearer ${token}` } })
+    fetch(`${BACKEND_URL}/api/accounts/recovery-analytics/channel-wise?${rq}`, { headers: { Authorization: `Bearer ${token}` } })
       .then((res) => res.json())
       .then((json) => {
         if (json.success) setChannelData(json.data);
       })
       .catch((err) => console.error("Failed to load channel-wise recovery:", err))
       .finally(() => setChannelLoading(false));
-  }, [range]);
+  }, [rq]);
 
   const gridColor = "#e1e0d9";
   const axisLabelStyle = { colors: "#898781", fontSize: "11px", fontWeight: 600 };
@@ -95,9 +100,9 @@ export default function RecoveryAnalyticsPage() {
             {RANGES.map((r) => (
               <button
                 key={r}
-                onClick={() => setRange(r)}
+                onClick={() => { setRange(r); setCustom({ from: "", to: "" }); }}
                 className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
-                  range === r ? "bg-white text-[#ff3d3d] shadow-sm dark:bg-boxdark" : "text-gray-500 hover:text-gray-700 dark:text-gray-400"
+                  !isCustom && range === r ? "bg-white text-[#ff3d3d] shadow-sm dark:bg-boxdark" : "text-gray-500 hover:text-gray-700 dark:text-gray-400"
                 }`}
               >
                 {r}
@@ -106,6 +111,9 @@ export default function RecoveryAnalyticsPage() {
           </div>
         }
       />
+      <div className="mb-4">
+        <DateRangeFilter value={custom} onChange={setCustom} presets={false} />
+      </div>
 
       <div className="mb-6 flex flex-wrap gap-4">
         <div className="flex items-center gap-3 rounded-2xl border border-emerald-100 bg-emerald-50 px-5 py-4 dark:border-emerald-500/20 dark:bg-emerald-500/10">

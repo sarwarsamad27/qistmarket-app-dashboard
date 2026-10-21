@@ -90,10 +90,10 @@ export default function AdminCustomerRiskPage() {
           {result.history.length > 0 && (
             <div className="overflow-x-auto rounded-2xl border border-slate-100 bg-white shadow-sm dark:border-white/10 dark:bg-boxdark">
               <table className="w-full text-left text-sm">
-                <thead className="bg-gray-50 text-[11px] uppercase tracking-wide text-gray-500 dark:bg-dark-2 dark:text-gray-400"><tr><th className="px-4 py-3 font-bold">Action</th><th className="px-4 py-3 font-bold">Category</th><th className="px-4 py-3 font-bold">Reason</th><th className="px-4 py-3 font-bold">Date</th></tr></thead>
+                <thead className="bg-gray-50 text-[11px] uppercase tracking-wide text-gray-500 dark:bg-dark-2 dark:text-gray-400"><tr><th className="px-4 py-3 font-bold">S.No</th><th className="px-4 py-3 font-bold">Action</th><th className="px-4 py-3 font-bold">Category</th><th className="px-4 py-3 font-bold">Reason</th><th className="px-4 py-3 font-bold">Date</th></tr></thead>
                 <tbody>
-                  {result.history.map((h) => (
-                    <tr key={h.id} className="border-t border-slate-50 dark:border-white/5">
+                  {result.history.map((h, idx) => (
+                    <tr key={h.id} className="border-t border-slate-50 dark:border-white/5"><td className="px-4 py-3.5 font-semibold text-gray-500 tabular-nums">{idx + 1}</td>
                       <td className="px-4 py-3.5 font-semibold capitalize text-dark dark:text-white">{h.action}</td>
                       <td className="px-4 py-3.5 capitalize text-gray-600 dark:text-gray-300">{h.category || "—"}</td>
                       <td className="px-4 py-3.5 text-gray-600 dark:text-gray-300">{h.reason || "—"}</td>

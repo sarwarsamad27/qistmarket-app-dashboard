@@ -197,7 +197,7 @@ export default function VendorLedgerPage() {
                     <table className="w-full text-left border-collapse">
                         <thead>
                             <tr className="bg-gray-50 dark:bg-meta-4 text-[10px] uppercase font-black tracking-widest text-gray-400">
-                                <th className="p-5 border-b border-stroke dark:border-strokedark">Date</th>
+                                <th className="p-5 dark:border-strokedark">S.No</th><th className="p-5 border-b border-stroke dark:border-strokedark">Date</th>
                                 <th className="p-5 border-b border-stroke dark:border-strokedark">Type</th>
                                 <th className="p-5 border-b border-stroke dark:border-strokedark">Reference</th>
                                 <th className="p-5 border-b border-stroke dark:border-strokedark">Due Date</th>
@@ -210,11 +210,11 @@ export default function VendorLedgerPage() {
                         <tbody className="divide-y divide-stroke dark:divide-strokedark text-sm">
                             {filteredLedger.length === 0 ? (
                                 <tr>
-                                    <td colSpan={7} className="p-10 text-center text-gray-400 font-bold">No transactions found for this period.</td>
+                                    <td colSpan={8} className="p-10 text-center text-gray-400 font-bold">No transactions found for this period.</td>
                                 </tr>
                             ) : (
                                 filteredLedger.map((entry, idx) => (
-                                    <tr key={idx} className="hover:bg-gray-50 dark:hover:bg-meta-4/20 transition-all group">
+                                    <tr key={idx} className="hover:bg-gray-50 dark:hover:bg-meta-4/20 transition-all group"><td className="p-5 font-bold whitespace-nowrap text-gray-500 tabular-nums">{idx + 1}</td>
                                         <td className="p-5 font-bold text-gray-500 whitespace-nowrap">
                                             {formatExactDate(entry.date, 'MMM DD, YYYY')}
                                         </td>

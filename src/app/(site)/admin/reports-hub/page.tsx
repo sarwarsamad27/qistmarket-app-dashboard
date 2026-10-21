@@ -9,6 +9,8 @@ import EmptyState from "@/components/Accounts/EmptyState";
 import { TableSkeleton } from "@/components/Accounts/Skeleton";
 import StatCard, { PKR } from "@/components/Accounts/StatCard";
 import { formatExactDate } from "@/utils/dateUtils";
+import DateRangeFilter, { type DateRange } from "@/components/Accounts/DateRangeFilter";
+import { pktDate, pktMonthStart } from "@/utils/pkt";
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
 const authHeaders = () => ({ Authorization: `Bearer ${Cookies.get("auth_token")}` });
@@ -41,16 +43,21 @@ export default function AdminReportsHubPage() {
   const [tab, setTab] = useState<(typeof TABS)[number]["key"]>("daybook");
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  // Every tab is filtered by the same From–To range (default: this month).
+  const [range, setRange] = useState<DateRange>({ from: pktMonthStart(), to: pktDate() });
 
   useEffect(() => {
     setLoading(true);
     setData(null);
-    fetch(`${BACKEND_URL}${ENDPOINT[tab]}`, { headers: authHeaders() })
+    const qs = new URLSearchParams();
+    if (range.from) qs.set("startDate", range.from);
+    if (range.to) qs.set("endDate", range.to);
+    fetch(`${BACKEND_URL}${ENDPOINT[tab]}${qs.toString() ? `?${qs}` : ""}`, { headers: authHeaders() })
       .then((r) => r.json())
       .then((json) => { if (json.success) setData(json.data); })
       .catch((err) => console.error(`Failed to load ${tab} report:`, err))
       .finally(() => setLoading(false));
-  }, [tab]);
+  }, [tab, range.from, range.to]);
 
   return (
     <>
@@ -63,6 +70,13 @@ export default function AdminReportsHubPage() {
             <t.icon className="size-3.5" /> {t.label}
           </button>
         ))}
+      </div>
+
+      <div className="mb-4">
+        <DateRangeFilter value={range} onChange={setRange} />
+        <p className="mt-1.5 text-[11px] text-gray-400">
+          {tab === "vendors" ? "Invoices purchased in this period (aging is as of today)." : tab === "payroll" ? "Payroll months that fall in this period." : tab === "daybook" ? "Leave both dates empty for today." : "Leave both dates empty for all time."}
+        </p>
       </div>
 
       {loading ? (
@@ -131,8 +145,9 @@ export default function AdminReportsHubPage() {
                   empty="No expense vouchers for this period."
                   columns={[
                     { header: "Voucher", cell: (e: any) => e.voucher_number || e.id },
-                    { header: "Category", cell: (e: any) => e.category || "—" },
-                    { header: "Amount", align: "right", cell: (e: any) => PKR(e.amount) },
+                    { header: "Outlet", cell: (e: any) => e.outlet?.name || "Head Office" },
+                    { header: "Category", cell: (e: any) => [...new Set((e.items || []).map((i: any) => i.category || "General"))].join(", ") || "—" },
+                    { header: "Amount", align: "right", cell: (e: any) => PKR(e.total_amount) },
                     { header: "Date", cell: (e: any) => new Date(e.date).toLocaleDateString() },
                   ]}
                 />
@@ -270,11 +285,15 @@ function ReportTable({ rows, columns, empty }: { rows: any[]; columns: { header:
     <div className="overflow-x-auto rounded-2xl border border-slate-100 bg-white shadow-sm dark:border-white/10 dark:bg-boxdark">
       <table className="w-full text-left text-sm">
         <thead className="bg-gray-50 text-[11px] uppercase tracking-wide text-gray-500 dark:bg-dark-2 dark:text-gray-400">
-          <tr>{columns.map((c) => <th key={c.header} className={`px-4 py-3 font-bold ${c.align === "right" ? "text-right" : ""}`}>{c.header}</th>)}</tr>
+          <tr>
+            <th className="w-14 px-4 py-3 font-bold">S.No</th>
+            {columns.map((c) => <th key={c.header} className={`px-4 py-3 font-bold ${c.align === "right" ? "text-right" : ""}`}>{c.header}</th>)}
+          </tr>
         </thead>
         <tbody>
           {rows.slice(0, 150).map((row, idx) => (
-            <tr key={row.id ?? idx} className="border-t border-slate-50 dark:border-white/5">
+            <tr key={idx} className="border-t border-slate-50 dark:border-white/5">
+              <td className="px-4 py-3.5 text-gray-400 tabular-nums">{idx + 1}</td>
               {columns.map((c) => <td key={c.header} className={`px-4 py-3.5 text-gray-600 dark:text-gray-300 ${c.align === "right" ? "text-right tabular-nums" : ""}`}>{c.cell(row)}</td>)}
             </tr>
           ))}

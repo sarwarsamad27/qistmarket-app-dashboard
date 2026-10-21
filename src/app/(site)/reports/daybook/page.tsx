@@ -6,6 +6,7 @@ import Breadcrumb from '@/components/Breadcrumbs/Breadcrumb'
 import Loader from '@/components/common/Loader'
 import { ArrowUp, ArrowDown, Banknote } from 'lucide-react'
 import OutletSelector from '@/components/common/OutletSelector'
+import DateRangeFilter, { type DateRange } from '@/components/Accounts/DateRangeFilter'
 import { pktDate } from '@/utils/pkt'
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
@@ -21,36 +22,36 @@ interface SummaryData {
 }
 
 interface Payment {
-  id: number
   amount: number
   paymentType: string
   paidAt: string
-  order: {
-    order_ref: string
-    customer_name: string
-  }
+  order_ref: string
+  customer_name: string
 }
 
 interface Expense {
-  id: number
+  id: string
   amount: number
   expense_type: string
   description: string
+  voucher_number: string
+  outlet_name: string
   created_at: string
 }
 
 export default function GlobalDaybookPage() {
   const [loading, setLoading] = useState(true)
   const [data, setData] = useState<{ summary: SummaryData; payments: Payment[]; expenses: Expense[] } | null>(null)
-  const [date, setDate] = useState(pktDate())
+  const [range, setRange] = useState<DateRange>({ from: pktDate(), to: pktDate() })
   const [outletId, setOutletId] = useState('all')
   const token = useMemo(() => Cookies.get('auth_token'), [])
 
-  const fetchDaybook = async (selectedDate: string, selOutletId: string) => {
+  const fetchDaybook = async (r: DateRange, selOutletId: string) => {
     if (!token) return
     setLoading(true)
     try {
-      const url = `${BACKEND_URL}/api/outlet-reports/daybook?startDate=${selectedDate}&outletId=${selOutletId}`
+      // Empty dates = today (the server's default for the daybook)
+      const url = `${BACKEND_URL}/api/outlet-reports/daybook?startDate=${r.from || r.to}&endDate=${r.to || r.from}&outletId=${selOutletId}`
       const res = await fetch(url, {
         headers: { Authorization: `Bearer ${token}` }
       })
@@ -66,8 +67,8 @@ export default function GlobalDaybookPage() {
   }
 
   useEffect(() => {
-    fetchDaybook(date, outletId)
-  }, [date, outletId, token])
+    fetchDaybook(range, outletId)
+  }, [range.from, range.to, outletId, token])
 
   return (
     <>
@@ -78,18 +79,10 @@ export default function GlobalDaybookPage() {
           <h2 className="text-xl font-bold text-dark dark:text-white text-emerald-600">Nationwide Cash Flow</h2>
           <p className="text-sm text-gray-500 dark:text-gray-400">Consolidated daybook across all business channels.</p>
         </div>
-        
+
         <div className="flex flex-wrap items-center gap-4">
           <OutletSelector selectedId={outletId} onSelect={setOutletId} />
-          <div className="flex items-center gap-2 text-sm">
-            <label className="font-medium text-gray-700 dark:text-gray-300">Date:</label>
-            <input 
-              type="date" 
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-              className="rounded-lg border border-stroke bg-white px-3 py-1.5 text-sm outline-none focus:border-[#ff3d3d] dark:border-dark-3 dark:bg-gray-dark dark:text-white"
-            />
-          </div>
+          <DateRangeFilter value={range} onChange={setRange} />
         </div>
       </div>
 
@@ -155,19 +148,21 @@ function IncomeTable({ payments }: { payments: Payment[] }) {
         <table className="w-full text-left">
           <thead className="sticky top-0 bg-gray-50 dark:bg-dark-3">
             <tr className="text-[11px] uppercase text-gray-500">
+              <th className="px-6 py-3 w-12">S.No</th>
               <th className="px-6 py-3">Order Ref</th>
               <th className="px-6 py-3 text-right">Amount</th>
             </tr>
           </thead>
           <tbody className="text-sm">
             {payments.length === 0 ? (
-              <tr><td colSpan={2} className="px-6 py-10 text-center text-gray-500">No income records.</td></tr>
+              <tr><td colSpan={3} className="px-6 py-10 text-center text-gray-500">No income records.</td></tr>
             ) : (
-              payments.map((p) => (
-                <tr key={p.id} className="border-b border-stroke last:border-0 dark:border-dark-3">
+              payments.map((p, idx) => (
+                <tr key={`${p.order_ref}-${idx}`} className="border-b border-stroke last:border-0 dark:border-dark-3">
+                  <td className="px-6 py-3 text-gray-500">{idx + 1}</td>
                   <td className="px-6 py-3">
-                    <div className="font-medium text-dark dark:text-white">{p.order.order_ref}</div>
-                    <div className="text-xs text-gray-400 capitalize">{p.order.customer_name} ({p.paymentType})</div>
+                    <div className="font-medium text-dark dark:text-white">{p.order_ref}</div>
+                    <div className="text-xs text-gray-400 capitalize">{p.customer_name} ({p.paymentType})</div>
                   </td>
                   <td className="px-6 py-3 text-right font-semibold text-emerald-600">Rs. {p.amount.toLocaleString()}</td>
                 </tr>
@@ -190,19 +185,22 @@ function ExpenseTable({ expenses }: { expenses: Expense[] }) {
         <table className="w-full text-left">
           <thead className="sticky top-0 bg-gray-50 dark:bg-dark-3">
             <tr className="text-[11px] uppercase text-gray-500">
+              <th className="px-6 py-3 w-12">S.No</th>
               <th className="px-6 py-3">Category</th>
               <th className="px-6 py-3 text-right">Amount</th>
             </tr>
           </thead>
           <tbody className="text-sm">
             {expenses.length === 0 ? (
-              <tr><td colSpan={2} className="px-6 py-10 text-center text-gray-500">No expense records.</td></tr>
+              <tr><td colSpan={3} className="px-6 py-10 text-center text-gray-500">No expense records.</td></tr>
             ) : (
-              expenses.map((e) => (
+              expenses.map((e, idx) => (
                 <tr key={e.id} className="border-b border-stroke last:border-0 dark:border-dark-3">
+                  <td className="px-6 py-3 text-gray-500">{idx + 1}</td>
                   <td className="px-6 py-3">
                     <div className="font-medium text-dark dark:text-white">{e.expense_type}</div>
                     <div className="text-xs text-gray-400">{e.description || 'No description'}</div>
+                    <div className="text-[11px] text-gray-400">{e.voucher_number} · {e.outlet_name}</div>
                   </td>
                   <td className="px-6 py-3 text-right font-semibold text-red-600">Rs. {e.amount.toLocaleString()}</td>
                 </tr>

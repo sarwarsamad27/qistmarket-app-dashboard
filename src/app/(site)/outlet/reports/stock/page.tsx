@@ -4,6 +4,7 @@ import { useEffect, useState, useMemo } from 'react'
 import Cookies from 'js-cookie'
 import Breadcrumb from '@/components/Breadcrumbs/Breadcrumb'
 import Loader from '@/components/common/Loader'
+import DateRangeFilter, { type DateRange } from '@/components/Accounts/DateRangeFilter'
 import { Package, DollarSign, CheckCircle2, ShoppingCart } from 'lucide-react'
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
@@ -20,12 +21,17 @@ export default function StockSummaryPage() {
   const [loading, setLoading] = useState(true)
   const [data, setData] = useState<StockItem[]>([])
   const token = useMemo(() => Cookies.get('auth_token'), [])
+  const [range, setRange] = useState<DateRange>({ from: '', to: '' })
 
   useEffect(() => {
     const fetchStock = async () => {
       if (!token) return
+      setLoading(true)
       try {
-        const res = await fetch(`${BACKEND_URL}/api/outlet-reports/stock-summary`, {
+        const qs = new URLSearchParams()
+        if (range.from) qs.set('startDate', range.from)
+        if (range.to) qs.set('endDate', range.to)
+        const res = await fetch(`${BACKEND_URL}/api/outlet-reports/stock-summary?${qs}`, {
           headers: { Authorization: `Bearer ${token}` }
         })
         const json = await res.json()
@@ -39,7 +45,7 @@ export default function StockSummaryPage() {
       }
     }
     fetchStock()
-  }, [token])
+  }, [token, range.from, range.to])
 
   const totals = useMemo(() => {
     return data.reduce((acc, item) => ({
@@ -59,6 +65,8 @@ export default function StockSummaryPage() {
       <div className="mb-8">
         <h2 className="text-xl font-bold text-dark dark:text-white">Inventory Valuation</h2>
         <p className="text-sm text-gray-500 dark:text-gray-400">Overview of your current stock levels and their capital value.</p>
+        <div className="mt-3"><DateRangeFilter value={range} onChange={setRange} /></div>
+        <p className="mt-1 text-xs text-gray-400">Dates filter the units sold in that period. Available stock and valuation are always as of today.</p>
       </div>
 
       <div className="mb-8 grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
@@ -76,7 +84,7 @@ export default function StockSummaryPage() {
           <table className="w-full text-left">
             <thead>
               <tr className="bg-gray-50 text-[11px] uppercase text-gray-500 dark:bg-dark-3">
-                <th className="px-6 py-4">Product Name</th>
+                <th className="px-6 py-4">S.No</th><th className="px-6 py-4">Product Name</th>
                 <th className="px-6 py-4 text-center">Total</th>
                 <th className="px-6 py-4 text-center">In Stock</th>
                 <th className="px-6 py-4 text-center">Sold</th>
@@ -85,7 +93,7 @@ export default function StockSummaryPage() {
             </thead>
             <tbody className="text-sm">
               {data.map((item, idx) => (
-                <tr key={idx} className="border-b border-stroke last:border-0 hover:bg-gray-50 dark:border-dark-3 dark:hover:bg-dark-3">
+                <tr key={idx} className="border-b border-stroke last:border-0 hover:bg-gray-50 dark:border-dark-3 dark:hover:bg-dark-3"><td className="px-6 py-4 font-medium text-gray-500 tabular-nums">{idx + 1}</td>
                   <td className="px-6 py-4 font-medium text-dark dark:text-white">{item.product}</td>
                   <td className="px-6 py-4 text-center font-bold text-gray-500">{item.total}</td>
                   <td className="px-6 py-4 text-center font-bold text-emerald-500">{item.inStock}</td>
@@ -94,7 +102,7 @@ export default function StockSummaryPage() {
                 </tr>
               ))}
               {data.length === 0 && (
-                <tr><td colSpan={5} className="px-6 py-10 text-center text-gray-500">No inventory found in this outlet.</td></tr>
+                <tr><td colSpan={6} className="px-6 py-10 text-center text-gray-500">No inventory found in this outlet.</td></tr>
               )}
             </tbody>
           </table>

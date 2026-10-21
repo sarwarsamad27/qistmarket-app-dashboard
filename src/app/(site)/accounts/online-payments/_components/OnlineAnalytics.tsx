@@ -58,8 +58,9 @@ export default function OnlineAnalytics() {
       </div>
       <table className="w-full text-left text-sm">
         <tbody>
-          {rows.map((g) => (
+          {rows.map((g, idx) => (
             <tr key={g.key} className="border-t border-slate-100 first:border-0 dark:border-white/5">
+              <td className="w-8 py-1.5 text-xs tabular-nums text-gray-400">{idx + 1}</td>
               <td className="py-1.5">{g.key}</td>
               <td className="py-1.5 text-right text-xs tabular-nums text-gray-500">{g.count}</td>
               <td className="py-1.5 text-right font-semibold tabular-nums">{PKR(g.amount)}</td>

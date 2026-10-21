@@ -28,6 +28,7 @@ import { formatExactDate } from "@/utils/dateUtils";
 import { apiErrorMessage, getErrorMessage } from "@/lib/apiErrors";
 
 
+import { serialColumn } from '@/utils/serialColumn'
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -448,6 +449,7 @@ const ApprovedOrderList = () => {
       enableSorting: false,
       enableColumnFilter: false,
     },
+    serialColumn<Order>(),
     {
       accessorKey: 'updated_at',
       header: 'Activity Date',

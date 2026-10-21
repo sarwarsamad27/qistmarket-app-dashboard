@@ -8,7 +8,6 @@ import {
   Banknote, 
   Package, 
   BarChart3, 
-  Users, 
   Clock 
 } from 'lucide-react'
 
@@ -52,14 +51,6 @@ const reports = [
     href: '/reports/recovery',
     color: 'text-purple-500',
     bgColor: 'bg-purple-500/10',
-  },
-  {
-    title: 'Customer Ledger',
-    description: 'Look up customer transaction history across multiple outlets.',
-    icon: Users,
-    href: '/reports/ledger',
-    color: 'text-cyan-500',
-    bgColor: 'bg-cyan-500/10',
   },
 ]
 

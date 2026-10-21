@@ -311,9 +311,9 @@ export default function AccountsVendorsPage() {
               {view === "vendor" ? (
                 data && data.vendorWise.filter((v) => v.vendor_name.toLowerCase().includes(search.toLowerCase())).length > 0 ? (
                   <table className="w-full text-left text-sm">
-                    <thead className={thead}><tr><th className="px-4 py-3 font-bold">Vendor</th><th className="px-4 py-3 text-right font-bold">Total Purchased</th><th className="px-4 py-3 text-right font-bold">Paid</th><th className="px-4 py-3 text-right font-bold">Balance</th><th className="px-4 py-3"></th></tr></thead>
-                    <tbody>{data.vendorWise.filter((v) => v.vendor_name.toLowerCase().includes(search.toLowerCase())).sort((a, b) => b.balance - a.balance).map((v) => (
-                      <tr key={`${v.vendor_id}-${v.vendor_name}`} className="border-t border-slate-50 dark:border-white/5">
+                    <thead className={thead}><tr><th className="px-4 py-3 font-bold">S.No</th><th className="px-4 py-3 font-bold">Vendor</th><th className="px-4 py-3 text-right font-bold">Total Purchased</th><th className="px-4 py-3 text-right font-bold">Paid</th><th className="px-4 py-3 text-right font-bold">Balance</th><th className="px-4 py-3"></th></tr></thead>
+                    <tbody>{data.vendorWise.filter((v) => v.vendor_name.toLowerCase().includes(search.toLowerCase())).sort((a, b) => b.balance - a.balance).map((v, idx) => (
+                      <tr key={`${v.vendor_id}-${v.vendor_name}`} className="border-t border-slate-50 dark:border-white/5"><td className="px-4 py-3.5 font-medium text-gray-500 tabular-nums">{idx + 1}</td>
                         <td className="px-4 py-3.5 font-medium text-dark dark:text-white">{v.vendor_id ? <button onClick={() => setLedgerVendor(v.vendor_id)} className="hover:text-[#ff3d3d] hover:underline">{v.vendor_name}</button> : v.vendor_name}</td>
                         <td className="px-4 py-3.5 text-right tabular-nums text-gray-600 dark:text-gray-300">{PKR(v.total_amount)}</td>
                         <td className="px-4 py-3.5 text-right tabular-nums text-gray-600 dark:text-gray-300">{PKR(v.paid_amount)}</td>
@@ -328,9 +328,9 @@ export default function AccountsVendorsPage() {
               ) : (
                 data && data.outletWise.length > 0 ? (
                   <table className="w-full text-left text-sm">
-                    <thead className={thead}><tr><th className="px-4 py-3 font-bold">Outlet</th><th className="px-4 py-3 text-right font-bold">Payable</th></tr></thead>
-                    <tbody>{data.outletWise.map((o) => (
-                      <tr key={o.outlet_id ?? "unassigned"} className="border-t border-slate-50 dark:border-white/5"><td className="px-4 py-3.5 font-medium text-dark dark:text-white">{o.outlet_name}</td><td className="px-4 py-3.5 text-right font-bold tabular-nums text-orange-600">{PKR(o.payable)}</td></tr>
+                    <thead className={thead}><tr><th className="px-4 py-3 font-bold">S.No</th><th className="px-4 py-3 font-bold">Outlet</th><th className="px-4 py-3 text-right font-bold">Payable</th></tr></thead>
+                    <tbody>{data.outletWise.map((o, idx) => (
+                      <tr key={o.outlet_id ?? "unassigned"} className="border-t border-slate-50 dark:border-white/5"><td className="px-4 py-3.5 font-medium text-gray-500 tabular-nums">{idx + 1}</td><td className="px-4 py-3.5 font-medium text-dark dark:text-white">{o.outlet_name}</td><td className="px-4 py-3.5 text-right font-bold tabular-nums text-orange-600">{PKR(o.payable)}</td></tr>
                     ))}</tbody>
                   </table>
                 ) : <EmptyState icon={Store} title="No outlet-wise payables" />
@@ -394,10 +394,10 @@ export default function AccountsVendorsPage() {
             <div className={card}>
               <div className="max-h-[600px] overflow-auto">
                 <table className="w-full text-left text-sm">
-                  <thead className={`${thead} sticky top-0`}><tr><th className="px-4 py-3">Invoice</th><th className="px-4 py-3">Vendor</th><th className="px-4 py-3">Bought by</th><th className="px-4 py-3">Items</th><th className="px-4 py-3">Date / Due</th><th className="px-4 py-3 text-right">Total</th><th className="px-4 py-3 text-right">Balance</th><th className="px-4 py-3">Status</th><th className="px-4 py-3"></th></tr></thead>
+                  <thead className={`${thead} sticky top-0`}><tr><th className="px-4 py-3">S.No</th><th className="px-4 py-3">Invoice</th><th className="px-4 py-3">Vendor</th><th className="px-4 py-3">Bought by</th><th className="px-4 py-3">Items</th><th className="px-4 py-3">Date / Due</th><th className="px-4 py-3 text-right">Total</th><th className="px-4 py-3 text-right">Balance</th><th className="px-4 py-3">Status</th><th className="px-4 py-3"></th></tr></thead>
                   <tbody>
-                    {purchases.map((p) => (
-                      <tr key={p.id} className={`border-t border-slate-50 dark:border-white/5 ${deletedRowClass(p)}`}>
+                    {purchases.map((p, idx) => (
+                      <tr key={p.id} className={`border-t border-slate-50 dark:border-white/5 ${deletedRowClass(p)}`}><td className="px-4 py-3 text-xs font-semibold text-gray-500 tabular-nums">{idx + 1}</td>
                         <td className="px-4 py-3 font-mono text-xs font-semibold text-dark dark:text-white">{p.invoice_number}<DeletedBadge row={p} />{p.deleted_at && <p className="font-sans text-[10px] font-normal text-gray-500">{p.deleted_by_name ? `by ${p.deleted_by_name}` : ""}{p.delete_reason ? ` — ${p.delete_reason}` : ""}</p>}</td>
                         <td className="px-4 py-3">{p.vendor_id ? <button onClick={() => setLedgerVendor(p.vendor_id)} className="font-medium text-dark hover:text-[#ff3d3d] hover:underline dark:text-white">{p.vendor_name}</button> : p.vendor_name}</td>
                         <td className="px-4 py-3 text-gray-600 dark:text-gray-300">{p.is_head_office ? <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-xs font-bold text-indigo-700 dark:bg-indigo-500/10">Head Office</span> : p.outlet?.name}</td>
@@ -488,9 +488,9 @@ export default function AccountsVendorsPage() {
               <div className={card}>
                 <div className="max-h-[600px] overflow-auto">
                   <table className="w-full text-left text-sm">
-                    <thead className={`${thead} sticky top-0`}><tr><th className="px-4 py-3 font-bold">Vendor</th><th className="px-4 py-3 text-right font-bold">Not yet due</th><th className="px-4 py-3 text-right font-bold">0–30</th><th className="px-4 py-3 text-right font-bold">31–60</th><th className="px-4 py-3 text-right font-bold">61–90</th><th className="px-4 py-3 text-right font-bold">90+</th><th className="px-4 py-3 text-right font-bold">Total owed</th><th className="px-4 py-3"></th></tr></thead>
-                    <tbody>{vendors.map((v) => (
-                      <tr key={`${v.vendor_id}-${v.vendor_name}`} className="border-t border-slate-50 dark:border-white/5">
+                    <thead className={`${thead} sticky top-0`}><tr><th className="px-4 py-3 font-bold">S.No</th><th className="px-4 py-3 font-bold">Vendor</th><th className="px-4 py-3 text-right font-bold">Not yet due</th><th className="px-4 py-3 text-right font-bold">0–30</th><th className="px-4 py-3 text-right font-bold">31–60</th><th className="px-4 py-3 text-right font-bold">61–90</th><th className="px-4 py-3 text-right font-bold">90+</th><th className="px-4 py-3 text-right font-bold">Total owed</th><th className="px-4 py-3"></th></tr></thead>
+                    <tbody>{vendors.map((v, idx) => (
+                      <tr key={`${v.vendor_id}-${v.vendor_name}`} className="border-t border-slate-50 dark:border-white/5"><td className="px-4 py-3.5 text-gray-500 tabular-nums">{idx + 1}</td>
                         <td className="px-4 py-3.5">{v.vendor_id ? <button onClick={() => setLedgerVendor(v.vendor_id)} className="font-medium text-dark hover:text-[#ff3d3d] hover:underline dark:text-white">{v.vendor_name}</button> : <span className="font-medium">{v.vendor_name}</span>}<p className="text-xs text-gray-400">{v.invoices} invoice(s){v.oldest_days ? ` · oldest ${v.oldest_days} days overdue` : ""}</p></td>
                         {(["not_due", "0-30", "31-60", "61-90", "90+"] as const).map((k) => <td key={k} className={`px-4 py-3.5 text-right tabular-nums ${(v as any)[k] ? BUCKET_COLORS[k] + " font-semibold" : "text-gray-300"}`}>{(v as any)[k] ? PKR((v as any)[k]) : "—"}</td>)}
                         <td className="px-4 py-3.5 text-right font-black tabular-nums text-dark dark:text-white">{PKR(v.total)}</td>
@@ -504,9 +504,9 @@ export default function AccountsVendorsPage() {
               <div className={card}>
                 <div className="max-h-[600px] overflow-auto">
                   <table className="w-full text-left text-sm">
-                    <thead className={`${thead} sticky top-0`}><tr><th className="px-4 py-3 font-bold">Invoice</th><th className="px-4 py-3 font-bold">Vendor</th><th className="px-4 py-3 font-bold">Outlet</th><th className="px-4 py-3 font-bold">Due Date</th><th className="px-4 py-3 text-right font-bold">Days Overdue</th><th className="px-4 py-3 text-right font-bold">Balance</th><th className="px-4 py-3"></th></tr></thead>
-                    <tbody>{items.map((it) => (
-                      <tr key={it.purchase_id} className="border-t border-slate-50 dark:border-white/5">
+                    <thead className={`${thead} sticky top-0`}><tr><th className="px-4 py-3 font-bold">S.No</th><th className="px-4 py-3 font-bold">Invoice</th><th className="px-4 py-3 font-bold">Vendor</th><th className="px-4 py-3 font-bold">Outlet</th><th className="px-4 py-3 font-bold">Due Date</th><th className="px-4 py-3 text-right font-bold">Days Overdue</th><th className="px-4 py-3 text-right font-bold">Balance</th><th className="px-4 py-3"></th></tr></thead>
+                    <tbody>{items.map((it, idx) => (
+                      <tr key={it.purchase_id} className="border-t border-slate-50 dark:border-white/5"><td className="px-4 py-3.5 font-semibold text-gray-500 tabular-nums">{idx + 1}</td>
                         <td className="px-4 py-3.5 font-semibold text-dark dark:text-white">{it.invoice_number}</td>
                         <td className="px-4 py-3.5 text-gray-600 dark:text-gray-300">{it.vendor_name}</td>
                         <td className="px-4 py-3.5 text-gray-600 dark:text-gray-300">{it.outlet_name || "—"}</td>
@@ -566,8 +566,9 @@ export default function AccountsVendorsPage() {
             <div className={card}>
               <p className="border-b border-slate-100 px-4 py-2.5 text-xs font-bold uppercase tracking-wide text-gray-500 dark:border-white/10">Scheduled payments due</p>
               <table className="w-full text-left text-sm">
-                <tbody>{scheduledDue.filter((x) => !alertSearch.trim() || `${x.vendor_name} ${x.outlet_name}`.toLowerCase().includes(alertSearch.trim().toLowerCase())).map((x) => (
+                <tbody>{scheduledDue.filter((x) => !alertSearch.trim() || `${x.vendor_name} ${x.outlet_name}`.toLowerCase().includes(alertSearch.trim().toLowerCase())).map((x, idx) => (
                   <tr key={x.id} className="border-t border-slate-50 first:border-0 dark:border-white/5">
+                    <td className="w-10 px-4 py-3 tabular-nums text-gray-400">{idx + 1}</td>
                     <td className="px-4 py-3 font-medium text-dark dark:text-white">{x.vendor_name}<p className="text-xs font-normal text-gray-400">{x.outlet_name}{x.notes ? ` · ${x.notes}` : ""}</p></td>
                     <td className={`px-4 py-3 ${x.isOverdue ? "font-semibold text-rose-600" : "text-gray-500"}`}>{day(x.scheduled_date)}{x.isOverdue && " (past)"}</td>
                     <td className="px-4 py-3 text-right font-bold tabular-nums">{PKR(x.amount)}</td>
@@ -580,11 +581,11 @@ export default function AccountsVendorsPage() {
           {alertsLoading ? <TableSkeleton /> : alerts.length > 0 ? (
             <div className={card}>
               <table className="w-full text-left text-sm">
-                <thead className={thead}><tr><th className="px-4 py-3 font-bold">Invoice</th><th className="px-4 py-3 font-bold">Vendor</th><th className="px-4 py-3 font-bold">Outlet</th><th className="px-4 py-3 font-bold">Due Date</th><th className="px-4 py-3 font-bold">Status</th><th className="px-4 py-3 text-right font-bold">Balance</th><th className="px-4 py-3"></th></tr></thead>
-                <tbody>{alerts.filter((a) => !alertSearch.trim() || `${a.invoice_number} ${a.vendor_name} ${a.outlet_name}`.toLowerCase().includes(alertSearch.trim().toLowerCase())).map((a) => {
+                <thead className={thead}><tr><th className="px-4 py-3 font-bold">S.No</th><th className="px-4 py-3 font-bold">Invoice</th><th className="px-4 py-3 font-bold">Vendor</th><th className="px-4 py-3 font-bold">Outlet</th><th className="px-4 py-3 font-bold">Due Date</th><th className="px-4 py-3 font-bold">Status</th><th className="px-4 py-3 text-right font-bold">Balance</th><th className="px-4 py-3"></th></tr></thead>
+                <tbody>{alerts.filter((a) => !alertSearch.trim() || `${a.invoice_number} ${a.vendor_name} ${a.outlet_name}`.toLowerCase().includes(alertSearch.trim().toLowerCase())).map((a, idx) => {
                   const days = Math.round((new Date(a.due_date).getTime() - Date.now()) / 86400000);
                   return (
-                    <tr key={a.purchase_id} className="border-t border-slate-50 dark:border-white/5">
+                    <tr key={a.purchase_id} className="border-t border-slate-50 dark:border-white/5"><td className="px-4 py-3.5 font-semibold text-gray-500 tabular-nums">{idx + 1}</td>
                       <td className="px-4 py-3.5 font-semibold text-dark dark:text-white">{a.invoice_number}</td>
                       <td className="px-4 py-3.5 text-gray-600 dark:text-gray-300">{a.vendor_name}</td>
                       <td className="px-4 py-3.5 text-gray-600 dark:text-gray-300">{a.outlet_name}</td>
@@ -635,11 +636,11 @@ export default function AccountsVendorsPage() {
                 ]} getRows={() => scheduled} />
               </div>
               <table className="w-full text-left text-sm">
-                <thead className={thead}><tr><th className="px-4 py-3 font-bold">Vendor</th><th className="px-4 py-3 font-bold">Date</th><th className="px-4 py-3 text-right font-bold">Amount</th><th className="px-4 py-3 font-bold">Status</th><th className="px-4 py-3"></th></tr></thead>
-                <tbody>{scheduled.map((s) => {
+                <thead className={thead}><tr><th className="px-4 py-3 font-bold">S.No</th><th className="px-4 py-3 font-bold">Vendor</th><th className="px-4 py-3 font-bold">Date</th><th className="px-4 py-3 text-right font-bold">Amount</th><th className="px-4 py-3 font-bold">Status</th><th className="px-4 py-3"></th></tr></thead>
+                <tbody>{scheduled.map((s, idx) => {
                   const overdue = s.status === "scheduled" && new Date(s.scheduled_date) < new Date(new Date().toDateString());
                   return (
-                    <tr key={s.id} className="border-t border-slate-50 dark:border-white/5">
+                    <tr key={s.id} className="border-t border-slate-50 dark:border-white/5"><td className="px-4 py-3.5 font-medium text-gray-500 tabular-nums">{idx + 1}</td>
                       <td className="px-4 py-3.5 font-medium text-dark dark:text-white">{s.vendor.name}{s.notes && <p className="text-xs font-normal text-gray-400">{s.notes}</p>}</td>
                       <td className={`px-4 py-3.5 ${overdue ? "font-semibold text-rose-600" : "text-gray-500"}`}>{day(s.scheduled_date)}{overdue && " (past)"}</td>
                       <td className="px-4 py-3.5 text-right font-bold tabular-nums text-dark dark:text-white">{PKR(s.amount)}</td>
@@ -691,10 +692,10 @@ export default function AccountsVendorsPage() {
             {vendorListLoading ? <TableSkeleton /> : filteredVendorList.length > 0 ? (
               <div className="overflow-hidden rounded-xl border border-slate-100 dark:border-white/10">
                 <table className="w-full text-left text-sm">
-                  <thead className={thead}><tr><th className="px-4 py-3 font-bold">Vendor</th><th className="px-4 py-3 font-bold">Outlet</th><th className="px-4 py-3 font-bold">Phone</th><th className="px-4 py-3 text-right font-bold">We Owe</th><th className="px-4 py-3 text-right font-bold">Vendor Cash</th><th className="px-4 py-3"></th></tr></thead>
+                  <thead className={thead}><tr><th className="px-4 py-3 font-bold">S.No</th><th className="px-4 py-3 font-bold">Vendor</th><th className="px-4 py-3 font-bold">Outlet</th><th className="px-4 py-3 font-bold">Phone</th><th className="px-4 py-3 text-right font-bold">We Owe</th><th className="px-4 py-3 text-right font-bold">Vendor Cash</th><th className="px-4 py-3"></th></tr></thead>
                   <tbody>
-                    {filteredVendorList.map((v) => (
-                      <tr key={v.id} className={`border-t border-slate-50 dark:border-white/5 ${deletedRowClass(v)}`}>
+                    {filteredVendorList.map((v, idx) => (
+                      <tr key={v.id} className={`border-t border-slate-50 dark:border-white/5 ${deletedRowClass(v)}`}><td className="px-4 py-3.5 font-medium text-gray-500 tabular-nums">{idx + 1}</td>
                         <td className="px-4 py-3.5 font-medium text-dark dark:text-white">{v.name} <span className="text-xs font-normal text-gray-400">#{v.id}</span><DeletedBadge row={v} />{v.deleted_at && <p className="text-[10px] font-normal text-gray-500">{v.deleted_by_name ? `by ${v.deleted_by_name}` : ""}{v.delete_reason ? ` — ${v.delete_reason}` : ""}</p>}</td>
                         <td className="px-4 py-3.5 text-gray-600 dark:text-gray-300">{v.outlet?.name || <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-xs font-bold text-indigo-700 dark:bg-indigo-500/10">Head Office</span>}</td>
                         <td className="px-4 py-3.5 text-gray-600 dark:text-gray-300">{v.phone || "—"}</td>

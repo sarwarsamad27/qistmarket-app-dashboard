@@ -113,7 +113,7 @@ export default function HrLoansPage() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-stroke bg-gray-2 dark:border-stroke-dark dark:bg-dark-3">
-                <th className="px-4 py-3 text-left">ID</th>
+                <th className="px-4 py-3">S.No</th><th className="px-4 py-3 text-left">ID</th>
                 <th className="px-4 py-3 text-left">Type</th>
                 <th className="px-4 py-3 text-right">Total</th>
                 <th className="px-4 py-3 text-right">Deducted</th>
@@ -125,10 +125,10 @@ export default function HrLoansPage() {
             </thead>
             <tbody>
               {loans.length === 0 && (
-                <tr><td colSpan={8} className="px-4 py-8 text-center text-gray-500">No loans for this employee</td></tr>
+                <tr><td colSpan={9} className="px-4 py-8 text-center text-gray-500">No loans for this employee</td></tr>
               )}
-              {loans.map((loan) => (
-                <tr key={loan.id} className="border-b border-stroke dark:border-stroke-dark">
+              {loans.map((loan, idx) => (
+                <tr key={loan.id} className="border-b border-stroke dark:border-stroke-dark"><td className="px-4 py-3 text-xs text-gray-500 tabular-nums">{idx + 1}</td>
                   <td className="px-4 py-3 font-mono text-xs">#{loan.id}</td>
                   <td className="px-4 py-3 capitalize">{loan.loan_type}</td>
                   <td className="px-4 py-3 text-right">Rs. {loan.total_amount.toLocaleString()}</td>

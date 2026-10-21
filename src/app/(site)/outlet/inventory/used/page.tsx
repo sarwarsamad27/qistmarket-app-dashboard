@@ -493,6 +493,7 @@ export default function OutletInventoryPage() {
                             <thead>
                                 <tr className="bg-gray-50 dark:bg-meta-4 border-b border-stroke dark:border-strokedark text-gray-600 dark:text-gray-300 font-semibold uppercase text-xs tracking-wider">
                                     <th className="px-4 py-4 w-10" />
+                                    <th className="px-4 py-4">S.No</th>
                                     <th className="px-4 py-4">Product</th>
                                     <th className="px-4 py-4">Category</th>
                                     <th className="px-4 py-4">Variant / Color</th>
@@ -505,11 +506,11 @@ export default function OutletInventoryPage() {
                             <tbody>
                                 {grouped.length === 0 ? (
                                     <tr>
-                                        <td colSpan={9} className="text-center py-16 text-gray-500 font-medium">
+                                        <td colSpan={10} className="text-center py-16 text-gray-500 font-medium">
                                             No inventory found. Try a different search or add stock.
                                         </td>
                                     </tr>
-                                ) : grouped.map((grp) => {
+                                ) : grouped.map((grp, gi) => {
                                     const isExpanded = expandedKeys.has(grp.key);
                                     const groupIds = grp.children.map(c => c.id);
                                     const allSelected = groupIds.every(id => selectedIds.includes(id));
@@ -530,6 +531,7 @@ export default function OutletInventoryPage() {
                                                         : <ChevronRight size={18} className="text-gray-400 mx-auto" />
                                                     }
                                                 </td>
+                                                <td className="px-4 py-4 text-gray-500 tabular-nums">{gi + 1}</td>
 
                                                 <td className="px-4 py-4" onClick={() => toggleExpand(grp.key)}>
                                                     <div className="flex items-center gap-2">
@@ -591,6 +593,7 @@ export default function OutletInventoryPage() {
                                                                 <span className="text-[10px] text-gray-400 font-mono">#{idx + 1}</span>
                                                             </div>
                                                         </td>
+                                                        <td />
 
                                                         {/* IMEI / Product Column */}
                                                         <td className="px-4 py-3">

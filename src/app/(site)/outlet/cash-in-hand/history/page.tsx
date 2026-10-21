@@ -206,7 +206,7 @@ export default function CashHistoryPage() {
                     <table className="w-full text-left">
                         <thead>
                             <tr className="bg-gray-50 dark:bg-meta-4 border-b border-stroke dark:border-strokedark">
-                                <th className="px-6 py-4 text-xs font-black text-gray-400 uppercase tracking-widest">Date & Time</th>
+                                <th className="px-6 py-4 text-xs font-black text-gray-400 uppercase tracking-widest">S.No</th><th className="px-6 py-4 text-xs font-black text-gray-400 uppercase tracking-widest">Date & Time</th>
                                 <th className="px-6 py-4 text-xs font-black text-gray-400 uppercase tracking-widest">Officer</th>
                                 <th className="px-6 py-4 text-xs font-black text-gray-400 uppercase tracking-widest">Cash Type</th>
                                 <th className="px-6 py-4 text-xs font-black text-gray-400 uppercase tracking-widest text-right">Amount</th>
@@ -216,19 +216,19 @@ export default function CashHistoryPage() {
                         <tbody className="divide-y divide-stroke dark:divide-strokedark">
                             {loading ? (
                                 <tr>
-                                    <td colSpan={6} className="py-20 text-center">
+                                    <td colSpan={7} className="py-20 text-center">
                                         <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-4" />
                                         <p className="text-gray-500 text-sm">Loading history...</p>
                                     </td>
                                 </tr>
                             ) : filteredEntries.length === 0 ? (
                                 <tr>
-                                    <td colSpan={6} className="py-20 text-center text-gray-500">
+                                    <td colSpan={7} className="py-20 text-center text-gray-500">
                                         No history found for the selected criteria.
                                     </td>
                                 </tr>
-                            ) : filteredEntries.map((entry) => (
-                                <tr key={entry.id} className="hover:bg-gray-50 dark:hover:bg-meta-4/10 transition-colors group">
+                            ) : filteredEntries.map((entry, idx) => (
+                                <tr key={entry.id} className="hover:bg-gray-50 dark:hover:bg-meta-4/10 transition-colors group"><td className="px-6 py-4 text-gray-500 tabular-nums">{(page - 1) * 10 + idx + 1}</td>
                                     <td className="px-6 py-4">
                                         <p className="text-sm font-bold text-gray-800 dark:text-gray-200 whitespace-nowrap">
                                             {formatExactDate(entry.created_at, 'MMM DD, YYYY')}

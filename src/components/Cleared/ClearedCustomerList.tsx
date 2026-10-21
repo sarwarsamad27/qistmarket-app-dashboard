@@ -14,6 +14,7 @@ import { useProfileModal } from '../../../contexts/ProfileModalContext'
 import { CheckCircle, PartyPopper, Ban } from 'lucide-react'
 import { apiErrorMessage } from "@/lib/apiErrors";
 
+import { serialColumn } from '@/utils/serialColumn'
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL
 
 interface CustomerGroup {
@@ -66,6 +67,7 @@ const ClearedCustomerList = () => {
   }
 
   const columns = useMemo<ColumnDef<CustomerGroup>[]>(() => [
+    serialColumn<CustomerGroup>(),
     {
       id: 'customer_name',
       accessorFn: (row) => row.customer.name,

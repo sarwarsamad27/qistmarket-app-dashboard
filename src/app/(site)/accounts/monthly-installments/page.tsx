@@ -201,10 +201,10 @@ export default function MonthlyInstallmentsPage() {
           </div>
           <div className="mt-3 overflow-x-auto">
             <table className="w-full text-left text-xs">
-              <thead className="text-[10px] uppercase text-gray-400"><tr><th className="py-1.5">Month</th><th className="py-1.5 text-right">Due</th><th className="py-1.5 text-right">Paid of dues</th><th className="py-1.5 text-right">Unpaid</th><th className="py-1.5 text-right">Collected</th><th className="py-1.5 text-right">Target</th></tr></thead>
+              <thead className="text-[10px] uppercase text-gray-400"><tr><th className="py-1.5">S.No</th><th className="py-1.5">Month</th><th className="py-1.5 text-right">Due</th><th className="py-1.5 text-right">Paid of dues</th><th className="py-1.5 text-right">Unpaid</th><th className="py-1.5 text-right">Collected</th><th className="py-1.5 text-right">Target</th></tr></thead>
               <tbody>
-                {months.map((m) => (
-                  <tr key={m.month} onClick={() => setMonth(m.month)} className={`cursor-pointer border-t border-slate-100 hover:bg-slate-50 dark:border-white/5 dark:hover:bg-white/5 ${m.month === month ? "bg-rose-50/60 dark:bg-rose-500/5" : ""}`}>
+                {months.map((m, idx) => (
+                  <tr key={m.month} onClick={() => setMonth(m.month)} className={`cursor-pointer border-t border-slate-100 hover:bg-slate-50 dark:border-white/5 dark:hover:bg-white/5 ${m.month === month ? "bg-rose-50/60 dark:bg-rose-500/5" : ""}`}><td className="py-1.5 font-semibold text-gray-500 tabular-nums">{idx + 1}</td>
                     <td className="py-1.5 font-semibold">{m.label}{m.isProjected && <span className="ml-1 text-gray-400">(upcoming)</span>}</td>
                     <td className="py-1.5 text-right tabular-nums">{PKR(m.due)}</td>
                     <td className="py-1.5 text-right tabular-nums text-emerald-600">{PKR(m.paidOfDue)} <span className="text-gray-400">({m.paidOfDuePercentage}%)</span></td>
@@ -234,10 +234,10 @@ export default function MonthlyInstallmentsPage() {
             ]} getRows={() => detail.outlets} />
           </div>
           <table className="w-full text-left text-sm">
-            <thead className="bg-gray-50 text-[11px] uppercase tracking-wide text-gray-500 dark:bg-dark-2 dark:text-gray-400"><tr><th className="px-4 py-2.5">Outlet</th><th className="px-4 py-2.5 text-right">Installments</th><th className="px-4 py-2.5 text-right">Due</th><th className="px-4 py-2.5 text-right">Paid</th><th className="px-4 py-2.5 text-right">Unpaid</th><th className="px-4 py-2.5 text-right">Arrears</th><th className="px-4 py-2.5 text-right">Collected</th></tr></thead>
+            <thead className="bg-gray-50 text-[11px] uppercase tracking-wide text-gray-500 dark:bg-dark-2 dark:text-gray-400"><tr><th className="px-4 py-2.5">S.No</th><th className="px-4 py-2.5">Outlet</th><th className="px-4 py-2.5 text-right">Installments</th><th className="px-4 py-2.5 text-right">Due</th><th className="px-4 py-2.5 text-right">Paid</th><th className="px-4 py-2.5 text-right">Unpaid</th><th className="px-4 py-2.5 text-right">Arrears</th><th className="px-4 py-2.5 text-right">Collected</th></tr></thead>
             <tbody>
-              {detail.outlets.map((o) => (
-                <tr key={o.outlet_id ?? "none"} className="border-t border-slate-50 dark:border-white/5">
+              {detail.outlets.map((o, idx) => (
+                <tr key={o.outlet_id ?? "none"} className="border-t border-slate-50 dark:border-white/5"><td className="px-4 py-2.5 font-medium text-gray-500 tabular-nums">{idx + 1}</td>
                   <td className="px-4 py-2.5 font-medium text-dark dark:text-white">{o.outlet_name}</td>
                   <td className="px-4 py-2.5 text-right tabular-nums">{o.installments}<span className="text-xs text-gray-400"> ({o.unpaid_count} open)</span></td>
                   <td className="px-4 py-2.5 text-right tabular-nums">{PKR(o.due)}</td>
@@ -281,10 +281,10 @@ export default function MonthlyInstallmentsPage() {
         {detailLoading ? <TableSkeleton /> : schedule.length ? (
           <div className="max-h-[600px] overflow-auto">
             <table className="w-full text-left text-sm">
-              <thead className="sticky top-0 bg-gray-50 text-[11px] uppercase tracking-wide text-gray-500 dark:bg-dark-2 dark:text-gray-400"><tr><th className="px-4 py-3">Due</th><th className="px-4 py-3">Customer / Order</th><th className="px-4 py-3">Outlet</th><th className="px-4 py-3">Month #</th><th className="px-4 py-3 text-right">Amount</th><th className="px-4 py-3 text-right">Paid</th><th className="px-4 py-3 text-right">Remaining</th><th className="px-4 py-3">Status</th><th className="px-4 py-3"></th></tr></thead>
+              <thead className="sticky top-0 bg-gray-50 text-[11px] uppercase tracking-wide text-gray-500 dark:bg-dark-2 dark:text-gray-400"><tr><th className="px-4 py-3">S.No</th><th className="px-4 py-3">Due</th><th className="px-4 py-3">Customer / Order</th><th className="px-4 py-3">Outlet</th><th className="px-4 py-3">Month #</th><th className="px-4 py-3 text-right">Amount</th><th className="px-4 py-3 text-right">Paid</th><th className="px-4 py-3 text-right">Remaining</th><th className="px-4 py-3">Status</th><th className="px-4 py-3"></th></tr></thead>
               <tbody>
-                {schedule.map((r) => (
-                  <tr key={`${r.order_id}-${r.month_number}`} className="border-t border-slate-50 dark:border-white/5">
+                {schedule.map((r, idx) => (
+                  <tr key={`${r.order_id}-${r.month_number}`} className="border-t border-slate-50 dark:border-white/5"><td className="px-4 py-3 text-gray-500 tabular-nums">{idx + 1}</td>
                     <td className="px-4 py-3 text-gray-500">{day(r.due_date)}</td>
                     <td className="px-4 py-3"><p className="font-medium text-dark dark:text-white">{r.customer_name}</p><p className="font-mono text-[11px] text-gray-400">{r.order_ref} · {r.whatsapp_number}</p></td>
                     <td className="px-4 py-3 text-gray-600 dark:text-gray-300">{r.outlet_name}</td>

@@ -31,7 +31,7 @@ export default function EmployeeLoansPage() {
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-stroke bg-gray-2 dark:border-stroke-dark dark:bg-dark-3">
-              <th className="px-4 py-3 text-left">Type</th>
+              <th className="px-4 py-3">S.No</th><th className="px-4 py-3 text-left">Type</th>
               <th className="px-4 py-3 text-right">Total</th>
               <th className="px-4 py-3 text-right">Deducted</th>
               <th className="px-4 py-3 text-right">Remaining</th>
@@ -41,11 +41,11 @@ export default function EmployeeLoansPage() {
           </thead>
           <tbody>
             {loans.length === 0 && (
-              <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-500">No active loans</td></tr>
+              <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-500">No active loans</td></tr>
             )}
-            {loans.map((loan) => (
+            {loans.map((loan, idx) => (
               <Fragment key={loan.id}>
-                <tr className="border-b border-stroke dark:border-stroke-dark">
+                <tr className="border-b border-stroke dark:border-stroke-dark"><td className="px-4 py-3 text-gray-500 tabular-nums">{idx + 1}</td>
                   <td className="px-4 py-3 capitalize">
                     {loan.loan_type === "advance" ? "Salary Advance" : `${loan.loan_type.replace("_", " ")} loan`}
                     <span className={`ml-2 rounded-full px-2 py-0.5 text-[10px] ${loan.status === "active" ? "bg-yellow-dark/20 text-yellow-dark" : "bg-green/20 text-green"}`}>{loan.status === "active" ? "Active" : "Cleared"}</span>
@@ -62,7 +62,7 @@ export default function EmployeeLoansPage() {
                 </tr>
                 {expanded === loan.id && (
                   <tr key={`${loan.id}-schedule`}>
-                    <td colSpan={6} className="bg-gray-2 px-4 py-3 dark:bg-dark-3">
+                    <td colSpan={7} className="bg-gray-2 px-4 py-3 dark:bg-dark-3">
                       {loan.schedule_json ? (
                         <div className="flex flex-wrap gap-2">
                           {(loan.schedule_json as { month: string; amount: number; paid: boolean; paid_amount?: number }[]).map((s, i) => (

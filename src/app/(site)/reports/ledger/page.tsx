@@ -118,15 +118,15 @@ export default function GlobalCustomerLedgerPage() {
                     <table className="w-full text-left text-sm">
                       <thead>
                         <tr className="border-b border-stroke text-[11px] uppercase tracking-wider text-gray-400 dark:border-dark-3">
-                          <th className="pb-3 flex items-center gap-1.5"><Calendar className="h-3.5 w-3.5" /> Date</th>
+                          <th className="pb-3 flex items-center gap-1.5">S.No</th><th className="pb-3 flex items-center gap-1.5"><Calendar className="h-3.5 w-3.5" /> Date</th>
                           <th className="pb-3">Payment Category</th>
                           <th className="pb-3">Method</th>
                           <th className="pb-3 text-right"><Banknote className="h-3.5 w-3.5 inline mr-1" /> Amount</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {order.payments.map((p) => (
-                          <tr key={p.id} className="border-b border-stroke last:border-0 dark:border-dark-3">
+                        {order.payments.map((p, idx) => (
+                          <tr key={p.id} className="border-b border-stroke last:border-0 dark:border-dark-3"><td className="py-4 text-xs text-gray-500 tabular-nums">{idx + 1}</td>
                             <td className="py-4 text-gray-600 dark:text-gray-400 text-xs">{formatExactDate(p.created_at, 'DD MMM YYYY, hh:mm A')}</td>
                             <td className="py-4 font-bold capitalize">{p.paymentType}</td>
                             <td className="py-4">
@@ -140,7 +140,7 @@ export default function GlobalCustomerLedgerPage() {
                       </tbody>
                       <tfoot>
                         <tr className="bg-emerald-50/50 dark:bg-emerald-900/10">
-                          <td colSpan={3} className="py-3 px-4 font-bold text-dark dark:text-white">Total Amount Paid</td>
+                          <td colSpan={4} className="py-3 px-4 font-bold text-dark dark:text-white">Total Amount Paid</td>
                           <td className="py-3 px-4 text-right font-black text-emerald-600">
                             Rs. {order.payments.reduce((acc, p) => acc + p.amount, 0).toLocaleString()}
                           </td>

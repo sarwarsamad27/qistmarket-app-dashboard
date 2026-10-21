@@ -206,9 +206,9 @@ export default function AdminInventoryPage() {
         ) : (
           <div className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm dark:border-white/10 dark:bg-boxdark">
             <table className="w-full text-left text-sm">
-              <thead className="bg-gray-50 text-[11px] uppercase tracking-wide text-gray-500 dark:bg-dark-2 dark:text-gray-400"><tr><th className="px-4 py-3 font-bold">Product</th><th className="px-4 py-3 text-right font-bold">Total</th><th className="px-4 py-3 text-right font-bold">In Stock</th><th className="px-4 py-3 text-right font-bold">Sold</th><th className="px-4 py-3 text-right font-bold">Valuation</th></tr></thead>
-              <tbody>{warehouseSummary.map((w) => (
-                <tr key={w.product} className="border-t border-slate-50 dark:border-white/5">
+              <thead className="bg-gray-50 text-[11px] uppercase tracking-wide text-gray-500 dark:bg-dark-2 dark:text-gray-400"><tr><th className="px-4 py-3 font-bold">S.No</th><th className="px-4 py-3 font-bold">Product</th><th className="px-4 py-3 text-right font-bold">Total</th><th className="px-4 py-3 text-right font-bold">In Stock</th><th className="px-4 py-3 text-right font-bold">Sold</th><th className="px-4 py-3 text-right font-bold">Valuation</th></tr></thead>
+              <tbody>{warehouseSummary.map((w, idx) => (
+                <tr key={w.product} className="border-t border-slate-50 dark:border-white/5"><td className="px-4 py-3.5 font-medium text-gray-500 tabular-nums">{idx + 1}</td>
                   <td className="px-4 py-3.5 font-medium text-dark dark:text-white">{w.product}</td>
                   <td className="px-4 py-3.5 text-right tabular-nums text-gray-600 dark:text-gray-300">{w.total}</td>
                   <td className="px-4 py-3.5 text-right tabular-nums font-semibold text-emerald-600">{w.inStock}</td>
@@ -227,9 +227,9 @@ export default function AdminInventoryPage() {
         ) : (
           <div className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm dark:border-white/10 dark:bg-boxdark">
             <table className="w-full text-left text-sm">
-              <thead className="bg-gray-50 text-[11px] uppercase tracking-wide text-gray-500 dark:bg-dark-2 dark:text-gray-400"><tr><th className="px-4 py-3 font-bold">Product</th><th className="px-4 py-3 font-bold">IMEI</th><th className="px-4 py-3 font-bold">From</th><th className="px-4 py-3 font-bold">To</th><th className="px-4 py-3 font-bold">Status</th><th className="px-4 py-3 font-bold">Date</th></tr></thead>
-              <tbody>{transfers.map((t) => (
-                <tr key={t.id} className="border-t border-slate-50 dark:border-white/5">
+              <thead className="bg-gray-50 text-[11px] uppercase tracking-wide text-gray-500 dark:bg-dark-2 dark:text-gray-400"><tr><th className="px-4 py-3 font-bold">S.No</th><th className="px-4 py-3 font-bold">Product</th><th className="px-4 py-3 font-bold">IMEI</th><th className="px-4 py-3 font-bold">From</th><th className="px-4 py-3 font-bold">To</th><th className="px-4 py-3 font-bold">Status</th><th className="px-4 py-3 font-bold">Date</th></tr></thead>
+              <tbody>{transfers.map((t, idx) => (
+                <tr key={t.id} className="border-t border-slate-50 dark:border-white/5"><td className="px-4 py-3.5 font-medium text-gray-500 tabular-nums">{idx + 1}</td>
                   <td className="px-4 py-3.5 font-medium text-dark dark:text-white">{t.product_name || "—"}</td>
                   <td className="px-4 py-3.5 font-mono text-xs text-gray-500">{t.imei_serial || "—"}</td>
                   <td className="px-4 py-3.5 text-gray-600 dark:text-gray-300">{t.from}</td>
@@ -249,9 +249,9 @@ export default function AdminInventoryPage() {
         ) : (
           <div className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm dark:border-white/10 dark:bg-boxdark">
             <table className="w-full text-left text-sm">
-              <thead className="bg-gray-50 text-[11px] uppercase tracking-wide text-gray-500 dark:bg-dark-2 dark:text-gray-400"><tr><th className="px-4 py-3 font-bold">Order</th><th className="px-4 py-3 font-bold">Customer</th><th className="px-4 py-3 font-bold">Outlet</th><th className="px-4 py-3 font-bold">Type</th><th className="px-4 py-3 font-bold">Status</th><th className="px-4 py-3 text-right font-bold">Refund</th></tr></thead>
-              <tbody>{returns.map((r) => (
-                <tr key={r.id} className="border-t border-slate-50 dark:border-white/5">
+              <thead className="bg-gray-50 text-[11px] uppercase tracking-wide text-gray-500 dark:bg-dark-2 dark:text-gray-400"><tr><th className="px-4 py-3 font-bold">S.No</th><th className="px-4 py-3 font-bold">Order</th><th className="px-4 py-3 font-bold">Customer</th><th className="px-4 py-3 font-bold">Outlet</th><th className="px-4 py-3 font-bold">Type</th><th className="px-4 py-3 font-bold">Status</th><th className="px-4 py-3 text-right font-bold">Refund</th></tr></thead>
+              <tbody>{returns.map((r, idx) => (
+                <tr key={r.id} className="border-t border-slate-50 dark:border-white/5"><td className="px-4 py-3.5 font-semibold text-gray-500 tabular-nums">{idx + 1}</td>
                   <td className="px-4 py-3.5 font-semibold text-[#ff3d3d]">{r.order_ref || "—"}</td>
                   <td className="px-4 py-3.5 text-gray-600 dark:text-gray-300">{r.customer_name || "—"}</td>
                   <td className="px-4 py-3.5 text-gray-600 dark:text-gray-300">{r.outlet_name || "—"}</td>
@@ -355,9 +355,9 @@ export default function AdminInventoryPage() {
               ) : (
                 <div className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm dark:border-white/10 dark:bg-boxdark">
                   <table className="w-full text-left text-sm">
-                    <thead className="bg-gray-50 text-[11px] uppercase tracking-wide text-gray-500 dark:bg-dark-2 dark:text-gray-400"><tr><th className="px-4 py-3 font-bold">Product</th><th className="px-4 py-3 font-bold">Outlet</th><th className="px-4 py-3 text-right font-bold">In Stock</th><th className="px-4 py-3 text-right font-bold">Threshold</th></tr></thead>
+                    <thead className="bg-gray-50 text-[11px] uppercase tracking-wide text-gray-500 dark:bg-dark-2 dark:text-gray-400"><tr><th className="px-4 py-3 font-bold">S.No</th><th className="px-4 py-3 font-bold">Product</th><th className="px-4 py-3 font-bold">Outlet</th><th className="px-4 py-3 text-right font-bold">In Stock</th><th className="px-4 py-3 text-right font-bold">Threshold</th></tr></thead>
                     <tbody>{lowStock.map((l, idx) => (
-                      <tr key={idx} className="border-t border-slate-50 dark:border-white/5">
+                      <tr key={idx} className="border-t border-slate-50 dark:border-white/5"><td className="px-4 py-3.5 font-medium text-gray-500 tabular-nums">{idx + 1}</td>
                         <td className="px-4 py-3.5 font-medium text-dark dark:text-white">{l.product_name}</td>
                         <td className="px-4 py-3.5 text-gray-600 dark:text-gray-300">{l.outlet_name}</td>
                         <td className="px-4 py-3.5 text-right tabular-nums font-bold text-amber-600">{l.inStock}</td>
@@ -375,9 +375,9 @@ export default function AdminInventoryPage() {
               ) : (
                 <div className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm dark:border-white/10 dark:bg-boxdark">
                   <table className="w-full text-left text-sm">
-                    <thead className="bg-gray-50 text-[11px] uppercase tracking-wide text-gray-500 dark:bg-dark-2 dark:text-gray-400"><tr><th className="px-4 py-3 font-bold">Product</th><th className="px-4 py-3 font-bold">IMEI</th><th className="px-4 py-3 font-bold">Outlet</th><th className="px-4 py-3 text-right font-bold">Days In Stock</th></tr></thead>
-                    <tbody>{deadStock.map((d) => (
-                      <tr key={d.id} className="border-t border-slate-50 dark:border-white/5">
+                    <thead className="bg-gray-50 text-[11px] uppercase tracking-wide text-gray-500 dark:bg-dark-2 dark:text-gray-400"><tr><th className="px-4 py-3 font-bold">S.No</th><th className="px-4 py-3 font-bold">Product</th><th className="px-4 py-3 font-bold">IMEI</th><th className="px-4 py-3 font-bold">Outlet</th><th className="px-4 py-3 text-right font-bold">Days In Stock</th></tr></thead>
+                    <tbody>{deadStock.map((d, idx) => (
+                      <tr key={d.id} className="border-t border-slate-50 dark:border-white/5"><td className="px-4 py-3.5 font-medium text-gray-500 tabular-nums">{idx + 1}</td>
                         <td className="px-4 py-3.5 font-medium text-dark dark:text-white">{d.product_name}</td>
                         <td className="px-4 py-3.5 font-mono text-xs text-gray-500">{d.imei_serial || "—"}</td>
                         <td className="px-4 py-3.5 text-gray-600 dark:text-gray-300">{d.outlet_name}</td>
@@ -398,9 +398,9 @@ export default function AdminInventoryPage() {
         ) : (
           <div className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm dark:border-white/10 dark:bg-boxdark">
             <table className="w-full text-left text-sm">
-              <thead className="bg-gray-50 text-[11px] uppercase tracking-wide text-gray-500 dark:bg-dark-2 dark:text-gray-400"><tr><th className="px-4 py-3 font-bold">Product</th><th className="px-4 py-3 font-bold">IMEI</th><th className="px-4 py-3 font-bold">Outlet</th><th className="px-4 py-3 text-right font-bold">Purchase Price</th><th className="px-4 py-3 font-bold">Marked On</th></tr></thead>
-              <tbody>{damaged.map((d) => (
-                <tr key={d.id} className="border-t border-slate-50 dark:border-white/5">
+              <thead className="bg-gray-50 text-[11px] uppercase tracking-wide text-gray-500 dark:bg-dark-2 dark:text-gray-400"><tr><th className="px-4 py-3 font-bold">S.No</th><th className="px-4 py-3 font-bold">Product</th><th className="px-4 py-3 font-bold">IMEI</th><th className="px-4 py-3 font-bold">Outlet</th><th className="px-4 py-3 text-right font-bold">Purchase Price</th><th className="px-4 py-3 font-bold">Marked On</th></tr></thead>
+              <tbody>{damaged.map((d, idx) => (
+                <tr key={d.id} className="border-t border-slate-50 dark:border-white/5"><td className="px-4 py-3.5 font-medium text-gray-500 tabular-nums">{idx + 1}</td>
                   <td className="px-4 py-3.5 font-medium text-dark dark:text-white">{d.product_name}</td>
                   <td className="px-4 py-3.5 font-mono text-xs text-gray-500">{d.imei_serial || "—"}</td>
                   <td className="px-4 py-3.5 text-gray-600 dark:text-gray-300">{d.outlet_name}</td>
@@ -423,9 +423,9 @@ export default function AdminInventoryPage() {
               {movement.fastMoving.length === 0 ? <p className="text-sm text-gray-400">No sales in the last 30 days.</p> : (
                 <div className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm dark:border-white/10 dark:bg-boxdark">
                   <table className="w-full text-left text-sm">
-                    <thead className="bg-gray-50 text-[11px] uppercase tracking-wide text-gray-500 dark:bg-dark-2 dark:text-gray-400"><tr><th className="px-4 py-3 font-bold">Product</th><th className="px-4 py-3 text-right font-bold">Sold (30d)</th><th className="px-4 py-3 text-right font-bold">In Stock</th></tr></thead>
-                    <tbody>{movement.fastMoving.map((m) => (
-                      <tr key={m.product_name} className="border-t border-slate-50 dark:border-white/5">
+                    <thead className="bg-gray-50 text-[11px] uppercase tracking-wide text-gray-500 dark:bg-dark-2 dark:text-gray-400"><tr><th className="px-4 py-3 font-bold">S.No</th><th className="px-4 py-3 font-bold">Product</th><th className="px-4 py-3 text-right font-bold">Sold (30d)</th><th className="px-4 py-3 text-right font-bold">In Stock</th></tr></thead>
+                    <tbody>{movement.fastMoving.map((m, idx) => (
+                      <tr key={m.product_name} className="border-t border-slate-50 dark:border-white/5"><td className="px-4 py-3.5 font-medium text-gray-500 tabular-nums">{idx + 1}</td>
                         <td className="px-4 py-3.5 font-medium text-dark dark:text-white">{m.product_name}</td>
                         <td className="px-4 py-3.5 text-right tabular-nums font-bold text-emerald-600">{m.soldLast30Days}</td>
                         <td className="px-4 py-3.5 text-right tabular-nums text-gray-500">{m.inStock}</td>
@@ -440,9 +440,9 @@ export default function AdminInventoryPage() {
               {movement.slowMoving.length === 0 ? <p className="text-sm text-gray-400">No slow-moving products with stock on hand.</p> : (
                 <div className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm dark:border-white/10 dark:bg-boxdark">
                   <table className="w-full text-left text-sm">
-                    <thead className="bg-gray-50 text-[11px] uppercase tracking-wide text-gray-500 dark:bg-dark-2 dark:text-gray-400"><tr><th className="px-4 py-3 font-bold">Product</th><th className="px-4 py-3 text-right font-bold">In Stock</th></tr></thead>
-                    <tbody>{movement.slowMoving.map((m) => (
-                      <tr key={m.product_name} className="border-t border-slate-50 dark:border-white/5">
+                    <thead className="bg-gray-50 text-[11px] uppercase tracking-wide text-gray-500 dark:bg-dark-2 dark:text-gray-400"><tr><th className="px-4 py-3 font-bold">S.No</th><th className="px-4 py-3 font-bold">Product</th><th className="px-4 py-3 text-right font-bold">In Stock</th></tr></thead>
+                    <tbody>{movement.slowMoving.map((m, idx) => (
+                      <tr key={m.product_name} className="border-t border-slate-50 dark:border-white/5"><td className="px-4 py-3.5 font-medium text-gray-500 tabular-nums">{idx + 1}</td>
                         <td className="px-4 py-3.5 font-medium text-dark dark:text-white">{m.product_name}</td>
                         <td className="px-4 py-3.5 text-right tabular-nums font-bold text-rose-600">{m.inStock}</td>
                       </tr>

@@ -3107,7 +3107,7 @@ const VerificationDetails = ({ params }: { params: Promise<{ id: string }> }) =>
                 <table className="w-full border-collapse">
                   <thead>
                     <tr className="border-b border-stroke dark:border-dark-3">
-                      <th className="px-4 py-2 text-left">Label</th>
+                      <th className="px-4 py-2">S.No</th><th className="px-4 py-2 text-left">Label</th>
                       <th className="px-4 py-2 text-left">Latitude</th>
                       <th className="px-4 py-2 text-left">Longitude</th>
                       <th className="px-4 py-2 text-left">Accuracy</th>
@@ -3116,8 +3116,8 @@ const VerificationDetails = ({ params }: { params: Promise<{ id: string }> }) =>
                     </tr>
                   </thead>
                   <tbody>
-                    {data.locations.map((loc) => (
-                      <tr key={loc.id} className="border-b border-stroke dark:border-dark-3">
+                    {data.locations.map((loc, idx) => (
+                      <tr key={loc.id} className="border-b border-stroke dark:border-dark-3"><td className="px-4 py-2 text-gray-500 tabular-nums">{idx + 1}</td>
                         <td className="px-4 py-2">{loc.label}</td>
                         <td className="px-4 py-2">{loc.latitude}</td>
                         <td className="px-4 py-2">{loc.longitude}</td>

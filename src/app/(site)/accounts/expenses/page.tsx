@@ -623,7 +623,7 @@ export default function AccountsExpensesPage() {
                 <table className="w-full text-left text-sm">
                   <thead className="bg-gray-50 text-[11px] uppercase tracking-wide text-gray-500 dark:bg-dark-2 dark:text-gray-400">
                     <tr>
-                      <th className="px-5 py-3.5 font-bold">Voucher # & Date</th>
+                      <th className="px-5 py-3.5 font-bold">S.No</th><th className="px-5 py-3.5 font-bold">Voucher # & Date</th>
                       <th className="px-5 py-3.5 font-bold">Source / Location</th>
                       <th className="px-5 py-3.5 font-bold">Category & Details</th>
                       <th className="px-5 py-3.5 font-bold">Payment Method</th>
@@ -633,8 +633,8 @@ export default function AccountsExpensesPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 dark:divide-white/5">
-                    {allExpenses.map((v) => (
-                      <tr key={v.id} className={`transition hover:bg-slate-50/70 dark:hover:bg-white/5 ${deletedRowClass(v)}`}>
+                    {allExpenses.map((v, rowIdx) => (
+                      <tr key={v.id} className={`transition hover:bg-slate-50/70 dark:hover:bg-white/5 ${deletedRowClass(v)}`}><td className="px-5 py-3.5 text-gray-500 tabular-nums">{rowIdx + 1}</td>
                         {/* Voucher # & Date */}
                         <td className="px-5 py-3.5">
                           <p className="font-extrabold text-dark dark:text-white">{v.voucher_number}<DeletedBadge row={v} /></p>
@@ -907,7 +907,7 @@ export default function AccountsExpensesPage() {
               <table className="w-full text-left text-sm">
                 <thead className="bg-gray-50 text-[11px] uppercase tracking-wide text-gray-500 dark:bg-dark-2 dark:text-gray-400">
                   <tr>
-                    <th className="px-5 py-3 font-bold">Month</th>
+                    <th className="px-5 py-3 font-bold">S.No</th><th className="px-5 py-3 font-bold">Month</th>
                     <th className="px-5 py-3 text-right font-bold">Employees</th>
                     <th className="px-5 py-3 text-right font-bold">Paid / Approved</th>
                     <th className="px-5 py-3 text-right font-bold">Pending</th>
@@ -915,12 +915,12 @@ export default function AccountsExpensesPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {salaryMonths.map((m) => (
+                  {salaryMonths.map((m, idx) => (
                     <tr
                       key={m.month}
                       onClick={() => setSelectedMonthFilter(selectedMonthFilter === m.month ? "all" : m.month)}
                       className={`cursor-pointer border-t border-slate-50 transition hover:bg-slate-50 dark:border-white/5 dark:hover:bg-white/5 ${selectedMonthFilter === m.month ? "bg-amber-50/50 dark:bg-amber-500/10" : ""}`}
-                    >
+                    ><td className="px-5 py-3.5 font-bold text-gray-500 tabular-nums">{idx + 1}</td>
                       <td className="px-5 py-3.5 font-bold text-dark dark:text-white flex items-center gap-2">
                         {m.month}
                         {selectedMonthFilter === m.month && (
@@ -1000,7 +1000,7 @@ export default function AccountsExpensesPage() {
                 <table className="w-full text-left text-sm">
                   <thead className="bg-gray-50 text-[11px] uppercase tracking-wide text-gray-500 dark:bg-dark-2 dark:text-gray-400">
                     <tr>
-                      <th className="px-5 py-3 font-bold">Employee Name</th>
+                      <th className="px-5 py-3 font-bold">S.No</th><th className="px-5 py-3 font-bold">Employee Name</th>
                       <th className="px-5 py-3 font-bold">Department</th>
                       <th className="px-5 py-3 font-bold">Month / Year</th>
                       <th className="px-5 py-3 text-right font-bold">Net Salary</th>
@@ -1022,8 +1022,8 @@ export default function AccountsExpensesPage() {
                         }
                         return true;
                       })
-                      .map((s) => (
-                        <tr key={s.id} className="border-t border-slate-50 dark:border-white/5">
+                      .map((s, idx) => (
+                        <tr key={s.id} className="border-t border-slate-50 dark:border-white/5"><td className="px-5 py-3.5 font-bold text-gray-500 tabular-nums">{idx + 1}</td>
                           <td className="px-5 py-3.5 font-bold text-dark dark:text-white">
                             {s.employee_name || "Unknown Employee"}
                           </td>

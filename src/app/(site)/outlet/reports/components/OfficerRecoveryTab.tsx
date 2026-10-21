@@ -5,6 +5,7 @@ import Loader from '@/components/common/Loader';
 import { useReactToPrint } from 'react-to-print';
 import * as XLSX from 'xlsx';
 import { formatExactDate } from '@/utils/dateUtils';
+import { pickedDay } from '@/utils/pkt';
 
 const API_BASE = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5000';
 
@@ -26,8 +27,8 @@ export default function OfficerRecoveryTab({ token, startDate, endDate, searchQu
             try {
                 let url = `${API_BASE}/api/outlet-reports/officer-recoveries`;
                 const params = new URLSearchParams();
-                if (startDate) params.append('startDate', startDate.toISOString());
-                if (endDate) params.append('endDate', endDate.toISOString());
+                if (startDate) params.append('startDate', pickedDay(startDate));
+                if (endDate) params.append('endDate', pickedDay(endDate));
                 if (params.toString()) url += `?${params.toString()}`;
 
                 const res = await fetch(url, {
@@ -152,14 +153,14 @@ export default function OfficerRecoveryTab({ token, startDate, endDate, searchQu
                                     <table className="w-full text-left text-sm text-gray-600 dark:text-gray-400">
                                         <thead className="bg-white dark:bg-gray-800 text-gray-500">
                                             <tr>
-                                                <th className="px-4 py-2 font-medium border-b dark:border-gray-700">Date</th>
+                                                <th className="px-4 py-2 font-medium dark:border-gray-700">S.No</th><th className="px-4 py-2 font-medium border-b dark:border-gray-700">Date</th>
                                                 <th className="px-4 py-2 font-medium border-b dark:border-gray-700">Order Ref</th>
                                                 <th className="px-4 py-2 font-medium border-b dark:border-gray-700 text-right">Amount</th>
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
                                             {officer.recoveries.map((r: any, idx: number) => (
-                                                <tr key={idx} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                                                <tr key={idx} className="hover:bg-gray-50 dark:hover:bg-gray-700/50"><td className="px-4 py-2 text-gray-500 tabular-nums">{idx + 1}</td>
                                                     <td className="px-4 py-2">{formatExactDate(r.paid_at, 'DD MMM YYYY, hh:mm A')}</td>
                                                     <td className="px-4 py-2 font-medium text-blue-600">{r.order_ref}</td>
                                                     <td className="px-4 py-2 font-medium text-right text-emerald-600">Rs {r.amount?.toLocaleString()}</td>

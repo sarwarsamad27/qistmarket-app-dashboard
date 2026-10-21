@@ -6,6 +6,7 @@ import Breadcrumb from '@/components/Breadcrumbs/Breadcrumb'
 import Loader from '@/components/common/Loader'
 import { TrendingUp, TrendingDown, BarChart3, Receipt, Package, ArrowRight } from 'lucide-react'
 import OutletSelector from '@/components/common/OutletSelector'
+import DateRangeFilter, { type DateRange } from '@/components/Accounts/DateRangeFilter'
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
 
@@ -32,7 +33,7 @@ export default function GlobalProfitLossPage() {
       let url = `${BACKEND_URL}/api/outlet-reports/profit-loss?outletId=${outletId}`
       if (dateRange.start) url += `&startDate=${dateRange.start}`
       if (dateRange.end) url += `&endDate=${dateRange.end}`
-      
+
       const res = await fetch(url, {
         headers: { Authorization: `Bearer ${token}` }
       })
@@ -60,24 +61,13 @@ export default function GlobalProfitLossPage() {
           <h2 className="text-xl font-bold text-dark dark:text-white">Financial Performance Statement</h2>
           <p className="text-sm text-gray-500 dark:text-gray-400">Analyze nationwide profitability and operational efficiency.</p>
         </div>
-        
+
         <div className="flex flex-wrap items-center gap-4">
           <OutletSelector selectedId={outletId} onSelect={setOutletId} />
-          <div className="flex items-center gap-2">
-            <input 
-              type="date" 
-              value={dateRange.start}
-              onChange={(e) => setDateRange(prev => ({ ...prev, start: e.target.value }))}
-              className="rounded-lg border border-stroke bg-white px-3 py-1.5 text-xs outline-none focus:border-[#ff3d3d] dark:border-dark-3 dark:bg-gray-dark dark:text-white"
-            />
-            <span className="text-gray-400">to</span>
-            <input 
-              type="date" 
-              value={dateRange.end}
-              onChange={(e) => setDateRange(prev => ({ ...prev, end: e.target.value }))}
-              className="rounded-lg border border-stroke bg-white px-3 py-1.5 text-xs outline-none focus:border-[#ff3d3d] dark:border-dark-3 dark:bg-gray-dark dark:text-white"
-            />
-          </div>
+          <DateRangeFilter
+            value={{ from: dateRange.start, to: dateRange.end }}
+            onChange={(r) => setDateRange({ start: r.from, end: r.to })}
+          />
         </div>
       </div>
 
@@ -94,11 +84,11 @@ export default function GlobalProfitLossPage() {
                 <PLRow label="Operating Expenses" value={-data.expenses} icon={Receipt} color="text-orange-500" />
                 <hr className="border-stroke dark:border-dark-3" />
                 <div className={`rounded-xl p-6 ${data.netProfit >= 0 ? 'bg-emerald-50 dark:bg-emerald-900/20' : 'bg-red-50 dark:bg-red-900/20'}`}>
-                  <PLRow 
-                    label="Net Profit" 
-                    value={data.netProfit} 
-                    isTotal 
-                    color={data.netProfit >= 0 ? 'text-emerald-600' : 'text-red-500'} 
+                  <PLRow
+                    label="Net Profit"
+                    value={data.netProfit}
+                    isTotal
+                    color={data.netProfit >= 0 ? 'text-emerald-600' : 'text-red-500'}
                   />
                 </div>
               </div>

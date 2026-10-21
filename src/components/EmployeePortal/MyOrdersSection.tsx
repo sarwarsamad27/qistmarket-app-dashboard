@@ -195,7 +195,7 @@ export default function MyOrdersSection() {
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-stroke bg-gray-2 text-left text-xs font-semibold text-gray-500 dark:border-stroke-dark dark:bg-dark-3">
-              <th className="px-4 py-3">Order</th>
+              <th className="px-4 py-3">S.No</th><th className="px-4 py-3">Order</th>
               <th className="px-4 py-3">Role</th>
               <th className="px-4 py-3">Status</th>
               <th className="px-4 py-3 text-right">Monthly Qist</th>
@@ -208,16 +208,16 @@ export default function MyOrdersSection() {
           <tbody>
             {data.orders.length === 0 && (
               <tr>
-                <td colSpan={8} className="px-4 py-10 text-center text-gray-500">
+                <td colSpan={9} className="px-4 py-10 text-center text-gray-500">
                   You are not involved in any order as a purchaser or guarantor.
                 </td>
               </tr>
             )}
-            {data.orders.map((o) => (
+            {data.orders.map((o, idx) => (
               <tr
                 key={o.id}
                 className="border-b border-stroke last:border-0 dark:border-stroke-dark"
-              >
+              ><td className="px-4 py-3 text-gray-500 tabular-nums">{idx + 1}</td>
                 {/* Order ref + product */}
                 <td className="px-4 py-3">
                   <p className="font-medium text-dark dark:text-white">{o.order_ref}</p>

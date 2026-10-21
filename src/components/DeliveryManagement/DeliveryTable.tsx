@@ -11,6 +11,7 @@ import Loader from "@/components/common/Loader";
 import { ChevronLeft, ChevronRight, SearchIcon, RotateCcw } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
+import { serialColumn } from '@/utils/serialColumn'
 interface DeliveryOrder {
     id: number;
     order_ref: string;
@@ -42,7 +43,8 @@ export const DeliveryTable = ({
     const [statusFilter, setStatusFilter] = useState('all');
 
     const columns: ColumnDef<DeliveryOrder>[] = [
-        {
+    serialColumn<DeliveryOrder>(),
+    {
             accessorKey: 'order_ref',
             header: 'Order Ref',
             cell: ({ row }) => <span className="font-bold text-black dark:text-white">{row.original.order_ref}</span>

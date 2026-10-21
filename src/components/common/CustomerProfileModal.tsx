@@ -873,7 +873,7 @@ function FinancialsTab({ orderId, orderRef }: { orderId: number, orderRef: strin
                     <table className="w-full text-left bg-gray-50/50 dark:bg-meta-4/10">
                         <thead>
                             <tr className="border-b border-stroke dark:border-strokedark">
-                                <th className="px-6 py-4 text-[9px] font-black uppercase tracking-widest text-gray-400">Month</th>
+                                <th className="px-6 py-4 text-[9px] font-black uppercase tracking-widest text-gray-400">S.No</th><th className="px-6 py-4 text-[9px] font-black uppercase tracking-widest text-gray-400">Month</th>
                                 <th className="px-6 py-4 text-[9px] font-black uppercase tracking-widest text-gray-400">Due Date</th>
                                 <th className="px-6 py-4 text-[9px] font-black uppercase tracking-widest text-gray-400 text-right">Due</th>
                                 <th className="px-6 py-4 text-[9px] font-black uppercase tracking-widest text-gray-400 text-right">Paid</th>
@@ -883,7 +883,7 @@ function FinancialsTab({ orderId, orderRef }: { orderId: number, orderRef: strin
                         </thead>
                         <tbody className="divide-y divide-stroke dark:divide-strokedark">
                             {installmentLedger.map((inst: any, idx: number) => (
-                                <tr key={idx} className="hover:bg-white dark:hover:bg-meta-4/20 transition-colors">
+                                <tr key={idx} className="hover:bg-white dark:hover:bg-meta-4/20 transition-colors"><td className="px-6 py-4 text-xs font-bold text-gray-500 tabular-nums">{idx + 1}</td>
                                     <td className="px-6 py-4 text-xs font-bold text-gray-700 dark:text-gray-200">{inst.label}</td>
                                     <td className="px-6 py-4 text-[10px] font-bold text-gray-500">{new Date(inst.dueDate).toLocaleDateString('en-PK', { day: '2-digit', month: 'short', year: 'numeric' })}</td>
                                     <td className="px-6 py-4 text-right">

@@ -188,11 +188,11 @@ export default function AdminEmiCalculatorPage() {
           )}
           <table className="w-full text-left text-sm">
             <thead className="bg-gray-50 text-[11px] uppercase tracking-wide text-gray-500 dark:bg-dark-2 dark:text-gray-400">
-              <tr><th className="px-4 py-3 font-bold">Months</th><th className="px-4 py-3 text-right font-bold">Advance</th><th className="px-4 py-3 text-right font-bold">Monthly</th><th className="px-4 py-3 text-right font-bold">Total Price</th><th className="px-4 py-3 text-right font-bold">Markup</th></tr>
+              <tr><th className="px-4 py-3 font-bold">S.No</th><th className="px-4 py-3 font-bold">Months</th><th className="px-4 py-3 text-right font-bold">Advance</th><th className="px-4 py-3 text-right font-bold">Monthly</th><th className="px-4 py-3 text-right font-bold">Total Price</th><th className="px-4 py-3 text-right font-bold">Markup</th></tr>
             </thead>
             <tbody>
-              {plans.map((p) => (
-                <tr key={p.months} className="border-t border-slate-50 dark:border-white/5">
+              {plans.map((p, idx) => (
+                <tr key={p.months} className="border-t border-slate-50 dark:border-white/5"><td className="px-4 py-3.5 font-bold text-gray-500 tabular-nums">{idx + 1}</td>
                   <td className="px-4 py-3.5 font-bold text-dark dark:text-white">{p.months}</td>
                   <td className="px-4 py-3.5 text-right tabular-nums text-gray-600 dark:text-gray-300">{PKR(p.advanceAmount)}</td>
                   <td className="px-4 py-3.5 text-right tabular-nums font-bold text-[#ff3d3d]">{PKR(p.monthlyAmount)}</td>
@@ -313,7 +313,7 @@ export default function AdminEmiCalculatorPage() {
                   <table className="w-full text-left text-sm">
                     <thead className="text-[11px] uppercase tracking-wide text-gray-500 dark:text-gray-400">
                       <tr>
-                        <th className="px-2 py-2 font-bold">Months</th>
+                        <th className="px-2 py-2 font-bold">S.No</th><th className="px-2 py-2 font-bold">Months</th>
                         <th className="px-2 py-2 font-bold">Profit %</th>
                         <th className="px-2 py-2 font-bold">Advance %</th>
                         {draft && <th className="w-10" />}
@@ -321,7 +321,7 @@ export default function AdminEmiCalculatorPage() {
                     </thead>
                     <tbody>
                       {tier.plans.map((plan, pi) => (
-                        <tr key={pi} className="border-t border-slate-50 dark:border-white/5">
+                        <tr key={pi} className="border-t border-slate-50 dark:border-white/5"><td className="px-2 py-1.5 text-gray-500 tabular-nums">{pi + 1}</td>
                           {draft ? (
                             <>
                               <td className="px-2 py-1.5">

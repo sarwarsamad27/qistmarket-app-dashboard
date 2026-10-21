@@ -193,12 +193,12 @@ export default function ReceivePanel({ initialOrderId, onReceived }: { initialOr
                     <h4 className="mb-2 text-sm font-bold text-dark dark:text-white">Installment schedule</h4>
                     <div className="max-h-80 overflow-auto">
                       <table className="w-full text-left text-xs">
-                        <thead className="text-[10px] uppercase text-gray-400"><tr><th className="py-1.5">Month</th><th className="py-1.5">Due</th><th className="py-1.5 text-right">Amount</th><th className="py-1.5 text-right">Paid</th><th className="py-1.5">Status</th></tr></thead>
+                        <thead className="text-[10px] uppercase text-gray-400"><tr><th className="py-1.5">S.No</th><th className="py-1.5">Month</th><th className="py-1.5">Due</th><th className="py-1.5 text-right">Amount</th><th className="py-1.5 text-right">Paid</th><th className="py-1.5">Status</th></tr></thead>
                         <tbody>
-                          {a.installments.map((r) => {
+                          {a.installments.map((r, idx) => {
                             const late = r.status !== "paid" && r.dueDate && new Date(r.dueDate) < new Date(new Date().toDateString());
                             return (
-                              <tr key={r.monthNumber} className="border-t border-slate-100 dark:border-white/5">
+                              <tr key={r.monthNumber} className="border-t border-slate-100 dark:border-white/5"><td className="py-1.5 font-medium text-gray-500 tabular-nums">{idx + 1}</td>
                                 <td className="py-1.5 font-medium">{r.monthNumber}</td>
                                 <td className={`py-1.5 ${late ? "font-semibold text-rose-600" : "text-gray-500"}`}>{day(r.dueDate)}</td>
                                 <td className="py-1.5 text-right tabular-nums">{PKR(r.dueAmount)}</td>

@@ -324,7 +324,7 @@ export default function InstallmentReceivingPage() {
                                     <table className="w-full text-left text-xs">
                                       <thead className="bg-gray-50 uppercase tracking-wide text-gray-500 dark:bg-dark-2 dark:text-gray-400">
                                         <tr>
-                                          <th className="px-3 py-2 font-bold">Date</th>
+                                          <th className="px-3 py-2 font-bold">S.No</th><th className="px-3 py-2 font-bold">Date</th>
                                           <th className="px-3 py-2 font-bold">Month</th>
                                           <th className="px-3 py-2 font-bold">Method</th>
                                           <th className="px-3 py-2 text-right font-bold">Amount</th>
@@ -332,7 +332,7 @@ export default function InstallmentReceivingPage() {
                                       </thead>
                                       <tbody>
                                         {row.history!.map((h, hi) => (
-                                          <tr key={hi} className="border-t border-slate-50 dark:border-white/5">
+                                          <tr key={hi} className="border-t border-slate-50 dark:border-white/5"><td className="px-3 py-2 text-gray-500 tabular-nums">{hi + 1}</td>
                                             <td className="px-3 py-2 text-gray-500">{new Date(h.date).toLocaleString()}</td>
                                             <td className="px-3 py-2 text-gray-500">{h.month}</td>
                                             <td className="px-3 py-2 text-gray-500">{h.method || <span className="capitalize">{h.channel}</span>}</td>

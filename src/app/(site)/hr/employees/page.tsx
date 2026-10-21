@@ -179,7 +179,7 @@ export default function HrEmployeesPage() {
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-stroke bg-gray-2 dark:border-stroke-dark dark:bg-dark-3">
-              <th className="w-10 px-3 py-3"><input type="checkbox" checked={selectAll && filtered.length > 0} onChange={toggleSelectAll} className="h-4 w-4 rounded text-primary" /></th>
+              <th className="w-10 px-3 py-3"><input type="checkbox" checked={selectAll && filtered.length > 0} onChange={toggleSelectAll} className="h-4 w-4 rounded text-primary" /></th><th className="px-3 py-3">S.No</th>
               <th className="px-4 py-3 text-left">Employee</th>
               <th className="px-4 py-3 text-left">Department</th>
               <th className="px-4 py-3 text-left">Designation</th>
@@ -190,17 +190,17 @@ export default function HrEmployeesPage() {
             </tr>
           </thead>
           <tbody>
-            {loading && <tr><td colSpan={8} className="px-4 py-12 text-center text-gray-500"><div className="inline-block h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" /> Loading...</td></tr>}
+            {loading && <tr><td colSpan={9} className="px-4 py-12 text-center text-gray-500"><div className="inline-block h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" /> Loading...</td></tr>}
             {!loading && filtered.length === 0 && (
-              <tr><td colSpan={8} className="px-4 py-12 text-center text-gray-500">
+              <tr><td colSpan={9} className="px-4 py-12 text-center text-gray-500">
                 {search || deptFilter !== "all" ? "No employees match your filters." : "No employees yet. Create your first employee."}
               </td></tr>
             )}
-            {filtered.map((emp) => {
+            {filtered.map((emp, idx) => {
               const sel = selectedIds.includes(emp.id);
               return (
                 <tr key={emp.id} className={`border-b border-stroke transition-colors dark:border-stroke-dark ${sel ? "bg-primary/5" : "hover:bg-gray-1 dark:hover:bg-dark-3"}`}>
-                  <td className="px-3 py-3"><input type="checkbox" checked={sel} onChange={() => toggleSelect(emp.id)} className="h-4 w-4 rounded text-primary" /></td>
+                  <td className="px-3 py-3"><input type="checkbox" checked={sel} onChange={() => toggleSelect(emp.id)} className="h-4 w-4 rounded text-primary" /></td><td className="px-3 py-3 text-gray-500 tabular-nums">{idx + 1}</td>
                   <td className="px-4 py-3">
                     <div>
                       <p className="font-medium text-dark dark:text-white">{emp.full_name}</p>

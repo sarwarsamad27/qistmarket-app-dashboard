@@ -90,15 +90,15 @@ export default function UsedInventoryReversalHistoryPage() {
             <table className="w-full text-left text-sm">
               <thead className="bg-gray-50 dark:bg-meta-4 border-b border-stroke dark:border-strokedark text-gray-600 dark:text-gray-300 uppercase text-[11px] tracking-wider">
                 <tr>
-                  <th className="px-4 py-3">Product</th>
+                  <th className="px-4 py-3">S.No</th><th className="px-4 py-3">Product</th>
                   <th className="px-4 py-3">IMEI</th>
                   <th className="px-4 py-3">Category</th>
                   <th className="px-4 py-3">Reversed At</th>
                 </tr>
               </thead>
               <tbody>
-                {history.map((item) => (
-                  <tr key={item.id} className="border-b border-stroke/50 dark:border-strokedark/50">
+                {history.map((item, idx) => (
+                  <tr key={item.id} className="border-b border-stroke/50 dark:border-strokedark/50"><td className="px-4 py-3 font-semibold text-gray-500 tabular-nums">{(page - 1) * 10 + idx + 1}</td>
                     <td className="px-4 py-3 font-semibold text-gray-800 dark:text-white">{item.product_name}</td>
                     <td className="px-4 py-3 font-mono text-xs text-gray-600 dark:text-gray-300">{item.imei_serial || "—"}</td>
                     <td className="px-4 py-3 text-gray-600 dark:text-gray-300">{item.category || "—"}</td>

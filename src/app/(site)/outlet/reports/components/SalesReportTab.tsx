@@ -5,6 +5,7 @@ import Loader from '@/components/common/Loader';
 import { useReactToPrint } from 'react-to-print';
 import * as XLSX from 'xlsx';
 import { formatExactDate } from '@/utils/dateUtils';
+import { pickedDay } from '@/utils/pkt';
 
 const API_BASE = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5000';
 
@@ -26,8 +27,8 @@ export default function SalesReportTab({ token, startDate, endDate, searchQuery 
             try {
                 let url = `${API_BASE}/api/outlet-reports/sales`;
                 const params = new URLSearchParams();
-                if (startDate) params.append('startDate', startDate.toISOString());
-                if (endDate) params.append('endDate', endDate.toISOString());
+                if (startDate) params.append('startDate', pickedDay(startDate));
+                if (endDate) params.append('endDate', pickedDay(endDate));
                 if (params.toString()) url += `?${params.toString()}`;
 
                 const res = await fetch(url, {

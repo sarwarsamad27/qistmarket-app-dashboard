@@ -19,6 +19,7 @@ import Pagination from '../common/Pagination'
 import { Modal } from '../Modal/Modal'
 import { apiErrorMessage } from "@/lib/apiErrors";
 
+import { serialColumn } from '@/utils/serialColumn'
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -238,6 +239,7 @@ const CustomerList = () => {
 
   // ── Columns ────────────────────────────────────────────────────────────────
   const columns: ColumnDef<CustomerGroup>[] = [
+    serialColumn<CustomerGroup>(),
     {
       id: 'customer_name',
       accessorFn: (row) => row.customer.name,

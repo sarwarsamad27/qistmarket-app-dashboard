@@ -187,7 +187,7 @@ export default function SecurityLogsPage() {
                     <table className="w-full text-left">
                         <thead>
                             <tr className="bg-gray-50 dark:bg-meta-4/10">
-                                <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-gray-400">Timestamp</th>
+                                <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-gray-400">S.No</th><th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-gray-400">Timestamp</th>
                                 <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-gray-400">Action Type</th>
                                 <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-gray-400">Performed By</th>
                                 <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-gray-400">Activity Details</th>
@@ -198,12 +198,12 @@ export default function SecurityLogsPage() {
                             {loading ? (
                                 Array(5).fill(0).map((_, i) => (
                                     <tr key={i} className="animate-pulse">
-                                        <td colSpan={5} className="px-8 py-6 h-16 bg-gray-50/50 dark:bg-meta-4/5" />
+                                        <td colSpan={6} className="px-8 py-6 h-16 bg-gray-50/50 dark:bg-meta-4/5" />
                                     </tr>
                                 ))
                             ) : logs.length > 0 ? (
-                                logs.map((log) => (
-                                    <tr key={log.id} className="hover:bg-gray-50 dark:hover:bg-meta-4/10 transition-colors group">
+                                logs.map((log, idx) => (
+                                    <tr key={log.id} className="hover:bg-gray-50 dark:hover:bg-meta-4/10 transition-colors group"><td className="px-8 py-6 text-gray-500 tabular-nums">{(page - 1) * 15 + idx + 1}</td>
                                         <td className="px-8 py-6">
                                             <div className="flex flex-col">
                                                 <span className="text-sm font-bold text-gray-800 dark:text-gray-200">{formatExactDate(log.created_at, 'hh:mm A')}</span>
@@ -240,7 +240,7 @@ export default function SecurityLogsPage() {
                                 ))
                             ) : (
                                 <tr>
-                                    <td colSpan={5} className="px-8 py-24 text-center">
+                                    <td colSpan={6} className="px-8 py-24 text-center">
                                         <div className="flex flex-col items-center gap-4">
                                             <div className="w-20 h-20 rounded-full bg-gray-50 dark:bg-meta-4/20 flex items-center justify-center text-gray-300">
                                                 <Info size={40} />

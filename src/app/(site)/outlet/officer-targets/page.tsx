@@ -250,7 +250,7 @@ export default function OfficerTargetsPage() {
                             <table className="w-full text-left">
                                 <thead className="bg-gray-50 dark:bg-meta-4 text-gray-500 text-xs font-black uppercase tracking-widest">
                                     <tr>
-                                        <th className="p-4">Officer Name</th>
+                                        <th className="p-4">S.No</th><th className="p-4">Officer Name</th>
                                         <th className="p-4">Role</th>
                                         <th className="p-4 text-right">Target Amount</th>
                                         <th className="p-4 text-right">Target Customers</th>
@@ -260,13 +260,13 @@ export default function OfficerTargetsPage() {
                                 <tbody>
                                     {targets.length === 0 ? (
                                         <tr>
-                                            <td colSpan={5} className="p-8 text-center text-gray-500 text-sm font-bold">
+                                            <td colSpan={6} className="p-8 text-center text-gray-500 text-sm font-bold">
                                                 No targets assigned for this month yet.
                                             </td>
                                         </tr>
                                     ) : (
                                         targets.map((t, idx) => (
-                                            <tr key={idx} className="border-b border-stroke dark:border-strokedark hover:bg-gray-50 dark:hover:bg-meta-4/20 transition-colors">
+                                            <tr key={idx} className="border-b border-stroke dark:border-strokedark hover:bg-gray-50 dark:hover:bg-meta-4/20 transition-colors"><td className="p-4 text-sm font-bold text-gray-500 tabular-nums">{idx + 1}</td>
                                                 <td className="p-4 text-sm font-bold text-gray-800 dark:text-white">{t.officer?.full_name || t.officer?.username}</td>
                                                 <td className="p-4">
                                                     <span className="text-xs px-2 py-1 bg-gray-100 dark:bg-meta-4 text-gray-600 dark:text-gray-300 rounded-md font-bold">

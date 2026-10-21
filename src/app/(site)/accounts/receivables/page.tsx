@@ -11,6 +11,7 @@ import EmptyState from "@/components/Accounts/EmptyState";
 import { TableSkeleton } from "@/components/Accounts/Skeleton";
 import { PKR } from "@/components/Accounts/StatCard";
 import ExportMenu from "@/components/Accounts/ExportMenu";
+import DateRangeFilter, { type DateRange } from "@/components/Accounts/DateRangeFilter";
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
 const authHeaders = () => ({ Authorization: `Bearer ${Cookies.get("auth_token")}` });
@@ -88,6 +89,7 @@ export default function AccountsReceivablesPage() {
   const [data, setData] = useState<Overview | null>(null);
   const [loading, setLoading] = useState(true);
   const [outletId, setOutletId] = useState("all");
+  const [range, setRange] = useState<DateRange>({ from: "", to: "" });
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [bucketFilter, setBucketFilter] = useState("");
@@ -101,12 +103,15 @@ export default function AccountsReceivablesPage() {
 
   useEffect(() => {
     setLoading(true);
-    fetch(`${BACKEND_URL}/api/accounts/receivables/overview?outletId=${outletId}`, { headers: authHeaders() })
+    const qs = new URLSearchParams({ outletId });
+    if (range.from) qs.set("startDate", range.from);
+    if (range.to) qs.set("endDate", range.to);
+    fetch(`${BACKEND_URL}/api/accounts/receivables/overview?${qs}`, { headers: authHeaders() })
       .then((res) => res.json())
       .then((json) => { if (json.success) setData(json.data); })
       .catch((err) => console.error("Failed to load receivables:", err))
       .finally(() => setLoading(false));
-  }, [outletId]);
+  }, [outletId, range.from, range.to]);
 
 
   const openSchedule = async (row: { order_id: number; order_ref: string; customer_name: string }) => {
@@ -168,6 +173,10 @@ export default function AccountsReceivablesPage() {
     <>
       <Breadcrumb pageName="Customer Receivables" />
       <PageHeader icon={Users} title="Customer Receivables" subtitle="What every customer still owes, what is overdue and how late, what falls due next, and who is at risk." actions={<OutletSelector selectedId={outletId} onSelect={setOutletId} />} />
+      <div className="mb-4">
+        <DateRangeFilter value={range} onChange={setRange} />
+        <p className="mt-1.5 text-[11px] text-gray-400">Dates pick accounts delivered (sold) in that period; balances and lateness are as of today. Empty = every account.</p>
+      </div>
 
       <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
         {[
@@ -213,10 +222,10 @@ export default function AccountsReceivablesPage() {
             {accounts.length ? (
               <div className="max-h-[620px] overflow-auto">
                 <table className="w-full text-left text-sm">
-                  <thead className={thead}><tr><th className="px-4 py-3">Customer / Order</th><th className="px-4 py-3">Outlet</th><th className="px-4 py-3 text-right">Total</th><th className="px-4 py-3 text-right">Paid</th><th className="px-4 py-3 text-right">Outstanding</th><th className="px-4 py-3 text-right">Overdue</th><th className="px-4 py-3">Next Due</th><th className="px-4 py-3">Last Paid</th><th className="px-4 py-3">Status</th><th className="px-4 py-3"></th></tr></thead>
+                  <thead className={thead}><tr><th className="px-4 py-3">S.No</th><th className="px-4 py-3">Customer / Order</th><th className="px-4 py-3">Outlet</th><th className="px-4 py-3 text-right">Total</th><th className="px-4 py-3 text-right">Paid</th><th className="px-4 py-3 text-right">Outstanding</th><th className="px-4 py-3 text-right">Overdue</th><th className="px-4 py-3">Next Due</th><th className="px-4 py-3">Last Paid</th><th className="px-4 py-3">Status</th><th className="px-4 py-3"></th></tr></thead>
                   <tbody>
-                    {accounts.map((a) => (
-                      <tr key={a.order_id} className="border-t border-slate-50 dark:border-white/5">
+                    {accounts.map((a, idx) => (
+                      <tr key={a.order_id} className="border-t border-slate-50 dark:border-white/5"><td className="px-4 py-3 text-gray-500 tabular-nums">{idx + 1}</td>
                         <td className="px-4 py-3"><p className="font-medium text-dark dark:text-white">{a.customer_name}</p><p className="font-mono text-[11px] text-gray-400">{a.order_ref} · {a.whatsapp_number}</p></td>
                         <td className="px-4 py-3 text-gray-600 dark:text-gray-300">{a.outlet_name}</td>
                         <td className="px-4 py-3 text-right tabular-nums text-gray-600 dark:text-gray-300">{PKR(a.total)}</td>
@@ -268,10 +277,10 @@ export default function AccountsReceivablesPage() {
               {overdueAccounts.length ? (
                 <div className="max-h-[560px] overflow-auto">
                   <table className="w-full text-left text-sm">
-                    <thead className={thead}><tr><th className="px-4 py-3">Customer / Order</th><th className="px-4 py-3">Outlet</th><th className="px-4 py-3 text-right">Days Late</th><th className="px-4 py-3 text-right">Missed Months</th><th className="px-4 py-3 text-right">Overdue</th><th className="px-4 py-3 text-right">Total Outstanding</th><th className="px-4 py-3">Last Paid</th><th className="px-4 py-3"></th></tr></thead>
+                    <thead className={thead}><tr><th className="px-4 py-3">S.No</th><th className="px-4 py-3">Customer / Order</th><th className="px-4 py-3">Outlet</th><th className="px-4 py-3 text-right">Days Late</th><th className="px-4 py-3 text-right">Missed Months</th><th className="px-4 py-3 text-right">Overdue</th><th className="px-4 py-3 text-right">Total Outstanding</th><th className="px-4 py-3">Last Paid</th><th className="px-4 py-3"></th></tr></thead>
                     <tbody>
-                      {overdueAccounts.map((a) => (
-                        <tr key={a.order_id} className="border-t border-slate-50 dark:border-white/5">
+                      {overdueAccounts.map((a, idx) => (
+                        <tr key={a.order_id} className="border-t border-slate-50 dark:border-white/5"><td className="px-4 py-3 text-gray-500 tabular-nums">{idx + 1}</td>
                           <td className="px-4 py-3"><p className="font-medium text-dark dark:text-white">{a.customer_name}</p><p className="font-mono text-[11px] text-gray-400">{a.order_ref} · {a.whatsapp_number}</p></td>
                           <td className="px-4 py-3 text-gray-600 dark:text-gray-300">{a.outlet_name}</td>
                           <td className="px-4 py-3 text-right font-bold tabular-nums text-rose-600">{a.days_late}</td>
@@ -316,10 +325,10 @@ export default function AccountsReceivablesPage() {
             {upcoming.length ? (
               <div className="max-h-[600px] overflow-auto">
                 <table className="w-full text-left text-sm">
-                  <thead className={thead}><tr><th className="px-4 py-3">Due Date</th><th className="px-4 py-3">Customer / Order</th><th className="px-4 py-3">Outlet</th><th className="px-4 py-3">Month</th><th className="px-4 py-3 text-right">Amount</th><th className="px-4 py-3"></th></tr></thead>
+                  <thead className={thead}><tr><th className="px-4 py-3">S.No</th><th className="px-4 py-3">Due Date</th><th className="px-4 py-3">Customer / Order</th><th className="px-4 py-3">Outlet</th><th className="px-4 py-3">Month</th><th className="px-4 py-3 text-right">Amount</th><th className="px-4 py-3"></th></tr></thead>
                   <tbody>
-                    {upcoming.map((u) => (
-                      <tr key={`${u.order_id}-${u.month}`} className="border-t border-slate-50 dark:border-white/5">
+                    {upcoming.map((u, idx) => (
+                      <tr key={`${u.order_id}-${u.month}`} className="border-t border-slate-50 dark:border-white/5"><td className="px-4 py-3 font-semibold text-gray-500 tabular-nums">{idx + 1}</td>
                         <td className="px-4 py-3 font-semibold text-dark dark:text-white">{day(u.due_date)}</td>
                         <td className="px-4 py-3"><p className="font-medium text-dark dark:text-white">{u.customer_name}</p><p className="font-mono text-[11px] text-gray-400">{u.order_ref} · {u.whatsapp_number}</p></td>
                         <td className="px-4 py-3 text-gray-600 dark:text-gray-300">{u.outlet_name}</td>
@@ -378,9 +387,9 @@ export default function AccountsReceivablesPage() {
                 </div>
                 <div className="overflow-x-auto">
                   <table className="w-full text-left text-sm">
-                    <thead className="text-[11px] uppercase text-gray-400"><tr><th className="py-1.5">Outlet</th><th className="py-1.5 text-right">Accounts</th><th className="py-1.5 text-right">Outstanding</th><th className="py-1.5 text-right">Overdue</th><th className="py-1.5 text-right">Overdue %</th><th className="py-1.5 text-right">High risk</th></tr></thead>
-                    <tbody>{riskSummary.byOutlet.map((o) => (
-                      <tr key={o.outlet} className="border-t border-slate-100 dark:border-white/5">
+                    <thead className="text-[11px] uppercase text-gray-400"><tr><th className="py-1.5">S.No</th><th className="py-1.5">Outlet</th><th className="py-1.5 text-right">Accounts</th><th className="py-1.5 text-right">Outstanding</th><th className="py-1.5 text-right">Overdue</th><th className="py-1.5 text-right">Overdue %</th><th className="py-1.5 text-right">High risk</th></tr></thead>
+                    <tbody>{riskSummary.byOutlet.map((o, idx) => (
+                      <tr key={o.outlet} className="border-t border-slate-100 dark:border-white/5"><td className="py-1.5 font-medium text-gray-500 tabular-nums">{idx + 1}</td>
                         <td className="py-1.5 font-medium text-dark dark:text-white">{o.outlet}</td>
                         <td className="py-1.5 text-right tabular-nums">{o.accounts}</td>
                         <td className="py-1.5 text-right tabular-nums">{PKR(o.outstanding)}</td>
@@ -419,9 +428,9 @@ export default function AccountsReceivablesPage() {
               {riskList.length ? (
                 <div className="max-h-[600px] overflow-auto">
                   <table className="w-full text-left text-sm">
-                    <thead className={thead}><tr><th className="px-4 py-3">Risk</th><th className="px-4 py-3">Customer / Order</th><th className="px-4 py-3">Outlet</th><th className="px-4 py-3">Why</th><th className="px-4 py-3">Status</th><th className="px-4 py-3 text-right">Overdue</th><th className="px-4 py-3 text-right">Outstanding</th><th className="px-4 py-3"></th></tr></thead>
-                    <tbody>{riskList.map((a) => (
-                      <tr key={a.order_id} className="border-t border-slate-50 dark:border-white/5">
+                    <thead className={thead}><tr><th className="px-4 py-3">S.No</th><th className="px-4 py-3">Risk</th><th className="px-4 py-3">Customer / Order</th><th className="px-4 py-3">Outlet</th><th className="px-4 py-3">Why</th><th className="px-4 py-3">Status</th><th className="px-4 py-3 text-right">Overdue</th><th className="px-4 py-3 text-right">Outstanding</th><th className="px-4 py-3"></th></tr></thead>
+                    <tbody>{riskList.map((a, idx) => (
+                      <tr key={a.order_id} className="border-t border-slate-50 dark:border-white/5"><td className="px-4 py-3 text-gray-500 tabular-nums">{idx + 1}</td>
                         <td className="px-4 py-3"><span className={`inline-flex min-w-[52px] justify-center rounded-full px-2 py-0.5 text-xs font-black ${RISK_STYLE[a.risk.level]}`}>{a.risk.score}</span></td>
                         <td className="px-4 py-3"><p className="font-medium text-dark dark:text-white">{a.customer_name}</p><p className="font-mono text-[11px] text-gray-400">{a.order_ref} · {a.whatsapp_number}</p></td>
                         <td className="px-4 py-3 text-gray-600 dark:text-gray-300">{a.outlet_name}</td>
@@ -459,11 +468,11 @@ export default function AccountsReceivablesPage() {
             <div className="max-h-[60vh] overflow-y-auto">
               {scheduleLoading ? <TableSkeleton rows={4} cols={4} /> : schedule.length > 0 ? (
                 <table className="w-full text-left text-sm">
-                  <thead className={thead}><tr><th className="px-6 py-3 font-bold">Month</th><th className="px-6 py-3 font-bold">Due Date</th><th className="px-6 py-3 text-right font-bold">Due</th><th className="px-6 py-3 text-right font-bold">Paid</th><th className="px-6 py-3 text-right font-bold">Remaining</th><th className="px-6 py-3 font-bold">Status</th></tr></thead>
-                  <tbody>{schedule.map((s) => {
+                  <thead className={thead}><tr><th className="px-6 py-3 font-bold">S.No</th><th className="px-6 py-3 font-bold">Month</th><th className="px-6 py-3 font-bold">Due Date</th><th className="px-6 py-3 text-right font-bold">Due</th><th className="px-6 py-3 text-right font-bold">Paid</th><th className="px-6 py-3 text-right font-bold">Remaining</th><th className="px-6 py-3 font-bold">Status</th></tr></thead>
+                  <tbody>{schedule.map((s, idx) => {
                     const late = s.status !== "paid" && s.dueDate && new Date(s.dueDate) < new Date(new Date().toDateString());
                     return (
-                      <tr key={s.monthNumber} className="border-t border-slate-50 dark:border-white/5">
+                      <tr key={s.monthNumber} className="border-t border-slate-50 dark:border-white/5"><td className="px-6 py-3.5 text-gray-500 tabular-nums">{idx + 1}</td>
                         <td className="px-6 py-3.5 text-gray-600 dark:text-gray-300">{s.label}</td>
                         <td className={`px-6 py-3.5 ${late ? "font-semibold text-rose-600" : "text-gray-500"}`}>{day(s.dueDate)}</td>
                         <td className="px-6 py-3.5 text-right tabular-nums text-gray-600 dark:text-gray-300">{PKR(s.dueAmount)}</td>

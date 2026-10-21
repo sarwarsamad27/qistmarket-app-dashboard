@@ -108,10 +108,10 @@ export default function Settlements() {
         {!daily ? <TableSkeleton /> : daily.rows.length ? (
           <div className="max-h-80 overflow-auto rounded-xl border border-slate-100 dark:border-white/10">
             <table className="w-full text-left text-sm">
-              <thead className="sticky top-0 bg-gray-50 text-[11px] uppercase text-gray-500 dark:bg-dark-2"><tr><th className="px-3 py-2">Date</th><th className="px-3 py-2">Channel</th><th className="px-3 py-2 text-right">Payments</th><th className="px-3 py-2 text-right">Collected</th><th className="px-3 py-2 text-right">Settled</th><th className="px-3 py-2 text-right">In batch</th><th className="px-3 py-2 text-right">Not batched</th><th className="px-3 py-2"></th></tr></thead>
+              <thead className="sticky top-0 bg-gray-50 text-[11px] uppercase text-gray-500 dark:bg-dark-2"><tr><th className="px-3 py-2">S.No</th><th className="px-3 py-2">Date</th><th className="px-3 py-2">Channel</th><th className="px-3 py-2 text-right">Payments</th><th className="px-3 py-2 text-right">Collected</th><th className="px-3 py-2 text-right">Settled</th><th className="px-3 py-2 text-right">In batch</th><th className="px-3 py-2 text-right">Not batched</th><th className="px-3 py-2"></th></tr></thead>
               <tbody>
-                {daily.rows.map((r) => (
-                  <tr key={`${r.date}-${r.channel}`} className="border-t border-slate-100 dark:border-white/5">
+                {daily.rows.map((r, idx) => (
+                  <tr key={`${r.date}-${r.channel}`} className="border-t border-slate-100 dark:border-white/5"><td className="px-3 py-2 font-medium text-gray-500 tabular-nums">{idx + 1}</td>
                     <td className="px-3 py-2 font-medium">{r.date}</td>
                     <td className="px-3 py-2">{r.channel_label}</td>
                     <td className="px-3 py-2 text-right tabular-nums">{r.count}</td>
@@ -137,10 +137,10 @@ export default function Settlements() {
         {!batches ? <TableSkeleton /> : batches.length ? (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
-              <thead className="bg-gray-50 text-[11px] uppercase text-gray-500 dark:bg-dark-2"><tr><th className="px-3 py-2">Batch</th><th className="px-3 py-2">Period</th><th className="px-3 py-2 text-right">Expected</th><th className="px-3 py-2 text-right">Gateway sheet</th><th className="px-3 py-2 text-right">Received</th><th className="px-3 py-2 text-right">Difference</th><th className="px-3 py-2">Bank</th><th className="px-3 py-2">Status</th><th className="px-3 py-2"></th></tr></thead>
+              <thead className="bg-gray-50 text-[11px] uppercase text-gray-500 dark:bg-dark-2"><tr><th className="px-3 py-2">S.No</th><th className="px-3 py-2">Batch</th><th className="px-3 py-2">Period</th><th className="px-3 py-2 text-right">Expected</th><th className="px-3 py-2 text-right">Gateway sheet</th><th className="px-3 py-2 text-right">Received</th><th className="px-3 py-2 text-right">Difference</th><th className="px-3 py-2">Bank</th><th className="px-3 py-2">Status</th><th className="px-3 py-2"></th></tr></thead>
               <tbody>
-                {batches.map((b) => (
-                  <tr key={b.id} className="border-t border-slate-100 dark:border-white/5">
+                {batches.map((b, idx) => (
+                  <tr key={b.id} className="border-t border-slate-100 dark:border-white/5"><td className="px-3 py-2 text-gray-500 tabular-nums">{idx + 1}</td>
                     <td className="px-3 py-2"><p className="font-mono text-xs font-semibold">{b.batch_no}</p><p className="text-xs text-gray-400">{b.channel_label}</p></td>
                     <td className="px-3 py-2 text-xs text-gray-500">{day(b.period_start)} – {day(b.period_end)}</td>
                     <td className="px-3 py-2 text-right tabular-nums">{PKR(b.expected_amount)}<p className="text-[11px] text-gray-400">{b.expected_count} payments</p></td>
@@ -346,10 +346,10 @@ function BatchDetail({ id, onBack }: { id: number; onBack: () => void }) {
         </div>
         <div className="max-h-[480px] overflow-auto">
           <table className="w-full text-left text-sm">
-            <thead className="sticky top-0 bg-gray-50 text-[11px] uppercase text-gray-500 dark:bg-dark-2"><tr><th className="px-3 py-2">Txn ID</th><th className="px-3 py-2">Date</th><th className="px-3 py-2">Paid by</th><th className="px-3 py-2 text-right">Our amount</th><th className="px-3 py-2 text-right">Sheet amount</th><th className="px-3 py-2">Result</th></tr></thead>
+            <thead className="sticky top-0 bg-gray-50 text-[11px] uppercase text-gray-500 dark:bg-dark-2"><tr><th className="px-3 py-2">S.No</th><th className="px-3 py-2">Txn ID</th><th className="px-3 py-2">Date</th><th className="px-3 py-2">Paid by</th><th className="px-3 py-2 text-right">Our amount</th><th className="px-3 py-2 text-right">Sheet amount</th><th className="px-3 py-2">Result</th></tr></thead>
             <tbody>
-              {items.map((i) => (
-                <tr key={i.id} className="border-t border-slate-100 dark:border-white/5">
+              {items.map((i, idx) => (
+                <tr key={i.id} className="border-t border-slate-100 dark:border-white/5"><td className="px-3 py-2 text-xs text-gray-500 tabular-nums">{idx + 1}</td>
                   <td className="px-3 py-2 font-mono text-xs">{i.gateway_txn_id}</td>
                   <td className="px-3 py-2 text-xs text-gray-500">{i.txn_date ? new Date(i.txn_date).toLocaleString() : "—"}</td>
                   <td className="px-3 py-2 text-xs">{i.payer || i.consumer_number || "—"}</td>
@@ -358,7 +358,7 @@ function BatchDetail({ id, onBack }: { id: number; onBack: () => void }) {
                   <td className="px-3 py-2"><span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${ITEM_STATUS[i.status]}`}>{ITEM_LABEL[i.status] || i.status}</span></td>
                 </tr>
               ))}
-              {!items.length && <tr><td colSpan={6} className="px-3 py-6 text-center text-gray-500">No lines.</td></tr>}
+              {!items.length && <tr><td colSpan={7} className="px-3 py-6 text-center text-gray-500">No lines.</td></tr>}
             </tbody>
           </table>
         </div>

@@ -1,6 +1,7 @@
 
 "use client";
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import Breadcrumb from "@/components/Breadcrumbs/Breadcrumb";
 import Loader from "@/components/common/Loader";
 import { useNotifications } from "../../../../contexts/NotificationContext";
@@ -9,6 +10,13 @@ import { CheckCheck, Trash2, Bell, BellOff } from "lucide-react";
 import Pagination from "@/components/common/Pagination";
 import { formatExactDate } from "@/utils/dateUtils";
 import { timeAgo } from "@/utils/dateUtils";
+
+// Where a notification's "View details" link goes, by type. relatedId is the record's id.
+const detailLink = (type: string, relatedId?: number) => {
+    if (!relatedId) return null;
+    if (type === "bank_deposit") return `/accounts/cash-deposits?id=${relatedId}`;
+    return null;
+};
 
 
 const NotificationsPage = () => {
@@ -140,7 +148,16 @@ const NotificationsPage = () => {
                                             </div>
                                         </div>
 
-                                        <div className="mt-3 flex items-center justify-end">
+                                        <div className="mt-3 flex items-center justify-end gap-4">
+                                            {detailLink(notif.type, notif.relatedId) && (
+                                                <Link
+                                                    href={detailLink(notif.type, notif.relatedId)!}
+                                                    onClick={() => { if (!notif.isRead) markAsRead(notif.id); }}
+                                                    className="text-xs font-bold text-blue-600 hover:text-blue-500 transition-colors uppercase tracking-wider"
+                                                >
+                                                    View details
+                                                </Link>
+                                            )}
                                             {!notif.isRead && (
                                                 <button
                                                     onClick={() => markAsRead(notif.id)}

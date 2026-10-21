@@ -80,11 +80,11 @@ export default function AdminDeliveryManagementPage() {
         <div className="overflow-x-auto rounded-2xl border border-slate-100 bg-white shadow-sm dark:border-white/10 dark:bg-boxdark">
           <table className="w-full text-left text-sm">
             <thead className="bg-gray-50 text-[11px] uppercase tracking-wide text-gray-500 dark:bg-dark-2 dark:text-gray-400">
-              <tr><th className="px-4 py-3 font-bold">Officer</th><th className="px-4 py-3 font-bold">Outlet</th><th className="px-4 py-3 text-right font-bold">Total</th><th className="px-4 py-3 font-bold">Breakdown</th></tr>
+              <tr><th className="px-4 py-3 font-bold">S.No</th><th className="px-4 py-3 font-bold">Officer</th><th className="px-4 py-3 font-bold">Outlet</th><th className="px-4 py-3 text-right font-bold">Total</th><th className="px-4 py-3 font-bold">Breakdown</th></tr>
             </thead>
             <tbody>
-              {data.officerWise.map((o) => (
-                <tr key={o.officer_id} className="border-t border-slate-50 dark:border-white/5">
+              {data.officerWise.map((o, idx) => (
+                <tr key={o.officer_id} className="border-t border-slate-50 dark:border-white/5"><td className="px-4 py-3.5 text-gray-500 tabular-nums">{idx + 1}</td>
                   <td className="px-4 py-3.5">
                     <p className="font-semibold text-dark dark:text-white">{o.full_name}</p>
                     <p className="text-xs text-gray-400">@{o.username}</p>

@@ -28,6 +28,7 @@ import Pagination from "@/components/common/Pagination";
 import { createPortal } from "react-dom";
 import { getErrorMessage, extractBodyMessage } from "@/lib/apiErrors";
 
+import { serialColumn } from '@/utils/serialColumn'
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
 
 interface City {
@@ -100,7 +101,8 @@ const ZonesPage = () => {
 
     // Columns
     const columns: ColumnDef<Zone>[] = [
-        {
+    serialColumn<Zone>(),
+    {
             accessorKey: "name",
             header: "Zone Name",
             enableColumnFilter: true,

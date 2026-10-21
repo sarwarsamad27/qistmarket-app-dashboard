@@ -179,14 +179,14 @@ export default function OfficerDetailsModal({ isOpen, onClose, officerId }: Offi
                                             <table className="w-full text-left">
                                                 <thead>
                                                     <tr className="bg-gray-50 dark:bg-meta-4/30 border-b border-stroke dark:border-strokedark">
-                                                        <th className="px-6 py-4 text-[9px] font-black text-gray-400 uppercase tracking-widest">Product / IMEI</th>
+                                                        <th className="px-6 py-4 text-[9px] font-black text-gray-400 uppercase tracking-widest">S.No</th><th className="px-6 py-4 text-[9px] font-black text-gray-400 uppercase tracking-widest">Product / IMEI</th>
                                                         <th className="px-6 py-4 text-[9px] font-black text-gray-400 uppercase tracking-widest">Customer</th>
                                                         <th className="px-6 py-4 text-[9px] font-black text-gray-400 uppercase tracking-widest text-right">Delivery Date</th>
                                                     </tr>
                                                 </thead>
                                                 <tbody className="divide-y divide-stroke dark:divide-strokedark">
                                                     {details?.delivered_products?.map((item: any, idx: number) => (
-                                                        <tr key={idx} className="hover:bg-gray-50/50 dark:hover:bg-meta-4/10 transition-colors">
+                                                        <tr key={idx} className="hover:bg-gray-50/50 dark:hover:bg-meta-4/10 transition-colors"><td className="px-6 py-4 text-gray-500 tabular-nums">{idx + 1}</td>
                                                             <td className="px-6 py-4">
                                                                 <p className="text-xs font-black text-gray-800 dark:text-white">{item.product_name}</p>
                                                                 <p className="text-[9px] text-primary font-bold mt-0.5">#{item.imei_serial}</p>

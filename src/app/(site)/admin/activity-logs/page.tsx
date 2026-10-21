@@ -82,11 +82,11 @@ export default function AdminActivityLogsPage() {
           <div className="overflow-x-auto rounded-2xl border border-slate-100 bg-white shadow-sm dark:border-white/10 dark:bg-boxdark">
             <table className="w-full text-left text-sm">
               <thead className="bg-gray-50 text-[11px] uppercase tracking-wide text-gray-500 dark:bg-dark-2 dark:text-gray-400">
-                <tr><th className="px-4 py-3 font-bold">User</th><th className="px-4 py-3 font-bold">Action</th><th className="px-4 py-3 font-bold">Details</th><th className="px-4 py-3 font-bold">Outlet</th><th className="px-4 py-3 font-bold">IP / Device</th><th className="px-4 py-3 font-bold">Date</th></tr>
+                <tr><th className="px-4 py-3 font-bold">S.No</th><th className="px-4 py-3 font-bold">User</th><th className="px-4 py-3 font-bold">Action</th><th className="px-4 py-3 font-bold">Details</th><th className="px-4 py-3 font-bold">Outlet</th><th className="px-4 py-3 font-bold">IP / Device</th><th className="px-4 py-3 font-bold">Date</th></tr>
               </thead>
               <tbody>
-                {logs.map((log) => (
-                  <tr key={log.id} className="border-t border-slate-50 dark:border-white/5">
+                {logs.map((log, idx) => (
+                  <tr key={log.id} className="border-t border-slate-50 dark:border-white/5"><td className="px-4 py-3.5 font-medium text-gray-500 tabular-nums">{(page - 1) * 25 + idx + 1}</td>
                     <td className="px-4 py-3.5 font-medium text-dark dark:text-white">{log.user?.full_name || "System"}<span className="block text-xs text-gray-400">@{log.user?.username || "-"}</span></td>
                     <td className="px-4 py-3.5"><span className="rounded-full bg-gray-100 px-2.5 py-1 text-xs font-bold text-gray-700 dark:bg-white/10 dark:text-gray-200">{log.action}</span></td>
                     <td className="max-w-xs truncate px-4 py-3.5 text-gray-600 dark:text-gray-300" title={log.details}>{log.details}</td>

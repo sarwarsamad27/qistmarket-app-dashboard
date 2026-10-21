@@ -341,6 +341,7 @@ export default function TransfersPage() {
                             <thead className="sticky top-0 bg-gray-100 dark:bg-meta-4 shadow-sm z-10">
                                 <tr className="text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">
                                     <th className="p-4 w-10" />
+                                    <th className="p-4">S.No</th>
                                     <th className="p-4 w-10 text-center">Sel.</th>
                                     <th className="p-4">Product</th>
                                     <th className="p-4">Variant</th>
@@ -350,8 +351,8 @@ export default function TransfersPage() {
                             </thead>
                             <tbody className="divide-y divide-stroke dark:divide-strokedark">
                                 {grouped.length === 0 ? (
-                                    <tr><td colSpan={6} className="p-10 text-center text-gray-500">No in-stock items available for transfer.</td></tr>
-                                ) : grouped.map(grp => {
+                                    <tr><td colSpan={7} className="p-10 text-center text-gray-500">No in-stock items available for transfer.</td></tr>
+                                ) : grouped.map((grp, gi) => {
                                     const isExpanded = expandedKeys.has(grp.key);
                                     const groupIds = grp.children.map(c => c.id);
                                     const allSelected = groupIds.every(id => selectedIds.includes(id));
@@ -363,6 +364,7 @@ export default function TransfersPage() {
                                                 <td className="p-4 text-center" onClick={() => toggleExpand(grp.key)}>
                                                     {isExpanded ? <ChevronDown size={16} className="text-primary mx-auto" /> : <ChevronRight size={16} className="text-gray-400 mx-auto" />}
                                                 </td>
+                                                <td className="p-4 text-gray-500 tabular-nums">{gi + 1}</td>
                                                 <td className="p-4 text-center" onClick={() => toggleGroup(grp)}>
                                                     {allSelected ? <CheckSquare size={18} className="text-primary mx-auto" /> : someSelected ? <div className="w-[18px] h-[18px] border-2 border-primary bg-primary/30 rounded mx-auto" /> : <Square size={18} className="text-gray-400 mx-auto" />}
                                                 </td>
@@ -386,6 +388,7 @@ export default function TransfersPage() {
                                                 return (
                                                     <tr key={`child-${item.id}`} className={`border-t border-dashed border-stroke/50 dark:border-strokedark/50 transition-colors ${isSelected ? "bg-primary/5 dark:bg-primary/10" : "bg-gray-50/60 dark:bg-meta-4/10"}`}>
                                                         <td className="p-3 pl-6 text-center"><span className="text-[10px] text-gray-400 font-mono">#{idx + 1}</span></td>
+                                                        <td />
                                                         <td className="p-3 text-center">
                                                             <button onClick={() => toggleChild(item, grp.key)}>
                                                                 {isSelected ? <CheckSquare size={16} className="text-primary mx-auto" /> : <Square size={16} className="text-gray-400 mx-auto" />}

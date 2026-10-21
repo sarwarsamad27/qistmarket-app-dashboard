@@ -92,11 +92,11 @@ export default function HoPurchaseForm({ vendors, onClose, onSaved }: { vendors:
           <div className="overflow-x-auto rounded-xl border border-slate-100 dark:border-white/10">
             <table className="w-full text-left text-sm">
               <thead className="bg-gray-50 text-[10px] uppercase tracking-wide text-gray-500 dark:bg-dark-2">
-                <tr><th className="px-2 py-2">Product *</th><th className="px-2 py-2">Category</th><th className="px-2 py-2">Variant</th><th className="px-2 py-2">IMEIs (one per unit)</th><th className="px-2 py-2 w-20">Qty</th><th className="px-2 py-2 w-28">Unit price *</th><th className="px-2 py-2 text-right">Line total</th><th></th></tr>
+                <tr><th className="px-2 py-2">S.No</th><th className="px-2 py-2">Product *</th><th className="px-2 py-2">Category</th><th className="px-2 py-2">Variant</th><th className="px-2 py-2">IMEIs (one per unit)</th><th className="px-2 py-2 w-20">Qty</th><th className="px-2 py-2 w-28">Unit price *</th><th className="px-2 py-2 text-right">Line total</th><th></th></tr>
               </thead>
               <tbody>
                 {rows.map((r, i) => (
-                  <tr key={i} className="border-t border-slate-100 align-top dark:border-white/5">
+                  <tr key={i} className="border-t border-slate-100 align-top dark:border-white/5"><td className="px-2 py-2 text-gray-500 tabular-nums">{i + 1}</td>
                     <td className="px-2 py-2"><input value={r.product_name} onChange={(e) => set(i, { product_name: e.target.value })} className={input} /></td>
                     <td className="px-2 py-2"><input value={r.category} onChange={(e) => set(i, { category: e.target.value })} className={input} placeholder="Mobile" /></td>
                     <td className="px-2 py-2"><input value={r.color_variant} onChange={(e) => set(i, { color_variant: e.target.value })} className={input} /></td>

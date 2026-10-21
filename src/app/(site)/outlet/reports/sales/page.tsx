@@ -97,7 +97,7 @@ export default function SalesReportPage() {
               <table className="w-full text-left">
                 <thead>
                   <tr className="bg-gray-50 text-[11px] uppercase text-gray-500 dark:bg-dark-3">
-                    <th className="px-6 py-4">Ref #</th>
+                    <th className="px-6 py-4">S.No</th><th className="px-6 py-4">Ref #</th>
                     <th className="px-6 py-4">Customer</th>
                     <th className="px-6 py-4">Product</th>
                     <th className="px-6 py-4">Status</th>
@@ -106,10 +106,10 @@ export default function SalesReportPage() {
                   </tr>
                 </thead>
                 <tbody className="text-sm">
-                  {data?.orders.map((order) => {
+                  {data?.orders.map((order, idx) => {
                     const received = order.payments.reduce((acc, p) => acc + p.amount, 0);
                     return (
-                      <tr key={order.id} className="border-b border-stroke last:border-0 hover:bg-gray-50 dark:border-dark-3 dark:hover:bg-dark-3">
+                      <tr key={order.id} className="border-b border-stroke last:border-0 hover:bg-gray-50 dark:border-dark-3 dark:hover:bg-dark-3"><td className="px-6 py-4 font-medium text-gray-500 tabular-nums">{idx + 1}</td>
                         <td className="px-6 py-4 font-medium text-dark dark:text-white">{order.order_ref}</td>
                         <td className="px-6 py-4 text-gray-500 dark:text-gray-400">{order.customer_name}</td>
                         <td className="px-6 py-4 text-gray-500 dark:text-gray-400 truncate max-w-[150px]">{order.product_name}</td>

@@ -287,16 +287,16 @@ export default function VendorPaymentsPage() {
                             <table className="w-full text-xs text-left">
                                 <thead className="sticky top-0 bg-white dark:bg-boxdark border-b border-stroke dark:border-strokedark z-10 shadow-sm">
                                     <tr className="text-gray-400 font-bold">
-                                        <th className="p-3">Vendor</th>
+                                        <th className="p-3">S.No</th><th className="p-3">Vendor</th>
                                         <th className="p-3 text-right">Owed</th>
                                         <th className="p-3 text-right">Balance</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-stroke dark:divide-strokedark">
                                     {summary.length === 0 ? (
-                                        <tr><td colSpan={3} className="p-8 text-center text-gray-400 italic">No vendor transactions yet.</td></tr>
+                                        <tr><td colSpan={4} className="p-8 text-center text-gray-400 italic">No vendor transactions yet.</td></tr>
                                     ) : summary.map((v, idx) => (
-                                        <tr key={idx} className="hover:bg-gray-50 dark:hover:bg-meta-4/20 transition-all font-medium">
+                                        <tr key={idx} className="hover:bg-gray-50 dark:hover:bg-meta-4/20 transition-all font-medium"><td className="p-3 font-bold text-gray-500 tabular-nums">{idx + 1}</td>
                                             <td className="p-3 font-bold truncate max-w-[120px] text-gray-700 dark:text-gray-300">{v.vendor_name}</td>
                                             <td className="p-3 text-right tabular-nums text-gray-500">PKR {v._sum.total_amount?.toLocaleString()}</td>
                                             <td className="p-3 text-right font-black tabular-nums text-red-600 dark:text-red-400">PKR {v._sum.balance?.toLocaleString()}</td>
@@ -332,7 +332,7 @@ export default function VendorPaymentsPage() {
                             <table className="w-full text-xs text-left border-collapse">
                                 <thead>
                                     <tr className="bg-gray-50 dark:bg-meta-4 text-[10px] uppercase font-black tracking-widest text-gray-400">
-                                        <th className="p-4">Reference Date</th>
+                                        <th className="p-4">S.No</th><th className="p-4">Reference Date</th>
                                         <th className="p-4">Vendor</th>
                                         <th className="p-4">Type / Method</th>
                                         <th className="p-4 text-right">Amount</th>
@@ -341,13 +341,13 @@ export default function VendorPaymentsPage() {
                                 <tbody className="divide-y divide-stroke dark:divide-strokedark">
                                     {payments.length === 0 ? (
                                         <tr>
-                                            <td colSpan={4} className="p-20 text-center text-gray-400 opacity-60">
+                                            <td colSpan={5} className="p-20 text-center text-gray-400 opacity-60">
                                                 <CreditCard size={40} className="mx-auto mb-4" />
                                                 <div className="font-bold uppercase tracking-widest">No payment history available</div>
                                             </td>
                                         </tr>
-                                    ) : payments.map(p => (
-                                        <tr key={p.id} className={`hover:bg-gray-50 dark:hover:bg-meta-4/20 transition-all group ${deletedRowClass(p)}`}>
+                                    ) : payments.map((p, idx) => (
+                                        <tr key={p.id} className={`hover:bg-gray-50 dark:hover:bg-meta-4/20 transition-all group ${deletedRowClass(p)}`}><td className="p-4 text-gray-500 tabular-nums">{idx + 1}</td>
                                             <td className="p-4">
                                                 <div className="flex items-center gap-3">
                                                     <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${p.type === 'in' ? 'bg-green-500/10 text-green-600' : 'bg-primary/5 text-primary'}`}>

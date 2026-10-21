@@ -95,7 +95,7 @@ export default function EmployeeOrders({ employeeId }: { employeeId: number | st
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-stroke bg-gray-2 text-left dark:border-stroke-dark dark:bg-dark-3">
-              <th className="px-4 py-3">Order</th>
+              <th className="px-4 py-3">S.No</th><th className="px-4 py-3">Order</th>
               <th className="px-4 py-3">Involved as</th>
               <th className="px-4 py-3">Status</th>
               <th className="px-4 py-3 text-right">Monthly qist</th>
@@ -107,10 +107,10 @@ export default function EmployeeOrders({ employeeId }: { employeeId: number | st
           </thead>
           <tbody>
             {data.orders.length === 0 && (
-              <tr><td colSpan={8} className="px-4 py-8 text-center text-gray-500">This employee is not in any order as a purchaser or guarantor.</td></tr>
+              <tr><td colSpan={9} className="px-4 py-8 text-center text-gray-500">This employee is not in any order as a purchaser or guarantor.</td></tr>
             )}
-            {data.orders.map((o) => (
-              <tr key={o.id} className="border-b border-stroke dark:border-stroke-dark">
+            {data.orders.map((o, idx) => (
+              <tr key={o.id} className="border-b border-stroke dark:border-stroke-dark"><td className="px-4 py-3 text-gray-500 tabular-nums">{idx + 1}</td>
                 <td className="px-4 py-3">
                   <Link href={`/orders/${o.id}`} className="font-medium text-primary hover:underline">{o.order_ref}</Link>
                   <p className="text-xs text-gray-500">{o.product_name}{o.outlet ? ` · ${o.outlet}` : ""}</p>

@@ -92,13 +92,13 @@ export default function AdminSalesTargetsPage() {
         <div className="overflow-x-auto rounded-2xl border border-slate-100 bg-white shadow-sm dark:border-white/10 dark:bg-boxdark">
           <table className="w-full text-left text-sm">
             <thead className="bg-gray-50 text-[11px] uppercase tracking-wide text-gray-500 dark:bg-dark-2 dark:text-gray-400">
-              <tr><th className="px-4 py-3 font-bold">Month</th><th className="px-4 py-3 text-right font-bold">Due</th><th className="px-4 py-3 text-right font-bold">Recovered</th><th className="px-4 py-3 text-right font-bold">Target</th><th className="px-4 py-3 text-right font-bold">Recovery %</th><th className="px-4 py-3 font-bold">Status</th></tr>
+              <tr><th className="px-4 py-3 font-bold">S.No</th><th className="px-4 py-3 font-bold">Month</th><th className="px-4 py-3 text-right font-bold">Due</th><th className="px-4 py-3 text-right font-bold">Recovered</th><th className="px-4 py-3 text-right font-bold">Target</th><th className="px-4 py-3 text-right font-bold">Recovery %</th><th className="px-4 py-3 font-bold">Status</th></tr>
             </thead>
             <tbody>
-              {months.map((m) => {
+              {months.map((m, idx) => {
                 const hitTarget = m.target > 0 && m.recovered >= m.target;
                 return (
-                  <tr key={m.month} className="border-t border-slate-50 dark:border-white/5">
+                  <tr key={m.month} className="border-t border-slate-50 dark:border-white/5"><td className="px-4 py-3.5 font-semibold text-gray-500 tabular-nums">{idx + 1}</td>
                     <td className="px-4 py-3.5 font-semibold text-dark dark:text-white">{m.label}{m.isProjected && <span className="ml-2 rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-bold text-blue-600 dark:bg-blue-500/10">Projected</span>}</td>
                     <td className="px-4 py-3.5 text-right tabular-nums text-gray-600 dark:text-gray-300">{PKR(m.due)}</td>
                     <td className="px-4 py-3.5 text-right tabular-nums font-bold text-emerald-600">{PKR(m.recovered)}</td>

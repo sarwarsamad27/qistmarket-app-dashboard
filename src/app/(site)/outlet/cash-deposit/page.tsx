@@ -619,7 +619,7 @@ export default function CashDepositPage() {
                                         <table className="w-full table-auto">
                                             <thead>
                                                 <tr className="bg-gray-2 text-left dark:bg-meta-4">
-                                                    <th className="py-3 px-4 font-medium text-black dark:text-white">Date</th>
+                                                    <th className="py-3 px-4 font-medium text-black dark:text-white">S.No</th><th className="py-3 px-4 font-medium text-black dark:text-white">Date</th>
                                                     <th className="py-3 px-4 font-medium text-black dark:text-white">From</th>
                                                     <th className="py-3 px-4 font-medium text-black dark:text-white">Amount</th>
                                                     <th className="py-3 px-4 font-medium text-black dark:text-white">Status</th>
@@ -627,8 +627,8 @@ export default function CashDepositPage() {
                                                 </tr>
                                             </thead>
                                             <tbody>
-                                                {incomingTransfers.map(tr => (
-                                                    <tr key={tr.id}>
+                                                {incomingTransfers.map((tr, idx) => (
+                                                    <tr key={tr.id}><td className="py-4 px-4 text-sm text-gray-500 tabular-nums">{idx + 1}</td>
                                                         <td className="border-b border-[#eee] py-4 px-4 dark:border-strokedark text-sm">
                                                             {new Date(tr.created_at).toLocaleString()}
                                                         </td>
@@ -682,15 +682,15 @@ export default function CashDepositPage() {
                                         <table className="w-full table-auto">
                                             <thead>
                                                 <tr className="bg-gray-2 text-left dark:bg-meta-4">
-                                                    <th className="py-3 px-4 font-medium text-black dark:text-white">Date</th>
+                                                    <th className="py-3 px-4 font-medium text-black dark:text-white">S.No</th><th className="py-3 px-4 font-medium text-black dark:text-white">Date</th>
                                                     <th className="py-3 px-4 font-medium text-black dark:text-white">To</th>
                                                     <th className="py-3 px-4 font-medium text-black dark:text-white">Amount</th>
                                                     <th className="py-3 px-4 font-medium text-black dark:text-white">Status</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
-                                                {outgoingTransfers.map(tr => (
-                                                    <tr key={tr.id}>
+                                                {outgoingTransfers.map((tr, idx) => (
+                                                    <tr key={tr.id}><td className="py-4 px-4 text-sm text-gray-500 tabular-nums">{idx + 1}</td>
                                                         <td className="border-b border-[#eee] py-4 px-4 dark:border-strokedark text-sm">
                                                             {new Date(tr.created_at).toLocaleString()}
                                                         </td>

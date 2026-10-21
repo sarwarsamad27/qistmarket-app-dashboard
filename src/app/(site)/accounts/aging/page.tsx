@@ -10,6 +10,7 @@ import PageHeader from "@/components/Accounts/PageHeader";
 import EmptyState from "@/components/Accounts/EmptyState";
 import { StatCardSkeleton, ChartSkeleton, TableSkeleton } from "@/components/Accounts/Skeleton";
 import { PKR } from "@/components/Accounts/StatCard";
+import DateRangeFilter, { type DateRange } from "@/components/Accounts/DateRangeFilter";
 
 const Chart = dynamic(() => import("react-apexcharts"), { ssr: false });
 
@@ -88,19 +89,24 @@ export default function InstallmentAgingPage() {
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<"outlet" | "officer">("outlet");
   const [hideUnassigned, setHideUnassigned] = useState(false);
+  const [range, setRange] = useState<DateRange>({ from: "", to: "" });
 
   useEffect(() => {
     const token = Cookies.get("auth_token");
     if (!token) return;
 
-    fetch(`${BACKEND_URL}/api/accounts/aging`, { headers: { Authorization: `Bearer ${token}` } })
+    setLoading(true);
+    const qs = new URLSearchParams();
+    if (range.from) qs.set("startDate", range.from);
+    if (range.to) qs.set("endDate", range.to);
+    fetch(`${BACKEND_URL}/api/accounts/aging?${qs}`, { headers: { Authorization: `Bearer ${token}` } })
       .then((res) => res.json())
       .then((json) => {
         if (json.success) setData(json.data);
       })
       .catch((err) => console.error("Failed to load aging report:", err))
       .finally(() => setLoading(false));
-  }, []);
+  }, [range.from, range.to]);
 
   const rawList = viewMode === "outlet" ? data?.outletWise || [] : data?.officerWise || [];
   const unassignedItem = rawList.find(
@@ -156,6 +162,10 @@ export default function InstallmentAgingPage() {
     <>
       <Breadcrumb pageName="Installment Aging" />
       <PageHeader icon={Clock} title="Installment Aging" subtitle="Outstanding installments grouped by how overdue they are." />
+      <div className="mb-4">
+        <DateRangeFilter value={range} onChange={setRange} />
+        <p className="mt-1.5 text-[11px] text-gray-400">Dates pick installments that fell due in that period; days overdue are always counted to today. Empty = all overdue installments.</p>
+      </div>
 
       <div className="mb-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
         {loading ? (
@@ -235,7 +245,7 @@ export default function InstallmentAgingPage() {
             <table className="w-full text-left text-sm">
               <thead className="sticky top-0 bg-gray-50 text-[11px] uppercase tracking-wide text-gray-500 dark:bg-dark-2 dark:text-gray-400">
                 <tr>
-                  <th className="px-4 py-3 font-bold">Order Ref</th>
+                  <th className="px-4 py-3 font-bold">S.No</th><th className="px-4 py-3 font-bold">Order Ref</th>
                   <th className="px-4 py-3 font-bold">Customer</th>
                   <th className="px-4 py-3 font-bold">Outlet</th>
                   <th className="px-4 py-3 font-bold">Officer</th>
@@ -246,7 +256,7 @@ export default function InstallmentAgingPage() {
               </thead>
               <tbody>
                 {data.items.slice(0, 300).map((item, i) => (
-                  <tr key={`${item.order_id}-${item.month}-${i}`} className="border-t border-slate-50 transition hover:bg-slate-50/70 dark:border-white/5 dark:hover:bg-white/5">
+                  <tr key={`${item.order_id}-${item.month}-${i}`} className="border-t border-slate-50 transition hover:bg-slate-50/70 dark:border-white/5 dark:hover:bg-white/5"><td className="px-4 py-3.5 font-semibold text-gray-500 tabular-nums">{i + 1}</td>
                     <td className="px-4 py-3.5 font-semibold text-dark dark:text-white">{item.order_ref}</td>
                     <td className="px-4 py-3.5 text-gray-600 dark:text-gray-300">{item.customer_name}</td>
                     <td className="px-4 py-3.5 text-gray-600 dark:text-gray-300">{item.outlet_name}</td>

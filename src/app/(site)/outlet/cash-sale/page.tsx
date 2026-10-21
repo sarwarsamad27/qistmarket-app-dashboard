@@ -624,22 +624,23 @@ export default function CashSalePage() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-gray-100 dark:border-dark-3">
-                {["Date", "Product", "IMEI", "Customer", "Phone", "Price", "Sold By", "Status", "Actions"].map((h) => (
+                {["S.No", "Date", "Product", "IMEI", "Customer", "Phone", "Price", "Sold By", "Status", "Actions"].map((h) => (
                   <th key={h} className="text-left py-3 px-3 text-[10px] font-black text-gray-400 uppercase tracking-widest whitespace-nowrap">{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {historyLoading ? (
-                <tr><td colSpan={9} className="py-12 text-center text-gray-400 font-medium">Loading...</td></tr>
+                <tr><td colSpan={10} className="py-12 text-center text-gray-400 font-medium">Loading...</td></tr>
               ) : history.length === 0 ? (
-                <tr><td colSpan={9} className="py-12 text-center text-gray-400 font-medium">No cash sales yet</td></tr>
+                <tr><td colSpan={10} className="py-12 text-center text-gray-400 font-medium">No cash sales yet</td></tr>
               ) : (
-                history.map((sale) => {
+                history.map((sale, idx) => {
                   const isCancelled = sale.status === "cancelled";
                   const editable = isWithinEditWindow(sale.created_at) && !isCancelled;
                   return (
                     <tr key={sale.id} className={`border-b border-gray-50 dark:border-dark-3 hover:bg-gray-50/50 dark:hover:bg-dark-2/50 transition-colors ${isCancelled ? "opacity-60" : ""}`}>
+                      <td className="py-3.5 px-3 text-gray-500 tabular-nums">{(page - 1) * limit + idx + 1}</td>
                       <td className="py-3.5 px-3 whitespace-nowrap text-gray-500 dark:text-dark-6 font-medium">
                         {new Date(sale.created_at).toLocaleDateString("en-PK", { day: "2-digit", month: "short", year: "numeric" })}
                         <div className="text-[10px] text-gray-400">{new Date(sale.created_at).toLocaleTimeString("en-PK", { hour: "2-digit", minute: "2-digit" })}</div>

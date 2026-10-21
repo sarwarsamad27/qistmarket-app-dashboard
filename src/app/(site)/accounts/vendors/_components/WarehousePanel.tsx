@@ -182,10 +182,10 @@ export default function WarehousePanel({ refreshKey }: { refreshKey: number }) {
           <h4 className="mb-3 text-sm font-bold text-dark dark:text-white">Transfers to outlets</h4>
           <div className="max-h-72 overflow-auto">
             <table className="w-full text-left text-xs">
-              <thead className="text-[10px] uppercase text-gray-400"><tr><th className="py-1.5">Date</th><th className="py-1.5">To</th><th className="py-1.5">Product</th><th className="py-1.5">IMEI</th><th className="py-1.5 text-right">Qty</th><th className="py-1.5">Status</th></tr></thead>
+              <thead className="text-[10px] uppercase text-gray-400"><tr><th className="py-1.5">S.No</th><th className="py-1.5">Date</th><th className="py-1.5">To</th><th className="py-1.5">Product</th><th className="py-1.5">IMEI</th><th className="py-1.5 text-right">Qty</th><th className="py-1.5">Status</th></tr></thead>
               <tbody>
-                {data.transfers.map((t) => (
-                  <tr key={t.id} className="border-t border-slate-100 dark:border-white/5">
+                {data.transfers.map((t, idx) => (
+                  <tr key={t.id} className="border-t border-slate-100 dark:border-white/5"><td className="py-1.5 text-gray-500 tabular-nums">{idx + 1}</td>
                     <td className="py-1.5 text-gray-500">{new Date(t.created_at).toLocaleString()}</td>
                     <td className="py-1.5 font-medium text-dark dark:text-white">{t.to_name}</td>
                     <td className="py-1.5">{t.inventory?.product_name}</td>

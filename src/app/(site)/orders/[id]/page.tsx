@@ -1676,15 +1676,15 @@ export default function OrderDetailsPage() {
                             <table className="w-full text-sm text-left border dark:border-dark-3">
                                 <thead className="bg-gray-50 dark:bg-dark-2 uppercase font-medium">
                                     <tr>
-                                        <th className="px-4 py-3 border dark:border-dark-3">Previous Product</th>
+                                        <th className="px-4 py-3 dark:border-dark-3">S.No</th><th className="px-4 py-3 border dark:border-dark-3">Previous Product</th>
                                         <th className="px-4 py-3 border dark:border-dark-3">Current Product</th>
                                         <th className="px-4 py-3 border dark:border-dark-3">Changed By</th>
                                         <th className="px-4 py-3 border dark:border-dark-3">Changed At</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {order.productHistories.map((h) => (
-                                        <tr key={h.id} className="border-t dark:border-dark-3 hover:bg-gray-50 dark:hover:bg-dark-2 transition-colors">
+                                    {order.productHistories.map((h, idx) => (
+                                        <tr key={h.id} className="border-t dark:border-dark-3 hover:bg-gray-50 dark:hover:bg-dark-2 transition-colors"><td className="px-4 py-3 font-medium text-gray-500 tabular-nums">{idx + 1}</td>
                                             <td className="px-4 py-3 border dark:border-dark-3 font-medium">{h.previous_product}</td>
                                             <td className="px-4 py-3 border dark:border-dark-3 font-medium text-primary">{h.current_product}</td>
                                             <td className="px-4 py-3 border dark:border-dark-3">{h.changed_by.full_name} (@{h.changed_by.username})</td>
@@ -2784,7 +2784,7 @@ export default function OrderDetailsPage() {
                                             <table className="w-full border-collapse">
                                                 <thead>
                                                     <tr className="border-b border-stroke dark:border-dark-3">
-                                                        <th className="px-4 py-2 text-left">Label</th>
+                                                        <th className="px-4 py-2">S.No</th><th className="px-4 py-2 text-left">Label</th>
                                                         <th className="px-4 py-2 text-left">Latitude</th>
                                                         <th className="px-4 py-2 text-left">Longitude</th>
                                                         <th className="px-4 py-2 text-left">Accuracy</th>
@@ -2793,8 +2793,8 @@ export default function OrderDetailsPage() {
                                                     </tr>
                                                 </thead>
                                                 <tbody>
-                                                    {gpsLocations.map((loc: any) => (
-                                                        <tr key={loc.id} className="border-b border-stroke dark:border-dark-3">
+                                                    {gpsLocations.map((loc: any, idx) => (
+                                                        <tr key={loc.id} className="border-b border-stroke dark:border-dark-3"><td className="px-4 py-2 text-gray-500 tabular-nums">{idx + 1}</td>
                                                             {editingTrackingId === loc.id ? trackingInputs : (
                                                                 <>
                                                                     <td className="px-4 py-2">{loc.label}</td>

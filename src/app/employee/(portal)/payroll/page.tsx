@@ -99,7 +99,7 @@ export default function EmployeePayrollPage() {
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-stroke bg-gray-2 dark:border-stroke-dark dark:bg-dark-3">
-              <th className="px-4 py-3 text-left">Period</th>
+              <th className="px-4 py-3">S.No</th><th className="px-4 py-3 text-left">Period</th>
               <th className="px-4 py-3 text-right">Basic</th>
               <th className="px-4 py-3 text-right">Bonus + Comm.</th>
               <th className="px-4 py-3 text-right">Deductions</th>
@@ -110,10 +110,10 @@ export default function EmployeePayrollPage() {
           </thead>
           <tbody>
             {slips.length === 0 && (
-              <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-500">No salary slips yet</td></tr>
+              <tr><td colSpan={8} className="px-4 py-8 text-center text-gray-500">No salary slips yet</td></tr>
             )}
-            {slips.map((slip) => (
-              <tr key={slip.id} className="border-b border-stroke dark:border-stroke-dark">
+            {slips.map((slip, idx) => (
+              <tr key={slip.id} className="border-b border-stroke dark:border-stroke-dark"><td className="px-4 py-3 text-gray-500 tabular-nums">{idx + 1}</td>
                 <td className="px-4 py-3">{period(slip)}</td>
                 <td className="px-4 py-3 text-right">{slip.basic_salary.toLocaleString()}</td>
                 <td className="px-4 py-3 text-right">{(slip.bonuses + slip.commissions).toLocaleString()}</td>

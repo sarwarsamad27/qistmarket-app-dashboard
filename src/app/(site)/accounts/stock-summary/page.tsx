@@ -154,10 +154,10 @@ export default function AccountsStockSummaryPage() {
           {stock && stock.summary.length > 0 && (
             <div className={card}>
               <table className="w-full text-left text-sm">
-                <thead className={thead}><tr><th className="px-4 py-2.5">Location</th><th className="px-4 py-2.5 text-right">Products</th><th className="px-4 py-2.5 text-right">Units</th><th className="px-4 py-2.5 text-right">&gt; 60 days</th><th className="px-4 py-2.5 text-right">Value</th></tr></thead>
+                <thead className={thead}><tr><th className="px-4 py-2.5">S.No</th><th className="px-4 py-2.5">Location</th><th className="px-4 py-2.5 text-right">Products</th><th className="px-4 py-2.5 text-right">Units</th><th className="px-4 py-2.5 text-right">&gt; 60 days</th><th className="px-4 py-2.5 text-right">Value</th></tr></thead>
                 <tbody>
-                  {stock.summary.map((o) => (
-                    <tr key={o.outlet_id} onClick={() => setStockFilter({ ...stockFilter, outletId: String(o.outlet_id) })} className={`cursor-pointer border-t border-slate-50 hover:bg-slate-50/70 dark:border-white/5 dark:hover:bg-white/5 ${stockFilter.outletId === String(o.outlet_id) ? "bg-rose-50/60 dark:bg-rose-500/5" : ""}`}>
+                  {stock.summary.map((o, idx) => (
+                    <tr key={o.outlet_id} onClick={() => setStockFilter({ ...stockFilter, outletId: String(o.outlet_id) })} className={`cursor-pointer border-t border-slate-50 hover:bg-slate-50/70 dark:border-white/5 dark:hover:bg-white/5 ${stockFilter.outletId === String(o.outlet_id) ? "bg-rose-50/60 dark:bg-rose-500/5" : ""}`}><td className="px-4 py-2.5 font-medium text-gray-500 tabular-nums">{idx + 1}</td>
                       <td className="px-4 py-2.5 font-medium text-dark dark:text-white">{o.outlet_name}{o.is_warehouse && <span className="ml-1.5 rounded-full bg-indigo-50 px-1.5 py-0.5 text-[10px] font-bold text-indigo-700">warehouse</span>}</td>
                       <td className="px-4 py-2.5 text-right tabular-nums">{o.products}</td>
                       <td className="px-4 py-2.5 text-right tabular-nums">{o.units}</td>
@@ -261,9 +261,9 @@ export default function AccountsStockSummaryPage() {
             <div className={card}>
               <div className="max-h-[560px] overflow-auto">
                 <table className="w-full text-left text-sm">
-                  <thead className={thead}><tr><th className="px-4 py-3">Date</th><th className="px-4 py-3">Product</th><th className="px-4 py-3">IMEI</th><th className="px-4 py-3">From</th><th className="px-4 py-3">To</th><th className="px-4 py-3 text-right">Qty</th><th className="px-4 py-3">Status</th></tr></thead>
-                  <tbody>{transfers.map((t) => (
-                    <tr key={t.id} className="border-t border-slate-50 dark:border-white/5">
+                  <thead className={thead}><tr><th className="px-4 py-3">S.No</th><th className="px-4 py-3">Date</th><th className="px-4 py-3">Product</th><th className="px-4 py-3">IMEI</th><th className="px-4 py-3">From</th><th className="px-4 py-3">To</th><th className="px-4 py-3 text-right">Qty</th><th className="px-4 py-3">Status</th></tr></thead>
+                  <tbody>{transfers.map((t, idx) => (
+                    <tr key={t.id} className="border-t border-slate-50 dark:border-white/5"><td className="whitespace-nowrap px-4 py-3 text-xs text-gray-500 tabular-nums">{(tPage - 1) * 50 + idx + 1}</td>
                       <td className="whitespace-nowrap px-4 py-3 text-xs text-gray-500">{new Date(t.created_at).toLocaleString()}</td>
                       <td className="px-4 py-3 font-medium text-dark dark:text-white">{t.product_name}</td>
                       <td className="px-4 py-3 font-mono text-xs">{t.imei_serial ? <button onClick={() => trackImei(t.imei_serial)} className="text-blue-600 hover:underline">{t.imei_serial}</button> : "—"}</td>
@@ -328,9 +328,9 @@ export default function AccountsStockSummaryPage() {
               <div className={card}>
                 <div className="max-h-[560px] overflow-auto">
                   <table className="w-full text-left text-sm">
-                    <thead className={thead}><tr><th className="px-4 py-3">Date</th><th className="px-4 py-3">Order / Customer</th><th className="px-4 py-3">Outlet</th><th className="px-4 py-3">Type</th><th className="px-4 py-3">IMEI</th><th className="px-4 py-3">Status</th><th className="px-4 py-3 text-right">Refund</th></tr></thead>
-                    <tbody>{returns.map((r) => (
-                      <tr key={r.id} className="border-t border-slate-50 dark:border-white/5">
+                    <thead className={thead}><tr><th className="px-4 py-3">S.No</th><th className="px-4 py-3">Date</th><th className="px-4 py-3">Order / Customer</th><th className="px-4 py-3">Outlet</th><th className="px-4 py-3">Type</th><th className="px-4 py-3">IMEI</th><th className="px-4 py-3">Status</th><th className="px-4 py-3 text-right">Refund</th></tr></thead>
+                    <tbody>{returns.map((r, idx) => (
+                      <tr key={r.id} className="border-t border-slate-50 dark:border-white/5"><td className="px-4 py-3 text-xs text-gray-500 tabular-nums">{idx + 1}</td>
                         <td className="px-4 py-3 text-xs text-gray-500">{day(r.created_at)}</td>
                         <td className="px-4 py-3"><p className="font-medium text-dark dark:text-white">{r.customer_name}</p><p className="font-mono text-[11px] text-gray-400">{r.order_ref}</p></td>
                         <td className="px-4 py-3 text-gray-600 dark:text-gray-300">{r.outlet_name}</td>
@@ -348,9 +348,9 @@ export default function AccountsStockSummaryPage() {
             <div className={card}>
               <div className="max-h-[560px] overflow-auto">
                 <table className="w-full text-left text-sm">
-                  <thead className={thead}><tr><th className="px-4 py-3">Date</th><th className="px-4 py-3">Return / Vendor</th><th className="px-4 py-3">Outlet</th><th className="px-4 py-3">Product</th><th className="px-4 py-3">IMEI</th><th className="px-4 py-3 text-right">Qty</th><th className="px-4 py-3 text-right">Amount</th><th className="px-4 py-3">Reason</th></tr></thead>
-                  <tbody>{vendorReturns.map((r) => (
-                    <tr key={r.id} className="border-t border-slate-50 dark:border-white/5">
+                  <thead className={thead}><tr><th className="px-4 py-3">S.No</th><th className="px-4 py-3">Date</th><th className="px-4 py-3">Return / Vendor</th><th className="px-4 py-3">Outlet</th><th className="px-4 py-3">Product</th><th className="px-4 py-3">IMEI</th><th className="px-4 py-3 text-right">Qty</th><th className="px-4 py-3 text-right">Amount</th><th className="px-4 py-3">Reason</th></tr></thead>
+                  <tbody>{vendorReturns.map((r, idx) => (
+                    <tr key={r.id} className="border-t border-slate-50 dark:border-white/5"><td className="px-4 py-3 text-xs text-gray-500 tabular-nums">{idx + 1}</td>
                       <td className="px-4 py-3 text-xs text-gray-500">{day(r.return_date)}</td>
                       <td className="px-4 py-3"><p className="font-medium text-dark dark:text-white">{r.vendor_name}</p><p className="font-mono text-[11px] text-gray-400">{r.return_number}{r.invoice_number ? ` · ${r.invoice_number}` : ""}</p></td>
                       <td className="px-4 py-3 text-gray-600 dark:text-gray-300">{r.outlet_name}</td>

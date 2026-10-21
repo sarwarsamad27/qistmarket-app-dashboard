@@ -407,14 +407,14 @@ export default function OfficerDetailsPage({ params }: { params: Promise<{ id: s
                                     <table className="w-full text-left">
                                         <thead>
                                             <tr className="bg-gray-50 dark:bg-meta-4/30 border-b border-stroke dark:border-strokedark">
-                                                <th className="px-8 py-5 text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Product / IMEI</th>
+                                                <th className="px-8 py-5 text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">S.No</th><th className="px-8 py-5 text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Product / IMEI</th>
                                                 <th className="px-8 py-5 text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Customer</th>
                                                 <th className="px-8 py-5 text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] text-right">Delivery Date</th>
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y divide-stroke dark:divide-strokedark">
                                             {details?.delivered_products?.map((item: any, idx: number) => (
-                                                <tr key={idx} className="hover:bg-gray-50/50 dark:hover:bg-meta-4/10 transition-colors group">
+                                                <tr key={idx} className="hover:bg-gray-50/50 dark:hover:bg-meta-4/10 transition-colors group"><td className="px-8 py-5 text-gray-500 tabular-nums">{idx + 1}</td>
                                                     <td className="px-8 py-5">
                                                         <p className="text-sm font-black text-gray-800 dark:text-white group-hover:text-primary transition-colors">{item.product_name}</p>
                                                         <p className="text-[10px] text-primary font-bold mt-1 tracking-wider">#{item.imei_serial}</p>

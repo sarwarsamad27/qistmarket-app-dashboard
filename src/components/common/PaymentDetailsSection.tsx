@@ -18,6 +18,23 @@ const toDatetimeLocal = (iso?: string | null) => {
     return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 };
 
+// Transaction / receipt ID with a copy button (1LINK tran_auth_id, SmartPay TxID,
+// or the receipt ID sent in the customer's WhatsApp message).
+function TxnId({ value }: { value: string }) {
+    return (
+        <span className="inline-flex items-center gap-1.5">
+            <span className="select-all">{value}</span>
+            <button
+                type="button"
+                onClick={() => { navigator.clipboard?.writeText(value); toast.success('Transaction ID copied'); }}
+                className="font-sans text-[10px] font-semibold text-primary hover:underline"
+            >
+                Copy
+            </button>
+        </span>
+    );
+}
+
 type CarryIn = { fromMonth: number; amount: number };
 type CarryOut = { toMonth: number | null; amount: number };
 
@@ -674,7 +691,7 @@ export const PaymentDetailsSection = ({
                                     <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                                         <thead className="bg-gray-100 dark:bg-gray-700">
                                             <tr>
-                                                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300">Month</th>
+                                                <th className="px-4 py-2 text-xs font-medium text-gray-500 dark:text-gray-300">S.No</th><th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300">Month</th>
                                                 <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300">Due Date</th>
                                                 <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300">Amount Due</th>
                                                 <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300">Customer Paid</th>
@@ -683,13 +700,14 @@ export const PaymentDetailsSection = ({
                                                 <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300">Status</th>
                                                 <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300">Payment Date</th>
                                                 <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300">Method</th>
+                                                {!isEditMode && <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300">Transaction ID</th>}
                                                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300">Received By</th>
                                                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300">Outlet</th>
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-800">
                                             {!isEditMode ? installments.map((inst: any, idx: number) => (
-                                                <tr key={idx} className="align-top hover:bg-gray-50 dark:hover:bg-gray-700">
+                                                <tr key={idx} className="align-top hover:bg-gray-50 dark:hover:bg-gray-700"><td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500 tabular-nums">{idx + 1}</td>
                                                     <td className="px-4 py-2 whitespace-nowrap text-sm text-dark dark:text-white">
                                                         {inst.label || `Month ${inst.month}`}
                                                         {showAdminEdits && inst.admin_edited && (
@@ -789,10 +807,22 @@ export const PaymentDetailsSection = ({
                                                                                     {(inst.admin_edited && inst.payment_method) ? inst.payment_method : g.method}
                                                                                 </span>
                                                                                 <span className={cn('block whitespace-nowrap text-[10px]', g.uncounted ? 'font-bold text-orange-600 dark:text-orange-400' : 'font-normal text-gray-500 dark:text-gray-400')}>
-                                                                                    {viaAmount(g)}{g.uncounted ? ' · not counted' : ''}{g.txn ? ` · TxID ${g.txn}` : ''}
+                                                                                    {viaAmount(g)}{g.uncounted ? ' · not counted' : ''}
                                                                                 </span>
                                                                             </div>
                                                                         ))}
+                                                                    </td>
+                                                                    <td className="px-4 py-2 align-top font-mono text-xs text-gray-700 dark:text-gray-300">
+                                                                        {groups.map((g, i) => {
+                                                                            // Payment records don't carry branch/recovery receipt IDs —
+                                                                            // the ledger row keeps its latest one.
+                                                                            const txn = g.txn || (i === groups.length - 1 ? inst.transaction_id : null);
+                                                                            return (
+                                                                                <div key={i} className={cn(line(i), 'whitespace-nowrap')}>
+                                                                                    {txn ? <TxnId value={txn} /> : '-'}
+                                                                                </div>
+                                                                            );
+                                                                        })}
                                                                     </td>
                                                                     <td className="px-4 py-2 align-top text-sm font-semibold text-slate-800 dark:text-slate-200">
                                                                         {groups.map((g, i) => (
@@ -819,6 +849,7 @@ export const PaymentDetailsSection = ({
                                                                     <td className="px-4 py-2 whitespace-nowrap text-sm text-purple-600 dark:text-purple-400">From {carriedFrom.join(', ')} payment</td>
                                                                     <td className="px-4 py-2 text-sm text-gray-400">-</td>
                                                                     <td className="px-4 py-2 text-sm text-gray-400">-</td>
+                                                                    <td className="px-4 py-2 text-sm text-gray-400">-</td>
                                                                 </>
                                                             );
                                                         }
@@ -829,6 +860,9 @@ export const PaymentDetailsSection = ({
                                                             <>
                                                                 <td className="px-4 py-2 text-sm text-gray-600 dark:text-gray-400">
                                                                     {inst.paid_amount > 0 ? (inst.payment_method || (isOnline ? 'Online Payment' : '-')) : '-'}
+                                                                </td>
+                                                                <td className="px-4 py-2 align-top font-mono text-xs text-gray-700 dark:text-gray-300">
+                                                                    {inst.paid_amount > 0 && inst.transaction_id ? <TxnId value={inst.transaction_id} /> : '-'}
                                                                 </td>
                                                                 <td className="px-4 py-2 text-sm font-semibold text-slate-800 dark:text-slate-200">
                                                                     {inst.paid_amount > 0

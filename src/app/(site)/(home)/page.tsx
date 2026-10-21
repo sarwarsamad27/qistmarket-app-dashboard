@@ -513,7 +513,7 @@ export default function Home() {
               <table className="min-w-full text-left text-xs">
                 <thead className="sticky top-0 bg-gray-50 text-[11px] uppercase tracking-wide text-gray-500 dark:bg-dark-3 dark:text-gray-400">
                   <tr>
-                    <th className="px-3 py-2">Order</th>
+                    <th className="px-3 py-2">S.No</th><th className="px-3 py-2">Order</th>
                     <th className="px-3 py-2">Customer</th>
                     <th className="px-3 py-2">Product</th>
                     <th className="px-3 py-2 text-right">Advance</th>
@@ -524,22 +524,22 @@ export default function Home() {
                 <tbody>
                   {loading && recentOrders.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="px-3 py-6 text-center text-gray-500 dark:text-gray-400">
+                      <td colSpan={7} className="px-3 py-6 text-center text-gray-500 dark:text-gray-400">
                         Loading latest orders...
                       </td>
                     </tr>
                   ) : recentOrders.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="px-3 py-6 text-center text-gray-500 dark:text-gray-400">
+                      <td colSpan={7} className="px-3 py-6 text-center text-gray-500 dark:text-gray-400">
                         No orders found.
                       </td>
                     </tr>
                   ) : (
-                    recentOrders.map((order) => (
+                    recentOrders.map((order, idx) => (
                       <tr
                         key={order.id}
                         className="border-b border-stroke last:border-0 dark:border-dark-3"
-                      >
+                      ><td className="px-3 py-2 text-gray-500 tabular-nums">{idx + 1}</td>
                         <td className="px-3 py-2 align-top">
                           <div className="flex flex-col">
                             <Link

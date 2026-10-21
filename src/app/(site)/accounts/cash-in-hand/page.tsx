@@ -546,15 +546,15 @@ export default function CashInHandPage() {
                 <div className="overflow-x-auto">
                   <table className="w-full text-left text-sm">
                     <thead className={thead}>
-                      <tr><th className={th}>Outlet</th><th className={thR}>In Outlet Drawer</th><th className={thR}>With Officers</th><th className={thR}>Officers</th><th className={thR}>Total Cash</th></tr>
+                      <tr><th className={th}>S.No</th><th className={th}>Outlet</th><th className={thR}>In Outlet Drawer</th><th className={thR}>With Officers</th><th className={thR}>Officers</th><th className={thR}>Total Cash</th></tr>
                     </thead>
                     <tbody>
-                      {data.outletWise.map((o) => {
+                      {data.outletWise.map((o, idx) => {
                         const key = o.outlet_id ?? "unassigned";
                         const open = expandedOutlet === key;
                         return (
                           <React.Fragment key={key}>
-                            <tr className={`${tr} cursor-pointer`} onClick={() => setExpandedOutlet(open ? null : key)}>
+                            <tr className={`${tr} cursor-pointer`} onClick={() => setExpandedOutlet(open ? null : key)}><td className="px-4 py-3.5 font-medium text-gray-500 tabular-nums">{idx + 1}</td>
                               <td className="px-4 py-3.5 font-medium text-dark dark:text-white">
                                 <span className="inline-flex items-center gap-1.5">{open ? <ChevronDown className="size-4 text-gray-400" /> : <ChevronRight className="size-4 text-gray-400" />}{o.outlet_name}</span>
                                 {o.outlet_code && <span className="ml-2 text-xs text-gray-400">{o.outlet_code}</span>}
@@ -566,13 +566,13 @@ export default function CashInHandPage() {
                             </tr>
                             {open && (
                               <tr className="bg-slate-50/60 dark:bg-white/5">
-                                <td colSpan={5} className="px-6 py-3">
+                                <td colSpan={6} className="px-6 py-3">
                                   {officersOf(o.outlet_id).length ? (
                                     <table className="w-full text-left text-xs">
-                                      <thead className="text-[10px] uppercase tracking-wide text-gray-400"><tr><th className="py-1.5">Officer</th><th className="py-1.5">Login ID</th><th className="py-1.5">Role</th><th className="py-1.5">Oldest unsubmitted</th><th className="py-1.5 text-right">Entries</th><th className="py-1.5 text-right">Holding</th></tr></thead>
+                                      <thead className="text-[10px] uppercase tracking-wide text-gray-400"><tr><th className="py-1.5">S.No</th><th className="py-1.5">Officer</th><th className="py-1.5">Login ID</th><th className="py-1.5">Role</th><th className="py-1.5">Oldest unsubmitted</th><th className="py-1.5 text-right">Entries</th><th className="py-1.5 text-right">Holding</th></tr></thead>
                                       <tbody>
-                                        {officersOf(o.outlet_id).map((of) => (
-                                          <tr key={of.officer_id ?? "x"} className="border-t border-slate-100 dark:border-white/5">
+                                        {officersOf(o.outlet_id).map((of, idx) => (
+                                          <tr key={of.officer_id ?? "x"} className="border-t border-slate-100 dark:border-white/5"><td className="py-2 font-medium text-gray-500 tabular-nums">{idx + 1}</td>
                                             <td className="py-2 font-medium text-dark dark:text-white">{of.officer_name}</td>
                                             <td className="py-2 font-mono text-gray-500">{of.username || "—"}</td>
                                             <td className="py-2 text-gray-500">{of.role}</td>
@@ -820,11 +820,11 @@ export default function CashInHandPage() {
               <div className="max-h-[600px] overflow-auto">
                 <table className="w-full text-left text-sm">
                   <thead className={`${thead} sticky top-0`}>
-                    <tr><th className={th}>Period</th><th className={thR}>Opening</th><th className={thR}>Installments & DP</th><th className={thR}>Officer Submissions</th><th className={thR}>Cash Sales</th><th className={thR}>Expenses & Refunds</th><th className={thR}>Vendors (net)</th><th className={thR}>Bank Deposits</th><th className={thR}>Closing</th></tr>
+                    <tr><th className={th}>S.No</th><th className={th}>Period</th><th className={thR}>Opening</th><th className={thR}>Installments & DP</th><th className={thR}>Officer Submissions</th><th className={thR}>Cash Sales</th><th className={thR}>Expenses & Refunds</th><th className={thR}>Vendors (net)</th><th className={thR}>Bank Deposits</th><th className={thR}>Closing</th></tr>
                   </thead>
                   <tbody>
-                    {reports.map((r) => (
-                      <tr key={r.period} className={tr}>
+                    {reports.map((r, idx) => (
+                      <tr key={r.period} className={tr}><td className="px-4 py-3 font-medium text-gray-500 tabular-nums">{idx + 1}</td>
                         <td className="px-4 py-3 font-medium text-dark dark:text-white">{r.period}</td>
                         <td className="px-4 py-3 text-right tabular-nums text-gray-500"><Money value={r.opening_cash} /></td>
                         <td className="px-4 py-3 text-right tabular-nums text-emerald-600">{PKR(r.collections)}</td>
@@ -958,11 +958,11 @@ export default function CashInHandPage() {
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-sm">
                   <thead className={thead}>
-                    <tr><th className={th}>Scope</th><th className={th}>Name</th><th className={th}>Outlet</th><th className={thR}>Limit</th><th className={thR}>Holding Now</th><th className={thR}>Remaining</th><th className={th}>Used</th><th className={th}></th></tr>
+                    <tr><th className={th}>S.No</th><th className={th}>Scope</th><th className={th}>Name</th><th className={th}>Outlet</th><th className={thR}>Limit</th><th className={thR}>Holding Now</th><th className={thR}>Remaining</th><th className={th}>Used</th><th className={th}></th></tr>
                   </thead>
                   <tbody>
-                    {limits.map((l) => (
-                      <tr key={l.id} className={tr}>
+                    {limits.map((l, idx) => (
+                      <tr key={l.id} className={tr}><td className="px-4 py-3.5 text-gray-500 tabular-nums">{idx + 1}</td>
                         <td className="px-4 py-3.5 capitalize text-gray-600 dark:text-gray-300">{l.scope_type}</td>
                         <td className="px-4 py-3.5 font-medium text-dark dark:text-white">{l.name}</td>
                         <td className="px-4 py-3.5 text-gray-600 dark:text-gray-300">{l.outlet_name}</td>

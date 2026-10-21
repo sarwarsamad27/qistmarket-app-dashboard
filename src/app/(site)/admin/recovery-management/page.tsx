@@ -100,13 +100,13 @@ export default function AdminRecoveryManagementPage() {
         <div className="overflow-x-auto rounded-2xl border border-slate-100 bg-white shadow-sm dark:border-white/10 dark:bg-boxdark">
           <table className="w-full text-left text-sm">
             <thead className="bg-gray-50 text-[11px] uppercase tracking-wide text-gray-500 dark:bg-dark-2 dark:text-gray-400">
-              <tr><th className="px-4 py-3 font-bold">Officer</th><th className="px-4 py-3 font-bold">Status</th><th className="px-4 py-3 font-bold">Current Job</th><th className="px-4 py-3 text-right font-bold">Assigned Orders</th><th className="px-4 py-3 text-right font-bold">Recovered</th><th className="px-4 py-3 text-right font-bold">Monthly Hours</th></tr>
+              <tr><th className="px-4 py-3 font-bold">S.No</th><th className="px-4 py-3 font-bold">Officer</th><th className="px-4 py-3 font-bold">Status</th><th className="px-4 py-3 font-bold">Current Job</th><th className="px-4 py-3 text-right font-bold">Assigned Orders</th><th className="px-4 py-3 text-right font-bold">Recovered</th><th className="px-4 py-3 text-right font-bold">Monthly Hours</th></tr>
             </thead>
             <tbody>
-              {officers.map((o) => {
+              {officers.map((o, idx) => {
                 const rec = recoveryByOfficerId[o.id];
                 return (
-                  <tr key={o.id} className="border-t border-slate-50 dark:border-white/5">
+                  <tr key={o.id} className="border-t border-slate-50 dark:border-white/5"><td className="px-4 py-3.5 text-gray-500 tabular-nums">{idx + 1}</td>
                     <td className="px-4 py-3.5">
                       <p className="font-semibold text-dark dark:text-white">{o.full_name}</p>
                       <p className="text-xs text-gray-400">@{o.username} · {o.phone}</p>
@@ -139,10 +139,10 @@ export default function AdminRecoveryManagementPage() {
         ) : (
           <div className="overflow-x-auto rounded-2xl border border-slate-100 bg-white shadow-sm dark:border-white/10 dark:bg-boxdark">
             <table className="w-full text-left text-sm">
-              <thead className="bg-gray-50 text-[11px] uppercase tracking-wide text-gray-500 dark:bg-dark-2 dark:text-gray-400"><tr><th className="px-4 py-3 font-bold">Order</th><th className="px-4 py-3 font-bold">Customer</th><th className="px-4 py-3 font-bold">Officer</th></tr></thead>
+              <thead className="bg-gray-50 text-[11px] uppercase tracking-wide text-gray-500 dark:bg-dark-2 dark:text-gray-400"><tr><th className="px-4 py-3 font-bold">S.No</th><th className="px-4 py-3 font-bold">Order</th><th className="px-4 py-3 font-bold">Customer</th><th className="px-4 py-3 font-bold">Officer</th></tr></thead>
               <tbody>
-                {missed.map((m) => (
-                  <tr key={m.order_id} className="border-t border-slate-50 dark:border-white/5">
+                {missed.map((m, idx) => (
+                  <tr key={m.order_id} className="border-t border-slate-50 dark:border-white/5"><td className="px-4 py-3.5 font-semibold text-gray-500 tabular-nums">{idx + 1}</td>
                     <td className="px-4 py-3.5 font-semibold text-[#ff3d3d]">{m.order_ref}</td>
                     <td className="px-4 py-3.5 text-gray-600 dark:text-gray-300">{m.customer_name}</td>
                     <td className="px-4 py-3.5 text-gray-600 dark:text-gray-300">{m.officer_name}</td>

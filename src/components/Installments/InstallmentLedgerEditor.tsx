@@ -73,14 +73,14 @@ export const InstallmentLedgerEditor = ({
                 <table className="w-full text-left border-collapse">
                     <thead className="sticky top-0 bg-white dark:bg-gray-800 z-10">
                         <tr className="border-b border-gray-100 dark:border-strokedark">
-                            <th className="py-3 text-[10px] font-black text-gray-400 uppercase tracking-widest">Month</th>
+                            <th className="py-3 text-[10px] font-black text-gray-400 uppercase tracking-widest">S.No</th><th className="py-3 text-[10px] font-black text-gray-400 uppercase tracking-widest">Month</th>
                             <th className="py-3 text-[10px] font-black text-gray-400 uppercase tracking-widest">Due Date</th>
                             <th className="py-3 text-right text-[10px] font-black text-gray-400 uppercase tracking-widest">Amount</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-50 dark:divide-strokedark">
                         {ledger.map((r, index) => (
-                            <tr key={r.month} className="hover:bg-gray-50/50 dark:hover:bg-meta-4/10 transition-colors">
+                            <tr key={r.month} className="hover:bg-gray-50/50 dark:hover:bg-meta-4/10 transition-colors"><td className="py-3 text-sm font-bold text-gray-500 tabular-nums">{index + 1}</td>
                                 <td className="py-3 text-sm font-bold text-gray-900 dark:text-white">{r.month}</td>
                                 <td className="py-3">
                                     {index === 0 ? (

@@ -197,7 +197,7 @@ export default function RecoveryPortalPage() {
                                                 <table className="w-full text-sm text-left">
                                                     <thead className="text-xs font-semibold text-gray-500 uppercase bg-gray-50/50 dark:bg-gray-700/30">
                                                         <tr>
-                                                            <th className="px-6 py-3">Month</th>
+                                                            <th className="px-6 py-3">S.No</th><th className="px-6 py-3">Month</th>
                                                             <th className="px-6 py-3">Due Date</th>
                                                             <th className="px-6 py-3">Amount</th>
                                                             <th className="px-6 py-3">Status</th>
@@ -205,8 +205,8 @@ export default function RecoveryPortalPage() {
                                                         </tr>
                                                     </thead>
                                                     <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
-                                                        {order.ledger.installment_ledger.map((inst) => (
-                                                            <tr key={inst.monthNumber} className="hover:bg-gray-50/50 dark:hover:bg-gray-700/20 transition-colors">
+                                                        {order.ledger.installment_ledger.map((inst, idx) => (
+                                                            <tr key={inst.monthNumber} className="hover:bg-gray-50/50 dark:hover:bg-gray-700/20 transition-colors"><td className="px-6 py-4 font-semibold text-gray-500 tabular-nums">{idx + 1}</td>
                                                                 <td className="px-6 py-4 font-semibold">Month {inst.monthNumber}</td>
                                                                 <td className="px-6 py-4 text-gray-600 dark:text-gray-400">
                                                                     {inst.dueDate ? new Date(inst.dueDate).toLocaleDateString() : 'N/A'}

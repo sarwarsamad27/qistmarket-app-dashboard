@@ -115,7 +115,7 @@ export default function CsrClearAccountsPage() {
           <table className="datatable-table datatable-one !border-collapse px-4 md:px-8 w-full">
             <thead className="border-separate px-4">
               <tr className="border-t border-stroke dark:border-dark-3">
-                <th className="whitespace-nowrap px-3 py-4 align-top">
+                <th className="whitespace-nowrap px-3 py-4 align-top">S.No</th><th className="whitespace-nowrap px-3 py-4 align-top">
                   <div className="flex flex-col min-h-[70px]"><span className="font-[500]">Customer</span></div>
                 </th>
                 <th className="whitespace-nowrap px-3 py-4 align-top">
@@ -135,7 +135,7 @@ export default function CsrClearAccountsPage() {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={5} className="py-20 text-center">
+                  <td colSpan={6} className="py-20 text-center">
                     <div className="flex flex-col items-center justify-center gap-3">
                       <div className="h-10 w-10 animate-spin rounded-full border-2 border-gray-300 border-t-[#ff3d3d]" />
                       <p className="text-gray-500">Loading customers...</p>
@@ -144,13 +144,13 @@ export default function CsrClearAccountsPage() {
                 </tr>
               ) : customers.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="py-20 text-center text-gray-500 dark:text-gray-400">
+                  <td colSpan={6} className="py-20 text-center text-gray-500 dark:text-gray-400">
                     No clear account customers available.
                   </td>
                 </tr>
               ) : (
                 customers.map((item, index) => (
-                  <tr key={`${item.customer.whatsapp_number}-${index}`} className="border-t border-stroke dark:border-dark-3 hover:bg-gray-50 dark:hover:bg-dark-2/50">
+                  <tr key={`${item.customer.whatsapp_number}-${index}`} className="border-t border-stroke dark:border-dark-3 hover:bg-gray-50 dark:hover:bg-dark-2/50"><td className="px-3 py-3 text-gray-500 tabular-nums">{(pagination.page - 1) * pagination.limit + index + 1}</td>
                     <td className="truncate px-3 py-3">
                       <div className="font-medium text-gray-900 dark:text-white">{item.customer.name}</div>
                       <div className="text-sm text-gray-500 dark:text-gray-400">{item.customer.address || "No address"}</div>

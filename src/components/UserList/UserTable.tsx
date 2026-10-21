@@ -32,6 +32,7 @@ import { toast } from "react-hot-toast";
 import { roleLabel } from "@/lib/roleLabels";
 import { apiErrorMessage } from "@/lib/apiErrors";
 
+import { serialColumn } from '@/utils/serialColumn'
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -756,6 +757,7 @@ const UsersTable = () => {
 
   // ── Columns ─────────────────────────────────────────────────────────────────
   const columns: ColumnDef<User>[] = [
+    serialColumn<User>(),
     { accessorKey: "full_name", header: "Full Name", enableColumnFilter: true },
     { accessorKey: "username", header: "Username", enableColumnFilter: true },
     { accessorKey: "email", header: "Email", enableColumnFilter: true },

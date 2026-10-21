@@ -177,7 +177,7 @@ export default function SalaryPaymentsPage() {
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-stroke bg-gray-2 text-left dark:border-stroke-dark dark:bg-dark-3">
-              <th className="px-4 py-3">Employee</th>
+              <th className="px-4 py-3">S.No</th><th className="px-4 py-3">Employee</th>
               <th className="px-4 py-3">Period</th>
               <th className="px-4 py-3 text-right">Gross</th>
               <th className="px-4 py-3 text-right">Deductions</th>
@@ -187,15 +187,15 @@ export default function SalaryPaymentsPage() {
             </tr>
           </thead>
           <tbody>
-            {loading && <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-500">Loading...</td></tr>}
+            {loading && <tr><td colSpan={8} className="px-4 py-8 text-center text-gray-500">Loading...</td></tr>}
             {!loading && filtered.length === 0 && (
-              <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-500">No salary slips for this month. HR generates them from HR Portal → Payroll.</td></tr>
+              <tr><td colSpan={8} className="px-4 py-8 text-center text-gray-500">No salary slips for this month. HR generates them from HR Portal → Payroll.</td></tr>
             )}
-            {!loading && filtered.map((s) => {
+            {!loading && filtered.map((s, idx) => {
               const gross = s.basic_salary + s.allowances + s.bonuses + s.commissions;
               const payment = s.slip_data?.payment;
               return (
-                <tr key={s.id} className="border-b border-stroke dark:border-stroke-dark">
+                <tr key={s.id} className="border-b border-stroke dark:border-stroke-dark"><td className="px-4 py-3 text-gray-500 tabular-nums">{idx + 1}</td>
                   <td className="px-4 py-3">
                     <p className="font-medium text-dark dark:text-white">{s.employee.full_name}</p>
                     <p className="text-xs text-gray-500">{s.employee.employee_id}{s.employee.department ? ` · ${s.employee.department}` : ""}</p>

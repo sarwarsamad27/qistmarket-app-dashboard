@@ -420,7 +420,7 @@ export default function VendorPurchasesPage() {
                         <table className="w-full text-left border-collapse text-sm">
                             <thead>
                                 <tr className="bg-gray-50 dark:bg-meta-4 text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                                    <th className="p-4 w-10" />
+                                    <th className="p-4">S.No</th><th className="p-4 w-10" />
                                     <th className="p-4">Invoice / Date</th>
                                     <th className="p-4">Vendor</th>
                                     <th className="p-4">Due Date</th>
@@ -434,19 +434,19 @@ export default function VendorPurchasesPage() {
                             <tbody>
                                 {filteredPurchases.length === 0 ? (
                                     <tr>
-                                        <td colSpan={9} className="p-20 text-center text-gray-400 opacity-60">
+                                        <td colSpan={10} className="p-20 text-center text-gray-400 opacity-60">
                                             <ShoppingCart size={48} className="mx-auto mb-4" />
                                             <div className="font-medium">No purchase records found</div>
                                         </td>
                                     </tr>
-                                ) : filteredPurchases.map(p => {
+                                ) : filteredPurchases.map((p, rowIdx) => {
                                     const isExpanded = expandedIds.has(p.id);
                                     return (
                                         <Fragment key={p.id}>
                                             <tr 
                                                 onClick={() => toggleExpand(p.id)}
                                                 className={`group border-b border-stroke dark:border-strokedark hover:bg-gray-50 dark:hover:bg-meta-4/20 transition-colors cursor-pointer ${isExpanded ? 'bg-primary/5 dark:bg-primary/10' : ''} ${deletedRowClass(p)}`}
-                                            >
+                                            ><td className="p-4 text-gray-500 tabular-nums">{rowIdx + 1}</td>
                                                 <td className="p-4 text-center">
                                                     {isExpanded ? <ChevronDown size={16} className="text-primary mx-auto" /> : <ChevronRight size={16} className="text-gray-400 mx-auto" />}
                                                 </td>
@@ -528,7 +528,7 @@ export default function VendorPurchasesPage() {
                                             {/* ITEMS EXPANSION */}
                                             {isExpanded && (
                                                 <tr className="bg-gray-50/50 dark:bg-meta-4/10">
-                                                    <td colSpan={9} className="p-0 border-b border-stroke dark:border-strokedark">
+                                                    <td colSpan={10} className="p-0 border-b border-stroke dark:border-strokedark">
                                                         <div className="px-14 py-6">
                                                             <div className="mb-4 flex items-center justify-between">
                                                                 <div className="text-xs font-bold text-gray-500 uppercase tracking-widest flex items-center gap-2">
@@ -595,7 +595,7 @@ export default function VendorPurchasesPage() {
                                                                     </tbody>
                                                                     <tfoot>
                                                                         <tr className="bg-gray-50/50 dark:bg-meta-4/30 font-bold">
-                                                                            <td colSpan={8} className="p-3 text-right uppercase text-gray-500 tracking-wider">Invoice Total</td>
+                                                                            <td colSpan={9} className="p-3 text-right uppercase text-gray-500 tracking-wider">Invoice Total</td>
                                                                             <td className="p-3 text-right text-primary text-base">PKR {p.total_amount.toLocaleString()}</td>
                                                                         </tr>
                                                                     </tfoot>
@@ -615,7 +615,7 @@ export default function VendorPurchasesPage() {
                         <table className="w-full text-left border-collapse text-sm">
                             <thead>
                                 <tr className="bg-gray-50 dark:bg-meta-4 text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                                    <th className="p-4">Return # / Date</th>
+                                    <th className="p-4">S.No</th><th className="p-4">Return # / Date</th>
                                     <th className="p-4">Vendor</th>
                                     <th className="p-4">Linked Purchase</th>
                                     <th className="p-4">Total Amount</th>
@@ -625,16 +625,16 @@ export default function VendorPurchasesPage() {
                             </thead>
                             <tbody>
                                 {loadingReturns ? (
-                                    <tr><td colSpan={6} className="p-10 text-center"><Loader text="Loading returns..." /></td></tr>
+                                    <tr><td colSpan={7} className="p-10 text-center"><Loader text="Loading returns..." /></td></tr>
                                 ) : returns.length === 0 ? (
                                     <tr>
-                                        <td colSpan={6} className="p-20 text-center text-gray-400 opacity-60">
+                                        <td colSpan={7} className="p-20 text-center text-gray-400 opacity-60">
                                             <RotateCcw size={48} className="mx-auto mb-4" />
                                             <div className="font-medium">No return records found</div>
                                         </td>
                                     </tr>
-                                ) : returns.map(r => (
-                                    <tr key={r.id} className="border-b border-stroke dark:border-strokedark hover:bg-gray-50 dark:hover:bg-meta-4/20 transition-colors">
+                                ) : returns.map((r, idx) => (
+                                    <tr key={r.id} className="border-b border-stroke dark:border-strokedark hover:bg-gray-50 dark:hover:bg-meta-4/20 transition-colors"><td className="p-4 text-gray-500 tabular-nums">{idx + 1}</td>
                                         <td className="p-4">
                                             <div className="font-bold text-gray-800 dark:text-white uppercase tracking-tight">{r.return_number}</div>
                                             <div className="text-[10px] text-gray-500 mt-0.5">{formatExactDate(r.return_date, 'DD MMM YYYY, hh:mm A')}</div>

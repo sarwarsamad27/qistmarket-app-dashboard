@@ -4,6 +4,7 @@ import { useEffect, useState, useMemo } from 'react'
 import Cookies from 'js-cookie'
 import Breadcrumb from '@/components/Breadcrumbs/Breadcrumb'
 import Loader from '@/components/common/Loader'
+import DateRangeFilter, { type DateRange } from '@/components/Accounts/DateRangeFilter'
 import { ArrowUp, ArrowDown, Banknote } from 'lucide-react'
 import { pktDate } from '@/utils/pkt'
 
@@ -20,18 +21,15 @@ interface SummaryData {
 }
 
 interface Payment {
-  id: number
   amount: number
   paymentType: string
   paidAt: string
-  order: {
-    order_ref: string
-    customer_name: string
-  }
+  order_ref: string
+  customer_name: string
 }
 
 interface Expense {
-  id: number
+  id: string
   amount: number
   expense_type: string
   description: string
@@ -41,14 +39,15 @@ interface Expense {
 export default function DaybookPage() {
   const [loading, setLoading] = useState(true)
   const [data, setData] = useState<{ summary: SummaryData; payments: Payment[]; expenses: Expense[] } | null>(null)
-  const [date, setDate] = useState(pktDate())
+  const [range, setRange] = useState<DateRange>({ from: pktDate(), to: pktDate() })
   const token = useMemo(() => Cookies.get('auth_token'), [])
 
-  const fetchDaybook = async (selectedDate: string) => {
+  const fetchDaybook = async (r: DateRange) => {
     if (!token) return
     setLoading(true)
     try {
-      const res = await fetch(`${BACKEND_URL}/api/outlet-reports/daybook?startDate=${selectedDate}`, {
+      // Empty dates = today (the server's default for the daybook)
+      const res = await fetch(`${BACKEND_URL}/api/outlet-reports/daybook?startDate=${r.from || r.to}&endDate=${r.to || r.from}`, {
         headers: { Authorization: `Bearer ${token}` }
       })
       const json = await res.json()
@@ -63,8 +62,8 @@ export default function DaybookPage() {
   }
 
   useEffect(() => {
-    fetchDaybook(date)
-  }, [date, token])
+    fetchDaybook(range)
+  }, [range.from, range.to, token])
 
   if (loading && !data) return <Loader />
 
@@ -77,15 +76,7 @@ export default function DaybookPage() {
           <h2 className="text-xl font-bold text-dark dark:text-white">Cash Book Summary</h2>
           <p className="text-sm text-gray-500 dark:text-gray-400">View all cash inflows and outflows for your outlet.</p>
         </div>
-        <div className="flex items-center gap-2">
-          <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Select Date:</label>
-          <input 
-            type="date" 
-            value={date}
-            onChange={(e) => setDate(e.target.value)}
-            className="rounded-lg border border-stroke bg-white px-4 py-2 text-sm outline-none focus:border-[#ff3d3d] dark:border-dark-3 dark:bg-gray-dark dark:text-white"
-          />
-        </div>
+        <DateRangeFilter value={range} onChange={setRange} />
       </div>
 
       {data && (
@@ -138,7 +129,7 @@ export default function DaybookPage() {
                 <table className="w-full text-left">
                   <thead>
                     <tr className="bg-gray-50 text-[11px] uppercase text-gray-500 dark:bg-dark-3">
-                      <th className="px-6 py-3">Order Ref</th>
+                      <th className="px-6 py-3">S.No</th><th className="px-6 py-3">Order Ref</th>
                       <th className="px-6 py-3">Customer</th>
                       <th className="px-6 py-3">Type</th>
                       <th className="px-6 py-3 text-right">Amount</th>
@@ -146,12 +137,12 @@ export default function DaybookPage() {
                   </thead>
                   <tbody className="text-sm">
                     {data.payments.length === 0 ? (
-                      <tr><td colSpan={4} className="px-6 py-10 text-center text-gray-500">No income records found for this date.</td></tr>
+                      <tr><td colSpan={5} className="px-6 py-10 text-center text-gray-500">No income records found for this date.</td></tr>
                     ) : (
-                      data.payments.map((p) => (
-                        <tr key={p.id} className="border-b border-stroke last:border-0 dark:border-dark-3">
-                          <td className="px-6 py-3 font-medium text-dark dark:text-white">{p.order.order_ref}</td>
-                          <td className="px-6 py-3 text-gray-500 dark:text-gray-400">{p.order.customer_name}</td>
+                      data.payments.map((p, idx) => (
+                        <tr key={`${p.order_ref}-${idx}`} className="border-b border-stroke last:border-0 dark:border-dark-3"><td className="px-6 py-3 font-medium text-gray-500 tabular-nums">{idx + 1}</td>
+                          <td className="px-6 py-3 font-medium text-dark dark:text-white">{p.order_ref}</td>
+                          <td className="px-6 py-3 text-gray-500 dark:text-gray-400">{p.customer_name}</td>
                           <td className="px-6 py-3 uppercase text-xs">{p.paymentType}</td>
                           <td className="px-6 py-3 text-right font-semibold text-emerald-600">Rs. {p.amount.toLocaleString()}</td>
                         </tr>
@@ -171,17 +162,17 @@ export default function DaybookPage() {
                 <table className="w-full text-left">
                   <thead>
                     <tr className="bg-gray-50 text-[11px] uppercase text-gray-500 dark:bg-dark-3">
-                      <th className="px-6 py-3">Category</th>
+                      <th className="px-6 py-3">S.No</th><th className="px-6 py-3">Category</th>
                       <th className="px-6 py-3">Description</th>
                       <th className="px-6 py-3 text-right">Amount</th>
                     </tr>
                   </thead>
                   <tbody className="text-sm">
                     {data.expenses.length === 0 ? (
-                      <tr><td colSpan={3} className="px-6 py-10 text-center text-gray-500">No expense records found for this date.</td></tr>
+                      <tr><td colSpan={4} className="px-6 py-10 text-center text-gray-500">No expense records found for this date.</td></tr>
                     ) : (
-                      data.expenses.map((e) => (
-                        <tr key={e.id} className="border-b border-stroke last:border-0 dark:border-dark-3">
+                      data.expenses.map((e, idx) => (
+                        <tr key={e.id} className="border-b border-stroke last:border-0 dark:border-dark-3"><td className="px-6 py-3 font-medium text-gray-500 tabular-nums">{idx + 1}</td>
                           <td className="px-6 py-3 font-medium text-dark dark:text-white">{e.expense_type}</td>
                           <td className="px-6 py-3 text-gray-500 dark:text-gray-400">{e.description || '-'}</td>
                           <td className="px-6 py-3 text-right font-semibold text-red-600">Rs. {e.amount.toLocaleString()}</td>

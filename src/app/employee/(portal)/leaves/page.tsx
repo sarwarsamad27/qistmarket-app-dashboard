@@ -111,7 +111,7 @@ export default function EmployeeLeavesPage() {
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-stroke bg-gray-2 dark:border-stroke-dark dark:bg-dark-3">
-              <th className="px-4 py-3 text-left">Period</th>
+              <th className="px-4 py-3">S.No</th><th className="px-4 py-3 text-left">Period</th>
               <th className="px-4 py-3 text-left">Type</th>
               <th className="px-4 py-3 text-center">Days</th>
               <th className="px-4 py-3 text-center">Status</th>
@@ -119,8 +119,8 @@ export default function EmployeeLeavesPage() {
             </tr>
           </thead>
           <tbody>
-            {requests.map((r) => (
-              <tr key={r.id} className="border-b border-stroke dark:border-stroke-dark">
+            {requests.map((r, idx) => (
+              <tr key={r.id} className="border-b border-stroke dark:border-stroke-dark"><td className="px-4 py-3 text-gray-500 tabular-nums">{idx + 1}</td>
                 <td className="px-4 py-3">{new Date(r.from_date).toLocaleDateString()} – {new Date(r.to_date).toLocaleDateString()}</td>
                 <td className="px-4 py-3 capitalize">{r.leave_type}</td>
                 <td className="px-4 py-3 text-center">{r.days}</td>

@@ -6,6 +6,7 @@ import Breadcrumb from '@/components/Breadcrumbs/Breadcrumb'
 import Loader from '@/components/common/Loader'
 import { ClipboardCheck, DollarSign, ShoppingBag, TrendingUp } from 'lucide-react'
 import OutletSelector from '@/components/common/OutletSelector'
+import DateRangeFilter, { type DateRange } from '@/components/Accounts/DateRangeFilter'
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
 
@@ -85,24 +86,13 @@ export default function GlobalSalesReportPage() {
           <h2 className="text-xl font-bold text-dark dark:text-white">Nationwide Sales Analysis</h2>
           <p className="text-sm text-gray-500 dark:text-gray-400">Track orders and collections across all outlets.</p>
         </div>
-        
+
         <div className="flex flex-wrap items-center gap-4">
           <OutletSelector selectedId={outletId} onSelect={setOutletId} />
-          <div className="flex items-center gap-2">
-            <input 
-              type="date" 
-              value={dateRange.start}
-              onChange={(e) => setDateRange(prev => ({ ...prev, start: e.target.value }))}
-              className="rounded-lg border border-stroke bg-white px-3 py-1.5 text-xs outline-none focus:border-[#ff3d3d] dark:border-dark-3 dark:bg-gray-dark dark:text-white"
-            />
-            <span className="text-gray-400">to</span>
-            <input 
-              type="date" 
-              value={dateRange.end}
-              onChange={(e) => setDateRange(prev => ({ ...prev, end: e.target.value }))}
-              className="rounded-lg border border-stroke bg-white px-3 py-1.5 text-xs outline-none focus:border-[#ff3d3d] dark:border-dark-3 dark:bg-gray-dark dark:text-white"
-            />
-          </div>
+          <DateRangeFilter
+            value={{ from: dateRange.start, to: dateRange.end }}
+            onChange={(r) => setDateRange({ start: r.from, end: r.to })}
+          />
         </div>
       </div>
 
@@ -156,6 +146,7 @@ export default function GlobalSalesReportPage() {
                     <table className="w-full text-left">
                       <thead className="sticky top-0 bg-gray-50 dark:bg-dark-3 z-10">
                         <tr className="text-[11px] uppercase text-gray-500">
+                          <th className="px-6 py-4 w-16">S.No</th>
                           <th className="px-6 py-4">Order Details</th>
                           <th className="px-6 py-4">Type</th>
                           <th className="px-6 py-4 text-right">Sales Value</th>
@@ -163,8 +154,9 @@ export default function GlobalSalesReportPage() {
                         </tr>
                       </thead>
                       <tbody className="text-sm">
-                        {data.orders.slice(0, visibleOrders).map((o: any) => (
+                        {data.orders.slice(0, visibleOrders).map((o: any, idx: number) => (
                           <tr key={o.id} className="border-b border-stroke last:border-0 dark:border-dark-3 hover:bg-gray-50/50 dark:hover:bg-dark-3/30 transition-colors">
+                            <td className="px-6 py-4 text-gray-500">{idx + 1}</td>
                             <td className="px-6 py-4">
                               <div className="font-bold text-dark dark:text-white font-mono">{o.order_ref}</div>
                               <div className="text-xs text-gray-500">{o.customer_name} • {new Date(o.created_at).toLocaleDateString()}</div>
@@ -220,6 +212,7 @@ export default function GlobalSalesReportPage() {
                       <table className="w-full text-left">
                         <thead className="sticky top-0 bg-purple-50 dark:bg-purple-900/20 z-10">
                           <tr className="text-[11px] uppercase text-purple-600 dark:text-purple-400">
+                            <th className="px-6 py-4 w-16">S.No</th>
                             <th className="px-6 py-4">Order Ref</th>
                             <th className="px-6 py-4">Customer</th>
                             <th className="px-6 py-4">Installment</th>
@@ -229,8 +222,9 @@ export default function GlobalSalesReportPage() {
                           </tr>
                         </thead>
                         <tbody className="text-sm divide-y divide-stroke dark:divide-dark-3">
-                          {collections.slice(0, visibleCollections).map((c: InstallmentCollection) => (
+                          {collections.slice(0, visibleCollections).map((c: InstallmentCollection, idx: number) => (
                             <tr key={c.id} className="hover:bg-purple-50/40 dark:hover:bg-purple-900/10 transition-colors">
+                              <td className="px-6 py-3 text-xs text-gray-500">{idx + 1}</td>
                               <td className="px-6 py-3">
                                 <span className="font-mono font-bold text-dark dark:text-white text-xs">{c.order_ref}</span>
                               </td>
@@ -252,7 +246,7 @@ export default function GlobalSalesReportPage() {
                         </tbody>
                         <tfoot className="bg-purple-50 dark:bg-purple-900/20 border-t-2 border-purple-200 dark:border-purple-700 sticky bottom-0">
                           <tr>
-                            <td colSpan={5} className="px-6 py-3 text-xs font-black uppercase text-purple-700 dark:text-purple-300">
+                            <td colSpan={6} className="px-6 py-3 text-xs font-black uppercase text-purple-700 dark:text-purple-300">
                               Total Installment Receiving
                             </td>
                             <td className="px-6 py-3 text-right font-black text-emerald-600 text-sm">

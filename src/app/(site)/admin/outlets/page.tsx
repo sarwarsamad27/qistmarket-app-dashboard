@@ -420,7 +420,7 @@ export default function AdminOutletsPage() {
           <table className="w-full text-left text-sm">
             <thead className="bg-gray-50 text-[11px] uppercase tracking-wide text-gray-500 dark:bg-dark-2 dark:text-gray-400">
               <tr>
-                <th className="px-4 py-3 font-bold">Outlet</th>
+                <th className="px-4 py-3 font-bold">S.No</th><th className="px-4 py-3 font-bold">Outlet</th>
                 <th className="px-4 py-3 font-bold">Type</th>
                 <th className="px-4 py-3 font-bold">Status</th>
                 <th className="px-4 py-3 text-center font-bold">Stock Delete</th>
@@ -432,7 +432,7 @@ export default function AdminOutletsPage() {
               </tr>
             </thead>
             <tbody>
-              {filtered.map((o) => {
+              {filtered.map((o, idx) => {
                 const p = performance[o.id];
                 const a = attendance[o.id];
                 const delivered =
@@ -442,7 +442,7 @@ export default function AdminOutletsPage() {
                   <tr
                     key={o.id}
                     className="border-t border-slate-50 transition hover:bg-slate-50/70 dark:border-white/5 dark:hover:bg-white/5"
-                  >
+                  ><td className="px-4 py-3.5 text-gray-500 tabular-nums">{idx + 1}</td>
                     <td className="px-4 py-3.5">
                       <p className="font-semibold text-dark dark:text-white">
                         {o.name}

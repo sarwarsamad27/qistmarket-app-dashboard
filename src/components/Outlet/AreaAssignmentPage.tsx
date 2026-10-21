@@ -197,7 +197,7 @@ const AreaAssignmentPage = ({ role, title }: Props) => {
                     <table className="w-full text-left">
                         <thead>
                             <tr className="bg-gray-50 dark:bg-gray-800 text-sm font-semibold">
-                                <th className="px-6 py-4">Officer Name</th>
+                                <th className="px-6 py-4">S.No</th><th className="px-6 py-4">Officer Name</th>
                                 <th className="px-6 py-4">Username</th>
                                 <th className="px-6 py-4">Assigned Areas</th>
                                 <th className="px-6 py-4 text-center">Action</th>
@@ -206,14 +206,14 @@ const AreaAssignmentPage = ({ role, title }: Props) => {
                         <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
                             {loading ? (
                                 <tr>
-                                    <td colSpan={4} className="px-6 py-10 text-center">
+                                    <td colSpan={5} className="px-6 py-10 text-center">
                                         <Loader text="Loading data..." />
                                     </td>
                                 </tr>
                             ) : filteredOfficers.length === 0 ? (
-                                <tr><td colSpan={4} className="px-6 py-10 text-center">No officers found</td></tr>
-                            ) : filteredOfficers.map(officer => (
-                                <tr key={officer.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition">
+                                <tr><td colSpan={5} className="px-6 py-10 text-center">No officers found</td></tr>
+                            ) : filteredOfficers.map((officer, idx) => (
+                                <tr key={officer.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition"><td className="px-6 py-4 font-medium text-gray-500 tabular-nums">{idx + 1}</td>
                                     <td className="px-6 py-4 font-medium">{officer.full_name}</td>
                                     <td className="px-6 py-4 text-gray-500">@{officer.username}</td>
                                     <td className="px-6 py-4">

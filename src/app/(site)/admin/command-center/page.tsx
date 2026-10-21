@@ -197,11 +197,11 @@ export default function AdminCommandCenterPage() {
             {attendance === null ? <ListSkeleton failed={failed.attendance} /> : attendance.length === 0 ? <p className="py-6 text-center text-xs text-gray-400">No attendance data.</p> : (
               <table className="w-full text-left text-xs">
                 <thead className="bg-gray-50 text-[11px] uppercase tracking-wide text-gray-500 dark:bg-dark-3 dark:text-gray-400">
-                  <tr><th className="px-3 py-2">Outlet</th><th className="px-3 py-2 text-right">Staff</th><th className="px-3 py-2 text-right">Present</th><th className="px-3 py-2 text-right">Absent</th><th className="px-3 py-2 text-right">Not Marked</th></tr>
+                  <tr><th className="px-3 py-2">S.No</th><th className="px-3 py-2">Outlet</th><th className="px-3 py-2 text-right">Staff</th><th className="px-3 py-2 text-right">Present</th><th className="px-3 py-2 text-right">Absent</th><th className="px-3 py-2 text-right">Not Marked</th></tr>
                 </thead>
                 <tbody>
-                  {attendance.map((a) => (
-                    <tr key={a.outlet_id} className="border-b border-stroke last:border-0 dark:border-dark-3">
+                  {attendance.map((a, idx) => (
+                    <tr key={a.outlet_id} className="border-b border-stroke last:border-0 dark:border-dark-3"><td className="px-3 py-2 font-semibold text-gray-500 tabular-nums">{idx + 1}</td>
                       <td className="px-3 py-2 font-semibold text-dark dark:text-white">{a.outlet_name}</td>
                       <td className="px-3 py-2 text-right text-gray-500">{a.totalStaff}</td>
                       <td className="px-3 py-2 text-right font-semibold text-emerald-600">{a.present}</td>
@@ -222,7 +222,7 @@ export default function AdminCommandCenterPage() {
           <table className="w-full text-left text-xs">
             <thead className="bg-gray-50 text-[11px] uppercase tracking-wide text-gray-500 dark:bg-dark-3 dark:text-gray-400">
               <tr>
-                <th className="px-3 py-2">Order</th>
+                <th className="px-3 py-2">S.No</th><th className="px-3 py-2">Order</th>
                 <th className="px-3 py-2">Customer</th>
                 <th className="px-3 py-2">Status</th>
                 <th className="px-3 py-2">Updated</th>
@@ -232,14 +232,14 @@ export default function AdminCommandCenterPage() {
             <tbody>
               {orders === null ? (
                 failed.orders ? (
-                  <tr><td colSpan={5} className="px-3 py-6 text-center text-xs text-gray-400">Could not load recent orders. Retrying automatically…</td></tr>
+                  <tr><td colSpan={6} className="px-3 py-6 text-center text-xs text-gray-400">Could not load recent orders. Retrying automatically…</td></tr>
                 ) : (
                   <TableRowsSkeleton rows={5} cols={5} />
                 )
               ) : orders.length === 0 ? (
-                <tr><td colSpan={5} className="px-3 py-6 text-center text-xs text-gray-400">No recent orders.</td></tr>
-              ) : orders.map((o) => (
-                <tr key={o.id} className="border-b border-stroke last:border-0 dark:border-dark-3">
+                <tr><td colSpan={6} className="px-3 py-6 text-center text-xs text-gray-400">No recent orders.</td></tr>
+              ) : orders.map((o, idx) => (
+                <tr key={o.id} className="border-b border-stroke last:border-0 dark:border-dark-3"><td className="px-3 py-2 font-semibold text-gray-500 tabular-nums">{idx + 1}</td>
                   <td className="px-3 py-2 font-semibold text-[#ff3d3d]">
                     <Link href={`/verifications/${o.id}`} className="hover:underline">
                       {o.order_ref}

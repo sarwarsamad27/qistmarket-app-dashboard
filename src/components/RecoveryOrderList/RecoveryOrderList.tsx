@@ -23,6 +23,7 @@ import { cn } from '@/lib/utils'
 import { createPortal } from 'react-dom'
 import { formatExactDate } from "@/utils/dateUtils";
 
+import { serialColumn } from '@/utils/serialColumn'
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -318,6 +319,7 @@ const RecoveryOrderList = () => {
             enableSorting: false,
             enableColumnFilter: false,
         },
+        serialColumn<Order>(),
         {
             accessorKey: 'updated_at',
             header: 'Activity Date',

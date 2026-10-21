@@ -24,6 +24,7 @@ import { formatExactDate } from "@/utils/dateUtils";
 import { apiErrorMessage } from "@/lib/apiErrors";
 
 
+import { serialColumn } from '@/utils/serialColumn'
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -219,6 +220,7 @@ const AssignedVerifications = () => {
 
   // ── Columns ────────────────────────────────────────────────────────────────
   const columns: ColumnDef<OrderWithVerification>[] = [
+    serialColumn<OrderWithVerification>(),
     {
       accessorKey: 'updated_at',
       header: 'Activity Date',

@@ -70,10 +70,10 @@ function ReportRow({ type }: { type: ReportType }) {
         preview.length ? (
           <div className="mt-3 max-h-80 overflow-auto rounded-xl border border-slate-100 dark:border-white/10">
             <table className="w-full text-left text-xs">
-              <thead className="sticky top-0 bg-gray-50 text-[10px] uppercase text-gray-500 dark:bg-dark-2"><tr>{Object.keys(preview[0]).map((k) => <th key={k} className="whitespace-nowrap px-3 py-2">{titleCase(k)}</th>)}</tr></thead>
+              <thead className="sticky top-0 bg-gray-50 text-[10px] uppercase text-gray-500 dark:bg-dark-2"><tr><th className="whitespace-nowrap px-3 py-2">S.No</th>{Object.keys(preview[0]).map((k) => <th key={k} className="whitespace-nowrap px-3 py-2">{titleCase(k)}</th>)}</tr></thead>
               <tbody>
                 {preview.slice(0, 100).map((r, i) => (
-                  <tr key={i} className="border-t border-slate-100 dark:border-white/5">{Object.keys(preview[0]).map((k) => <td key={k} className={`whitespace-nowrap px-3 py-1.5 ${typeof r[k] === "number" ? "text-right tabular-nums" : ""}`}>{typeof r[k] === "number" ? (r[k] as number).toLocaleString("en-PK") : String(r[k] ?? "")}</td>)}</tr>
+                  <tr key={i} className="border-t border-slate-100 dark:border-white/5"><td className="px-3 py-1.5 text-gray-500 tabular-nums">{i + 1}</td>{Object.keys(preview[0]).map((k) => <td key={k} className={`whitespace-nowrap px-3 py-1.5 ${typeof r[k] === "number" ? "text-right tabular-nums" : ""}`}>{typeof r[k] === "number" ? (r[k] as number).toLocaleString("en-PK") : String(r[k] ?? "")}</td>)}</tr>
                 ))}
               </tbody>
             </table>
@@ -223,10 +223,10 @@ export default function AccountsReportsPage() {
         {scheduledLoading ? <TableSkeleton /> : scheduled.length > 0 ? (
           <div className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm dark:border-white/10 dark:bg-boxdark">
             <table className="w-full text-left text-sm">
-              <thead className="bg-gray-50 text-[11px] uppercase tracking-wide text-gray-500 dark:bg-dark-2 dark:text-gray-400"><tr><th className="px-4 py-3 font-bold">Report</th><th className="px-4 py-3 font-bold">Frequency</th><th className="px-4 py-3 font-bold">Format</th><th className="px-4 py-3 font-bold">Recipients</th><th className="px-4 py-3 font-bold">Last Sent</th><th className="px-4 py-3 font-bold">Active</th><th className="px-4 py-3"></th></tr></thead>
+              <thead className="bg-gray-50 text-[11px] uppercase tracking-wide text-gray-500 dark:bg-dark-2 dark:text-gray-400"><tr><th className="px-4 py-3 font-bold">S.No</th><th className="px-4 py-3 font-bold">Report</th><th className="px-4 py-3 font-bold">Frequency</th><th className="px-4 py-3 font-bold">Format</th><th className="px-4 py-3 font-bold">Recipients</th><th className="px-4 py-3 font-bold">Last Sent</th><th className="px-4 py-3 font-bold">Active</th><th className="px-4 py-3"></th></tr></thead>
               <tbody>
-                {scheduled.map((s) => (
-                  <tr key={s.id} className="border-t border-slate-50 dark:border-white/5">
+                {scheduled.map((s, idx) => (
+                  <tr key={s.id} className="border-t border-slate-50 dark:border-white/5"><td className="px-4 py-3.5 font-medium text-gray-500 tabular-nums">{idx + 1}</td>
                     <td className="px-4 py-3.5 font-medium text-dark dark:text-white">{labelOf(s.report_type)}{s.created_by && <p className="text-xs font-normal text-gray-400">by {s.created_by.full_name}</p>}</td>
                     <td className="px-4 py-3.5 capitalize text-gray-600 dark:text-gray-300">{s.frequency}</td>
                     <td className="px-4 py-3.5"><span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold uppercase text-slate-600 dark:bg-white/10">{s.format === "pdf" ? "PDF" : s.format === "csv" ? "CSV" : "Excel"}</span></td>

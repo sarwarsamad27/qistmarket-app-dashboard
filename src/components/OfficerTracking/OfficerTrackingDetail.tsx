@@ -449,11 +449,12 @@ export default function OfficerTrackingDetail({ id, basePath }: { id: string; ba
                   <thead>
                     <tr className="border-b border-stroke text-[11px] uppercase tracking-wide text-gray-400 dark:border-dark-3">
                       {tab.details && <th className="w-8 px-2 py-2" />}
+                      <th className="whitespace-nowrap px-3 py-2 font-bold">S.No</th>
                       {tab.columns.map((c) => <th key={c.key} className="whitespace-nowrap px-3 py-2 font-bold">{c.label}</th>)}
                     </tr>
                   </thead>
                   <tbody>
-                    {rows.map((r) => {
+                    {rows.map((r, idx) => {
                       const open = expanded.has(r.id);
                       return (
                         <Fragment key={r.id}>
@@ -466,6 +467,7 @@ export default function OfficerTrackingDetail({ id, basePath }: { id: string; ba
                                 {open ? <ChevronDown className="size-4" /> : <ChevronRight className="size-4" />}
                               </td>
                             )}
+                            <td className="px-3 py-3 text-gray-500 tabular-nums">{idx + 1}</td>
                             {tab.columns.map((c) => (
                               <td key={c.key} className={`px-3 py-3 text-dark dark:text-gray-200 ${c.nowrap ? "whitespace-nowrap" : ""}`}>
                                 {c.render ? c.render(r) : (r[c.key] ?? "—")}
@@ -475,7 +477,7 @@ export default function OfficerTrackingDetail({ id, basePath }: { id: string; ba
                           {open && tab.details && (
                             <tr className="border-b border-stroke bg-gray-50 dark:border-dark-3 dark:bg-dark-2">
                               <td />
-                              <td colSpan={tab.columns.length} className="px-3 pb-5 pt-1">
+                              <td colSpan={tab.columns.length + 1} className="px-3 pb-5 pt-1">
                                 {tab.details(r)}
                               </td>
                             </tr>

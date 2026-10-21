@@ -399,7 +399,7 @@ export default function OutletReturnsPage() {
             <table className="w-full text-sm text-left">
               <thead className="bg-gray-50 dark:bg-meta-4 border-b border-stroke dark:border-strokedark">
                 <tr className="text-gray-500 font-bold uppercase tracking-wider text-[10px]">
-                  <th className="px-5 py-4">Ref/Order</th>
+                  <th className="px-5 py-4">S.No</th><th className="px-5 py-4">Ref/Order</th>
                   <th className="px-5 py-4">Customer</th>
                   <th className="px-5 py-4">Product</th>
                   <th className="px-5 py-4">Financials</th>
@@ -411,13 +411,13 @@ export default function OutletReturnsPage() {
               <tbody className="divide-y divide-stroke dark:divide-strokedark">
                 {completedRecords.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="text-center py-20 text-gray-400 font-medium">
+                    <td colSpan={8} className="text-center py-20 text-gray-400 font-medium">
                       <History size={48} className="mx-auto mb-4 opacity-10" />
                       <p className="uppercase tracking-widest text-xs font-black">No completed returns.</p>
                     </td>
                   </tr>
-                ) : completedRecords.map(r => (
-                  <tr key={r.id} className="hover:bg-gray-50 dark:hover:bg-meta-4/20 transition-all group">
+                ) : completedRecords.map((r, idx) => (
+                  <tr key={r.id} className="hover:bg-gray-50 dark:hover:bg-meta-4/20 transition-all group"><td className="px-5 py-4 text-gray-500 tabular-nums">{idx + 1}</td>
                     <td className="px-5 py-4">
                       <p className="font-black text-gray-800 dark:text-white leading-none mb-1 group-hover:text-primary transition-colors">#{r.order?.order_ref}</p>
                       <span className={`text-[8px] font-black px-1.5 py-0.5 rounded uppercase tracking-tighter ${r.is_used ? 'bg-primary/10 text-primary border border-primary/20' : 'bg-success/10 text-success border border-success/20'}`}>

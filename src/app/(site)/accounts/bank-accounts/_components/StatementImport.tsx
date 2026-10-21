@@ -214,10 +214,10 @@ export default function StatementImport({ account, onImported }: { account: { id
           {lines.length > 0 && (
             <div className="max-h-64 overflow-auto rounded-xl border border-slate-100 dark:border-white/10">
               <table className="w-full text-left text-xs">
-                <thead className="sticky top-0 bg-gray-50 text-[10px] uppercase text-gray-500 dark:bg-dark-2"><tr><th className="px-3 py-2">Date</th><th className="px-3 py-2">Description</th><th className="px-3 py-2">Ref</th><th className="px-3 py-2 text-right">Debit</th><th className="px-3 py-2 text-right">Credit</th><th className="px-3 py-2 text-right">Balance</th></tr></thead>
+                <thead className="sticky top-0 bg-gray-50 text-[10px] uppercase text-gray-500 dark:bg-dark-2"><tr><th className="px-3 py-2">S.No</th><th className="px-3 py-2">Date</th><th className="px-3 py-2">Description</th><th className="px-3 py-2">Ref</th><th className="px-3 py-2 text-right">Debit</th><th className="px-3 py-2 text-right">Credit</th><th className="px-3 py-2 text-right">Balance</th></tr></thead>
                 <tbody>
                   {lines.slice(0, 15).map((l, i) => (
-                    <tr key={i} className="border-t border-slate-100 dark:border-white/5">
+                    <tr key={i} className="border-t border-slate-100 dark:border-white/5"><td className="px-3 py-1.5 text-gray-500 tabular-nums">{i + 1}</td>
                       <td className="px-3 py-1.5">{l.date?.slice(0, 10)}</td>
                       <td className="max-w-[260px] truncate px-3 py-1.5">{String(l.description)}</td>
                       <td className="px-3 py-1.5">{String(l.reference)}</td>

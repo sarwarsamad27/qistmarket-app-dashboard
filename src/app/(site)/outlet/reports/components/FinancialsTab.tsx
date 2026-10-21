@@ -5,6 +5,7 @@ import Loader from '@/components/common/Loader';
 import { useReactToPrint } from 'react-to-print';
 import * as XLSX from 'xlsx';
 import { formatExactDate } from '@/utils/dateUtils';
+import { pickedDay } from '@/utils/pkt';
 
 const API_BASE = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5000';
 
@@ -26,8 +27,8 @@ export default function FinancialsTab({ token, startDate, endDate, searchQuery }
             try {
                 let url = `${API_BASE}/api/outlet-reports/financials`;
                 const params = new URLSearchParams();
-                if (startDate) params.append('startDate', startDate.toISOString());
-                if (endDate) params.append('endDate', endDate.toISOString());
+                if (startDate) params.append('startDate', pickedDay(startDate));
+                if (endDate) params.append('endDate', pickedDay(endDate));
                 if (params.toString()) url += `?${params.toString()}`;
 
                 const res = await fetch(url, {
@@ -131,7 +132,7 @@ export default function FinancialsTab({ token, startDate, endDate, searchQuery }
                             <table className="w-full text-left text-sm text-gray-600 dark:text-gray-400">
                                 <thead className="bg-gray-50 text-gray-800 dark:bg-gray-900/50 dark:text-white">
                                     <tr>
-                                        <th className="px-4 py-3 font-medium">Date</th>
+                                        <th className="px-4 py-3 font-medium">S.No</th><th className="px-4 py-3 font-medium">Date</th>
                                         <th className="px-4 py-3 font-medium">Voucher #</th>
                                         <th className="px-4 py-3 font-medium">Payment Method</th>
                                         <th className="px-4 py-3 font-medium">Notes</th>
@@ -139,8 +140,8 @@ export default function FinancialsTab({ token, startDate, endDate, searchQuery }
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
-                                    {filteredExpenses.length > 0 ? filteredExpenses.map((exp: any) => (
-                                        <tr key={exp.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                                    {filteredExpenses.length > 0 ? filteredExpenses.map((exp: any, idx: number) => (
+                                        <tr key={exp.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50"><td className="px-4 py-3 text-gray-500 tabular-nums">{idx + 1}</td>
                                             <td className="px-4 py-3">{new Date(exp.date).toLocaleDateString()}</td>
                                             <td className="px-4 py-3 font-medium text-blue-600">{exp.voucher_number}</td>
                                             <td className="px-4 py-3">
@@ -152,7 +153,7 @@ export default function FinancialsTab({ token, startDate, endDate, searchQuery }
                                             <td className="px-4 py-3 font-bold text-red-600 text-right">Rs {exp.total_amount?.toLocaleString()}</td>
                                         </tr>
                                     )) : (
-                                        <tr><td colSpan={5} className="px-4 py-8 text-center text-gray-500">No expenses found for this period.</td></tr>
+                                        <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-500">No expenses found for this period.</td></tr>
                                     )}
                                 </tbody>
                             </table>
@@ -168,15 +169,15 @@ export default function FinancialsTab({ token, startDate, endDate, searchQuery }
                             <table className="w-full text-left text-sm text-gray-600 dark:text-gray-400">
                                 <thead className="bg-gray-50 text-gray-800 dark:bg-gray-900/50 dark:text-white">
                                     <tr>
-                                        <th className="px-4 py-3 font-medium">Date</th>
+                                        <th className="px-4 py-3 font-medium">S.No</th><th className="px-4 py-3 font-medium">Date</th>
                                         <th className="px-4 py-3 font-medium">Vendor</th>
                                         <th className="px-4 py-3 font-medium">Method</th>
                                         <th className="px-4 py-3 font-medium text-right">Amount Paid</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
-                                    {filteredVendorPayments.length > 0 ? filteredVendorPayments.map((vp: any) => (
-                                        <tr key={vp.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                                    {filteredVendorPayments.length > 0 ? filteredVendorPayments.map((vp: any, idx: number) => (
+                                        <tr key={vp.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50"><td className="px-4 py-3 text-gray-500 tabular-nums">{idx + 1}</td>
                                             <td className="px-4 py-3">{formatExactDate(vp.created_at, 'DD MMM YYYY, hh:mm A')}</td>
                                             <td className="px-4 py-3 font-medium">{vp.vendor_name || vp.vendor?.name || 'N/A'}</td>
                                             <td className="px-4 py-3">
@@ -187,7 +188,7 @@ export default function FinancialsTab({ token, startDate, endDate, searchQuery }
                                             <td className="px-4 py-3 font-bold text-orange-600 text-right">Rs {vp.amount?.toLocaleString()}</td>
                                         </tr>
                                     )) : (
-                                        <tr><td colSpan={4} className="px-4 py-8 text-center text-gray-500">No vendor payments found for this period.</td></tr>
+                                        <tr><td colSpan={5} className="px-4 py-8 text-center text-gray-500">No vendor payments found for this period.</td></tr>
                                     )}
                                 </tbody>
                             </table>

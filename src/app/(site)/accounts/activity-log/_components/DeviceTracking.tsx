@@ -77,11 +77,11 @@ export default function DeviceTracking() {
         data.users.length ? (
           <div className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm dark:border-white/10 dark:bg-boxdark">
             <table className="w-full text-left text-sm">
-              <thead className="bg-gray-50 text-[11px] uppercase tracking-wide text-gray-500 dark:bg-dark-2 dark:text-gray-400"><tr><th className="px-4 py-3">User</th><th className="px-4 py-3">Outlet</th><th className="px-4 py-3 text-right">Logins</th><th className="px-4 py-3 text-right">Failed</th><th className="px-4 py-3 text-right">IPs</th><th className="px-4 py-3 text-right">Devices</th><th className="px-4 py-3">Last Login</th></tr></thead>
+              <thead className="bg-gray-50 text-[11px] uppercase tracking-wide text-gray-500 dark:bg-dark-2 dark:text-gray-400"><tr><th className="px-4 py-3">S.No</th><th className="px-4 py-3">User</th><th className="px-4 py-3">Outlet</th><th className="px-4 py-3 text-right">Logins</th><th className="px-4 py-3 text-right">Failed</th><th className="px-4 py-3 text-right">IPs</th><th className="px-4 py-3 text-right">Devices</th><th className="px-4 py-3">Last Login</th></tr></thead>
               <tbody>
-                {data.users.map((u) => (
+                {data.users.map((u, idx) => (
                   <Fragment key={u.user_id}>
-                    <tr onClick={() => setExpanded(expanded === u.user_id ? null : u.user_id)} className="cursor-pointer border-t border-slate-50 hover:bg-slate-50/70 dark:border-white/5 dark:hover:bg-white/5">
+                    <tr onClick={() => setExpanded(expanded === u.user_id ? null : u.user_id)} className="cursor-pointer border-t border-slate-50 hover:bg-slate-50/70 dark:border-white/5 dark:hover:bg-white/5"><td className="px-4 py-3 text-gray-500 tabular-nums">{idx + 1}</td>
                       <td className="px-4 py-3"><p className="font-medium text-dark dark:text-white">{u.name}</p><p className="text-xs text-gray-400">{u.username}{u.role ? ` · ${u.role}` : ""}</p></td>
                       <td className="px-4 py-3 text-gray-600 dark:text-gray-300">{u.outlet}</td>
                       <td className="px-4 py-3 text-right tabular-nums">{u.logins}</td>
@@ -92,7 +92,7 @@ export default function DeviceTracking() {
                     </tr>
                     {expanded === u.user_id && (
                       <tr className="bg-slate-50/60 dark:bg-white/5">
-                        <td colSpan={7} className="px-6 py-3 text-xs">
+                        <td colSpan={8} className="px-6 py-3 text-xs">
                           <p className="mb-1 font-bold text-gray-500">IP addresses: <span className="font-mono font-normal">{u.ips.join(", ") || "—"}</span></p>
                           <div className="space-y-1">
                             {u.devices.map((d, i) => (
@@ -117,10 +117,10 @@ export default function DeviceTracking() {
         data.ips.length ? (
           <div className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm dark:border-white/10 dark:bg-boxdark">
             <table className="w-full text-left text-sm">
-              <thead className="bg-gray-50 text-[11px] uppercase tracking-wide text-gray-500 dark:bg-dark-2 dark:text-gray-400"><tr><th className="px-4 py-3">IP Address</th><th className="px-4 py-3">Accounts using it</th><th className="px-4 py-3 text-right">Logins</th><th className="px-4 py-3 text-right">Failed</th><th className="px-4 py-3">Last Seen</th></tr></thead>
+              <thead className="bg-gray-50 text-[11px] uppercase tracking-wide text-gray-500 dark:bg-dark-2 dark:text-gray-400"><tr><th className="px-4 py-3">S.No</th><th className="px-4 py-3">IP Address</th><th className="px-4 py-3">Accounts using it</th><th className="px-4 py-3 text-right">Logins</th><th className="px-4 py-3 text-right">Failed</th><th className="px-4 py-3">Last Seen</th></tr></thead>
               <tbody>
-                {data.ips.map((i) => (
-                  <tr key={i.ip} className="border-t border-slate-50 dark:border-white/5">
+                {data.ips.map((i, idx) => (
+                  <tr key={i.ip} className="border-t border-slate-50 dark:border-white/5"><td className="px-4 py-3 text-xs text-gray-500 tabular-nums">{idx + 1}</td>
                     <td className="px-4 py-3 font-mono text-xs text-dark dark:text-white">{i.ip}</td>
                     <td className="px-4 py-3 text-xs text-gray-600 dark:text-gray-300"><span className={`mr-1.5 rounded-full px-1.5 py-0.5 text-[10px] font-bold ${i.user_count >= 3 ? "bg-amber-50 text-amber-700" : "bg-gray-100 text-gray-500"}`}>{i.user_count}</span>{i.users.slice(0, 8).join(", ")}{i.users.length > 8 ? "…" : ""}</td>
                     <td className="px-4 py-3 text-right tabular-nums">{i.logins}</td>

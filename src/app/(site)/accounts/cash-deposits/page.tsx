@@ -45,6 +45,11 @@ export default function AccountsCashDepositsPage() {
     const [selectedStatus, setSelectedStatus] = useState("pending");
     const [selectedMethod, setSelectedMethod] = useState("all");
     const [expandedId, setExpandedId] = useState<number | null>(null);
+    // ?id=<deposit id> (from a notification's "View details") shows just that deposit.
+    const [focusId, setFocusId] = useState<string | null>(null);
+    useEffect(() => {
+        setFocusId(new URLSearchParams(window.location.search).get("id"));
+    }, []);
 
     const methodTabs: { key: string; label: string }[] = [
         { key: "all", label: "All Methods" },
@@ -60,7 +65,12 @@ export default function AccountsCashDepositsPage() {
 
     useEffect(() => {
         fetchDeposits();
-    }, [selectedStatus]);
+    }, [selectedStatus, focusId]);
+
+    const clearFocus = () => {
+        setFocusId(null);
+        window.history.replaceState(null, "", window.location.pathname);
+    };
 
     // Live updates: refetch the moment a 1Bill/QR deposit is auto-verified by the webhook
     // (sent to this accountant's room — this page's own socket never joined it, so it never
@@ -76,7 +86,9 @@ export default function AccountsCashDepositsPage() {
         setLoading(true);
         try {
             const url = new URL(`${API_BASE}/api/accounts/bank-deposits`);
-            if (selectedStatus !== "all") {
+            if (focusId) {
+                url.searchParams.append("id", focusId);
+            } else if (selectedStatus !== "all") {
                 url.searchParams.append("status", selectedStatus);
             }
             const res = await fetch(url.toString(), { headers: getAuthHeaders() });
@@ -136,6 +148,13 @@ export default function AccountsCashDepositsPage() {
                     </div>
                 </div>
 
+                {focusId && (
+                    <div className="mb-4 flex items-center justify-between rounded border border-primary/30 bg-primary/5 px-4 py-2 text-sm">
+                        <span className="text-black dark:text-white">Showing deposit <b>#{focusId}</b> only</span>
+                        <button onClick={clearFocus} className="font-medium text-primary hover:underline">Show all deposits</button>
+                    </div>
+                )}
+
                 <div className="mb-4 flex flex-wrap gap-2">
                     {methodTabs.map((tab) => (
                         <button
@@ -180,6 +199,7 @@ export default function AccountsCashDepositsPage() {
                                     <Fragment key={deposit.id}>
                                     <tr>
                                         <td className="border-b border-[#eee] py-5 px-4 dark:border-strokedark">
+                                            <p className="font-mono text-xs text-body-color">#{deposit.id}</p>
                                             <p className="text-black dark:text-white">{formatExactDate(deposit.created_at, 'DD MMM YYYY')}</p>
                                             <p className="text-xs text-body-color">{formatExactDate(deposit.created_at, 'hh:mm A')}</p>
                                         </td>

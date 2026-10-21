@@ -4,6 +4,7 @@ import { useEffect, useState, useMemo } from 'react'
 import Cookies from 'js-cookie'
 import Breadcrumb from '@/components/Breadcrumbs/Breadcrumb'
 import Loader from '@/components/common/Loader'
+import DateRangeFilter, { type DateRange } from '@/components/Accounts/DateRangeFilter'
 import { Phone, User, Banknote, AlertCircle } from 'lucide-react'
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
@@ -22,12 +23,17 @@ export default function RecoveryReportPage() {
   const [loading, setLoading] = useState(true)
   const [data, setData] = useState<RecoveryItem[]>([])
   const token = useMemo(() => Cookies.get('auth_token'), [])
+  const [range, setRange] = useState<DateRange>({ from: '', to: '' })
 
   useEffect(() => {
     const fetchRecovery = async () => {
       if (!token) return
+      setLoading(true)
       try {
-        const res = await fetch(`${BACKEND_URL}/api/outlet-reports/recovery`, {
+        const qs = new URLSearchParams()
+        if (range.from) qs.set('startDate', range.from)
+        if (range.to) qs.set('endDate', range.to)
+        const res = await fetch(`${BACKEND_URL}/api/outlet-reports/recovery?${qs}`, {
           headers: { Authorization: `Bearer ${token}` }
         })
         const json = await res.json()
@@ -39,7 +45,7 @@ export default function RecoveryReportPage() {
       }
     }
     fetchRecovery()
-  }, [token])
+  }, [token, range.from, range.to])
 
   const totals = useMemo(() => {
     return data.reduce((acc, item) => ({
@@ -58,6 +64,10 @@ export default function RecoveryReportPage() {
         <div>
           <h2 className="text-xl font-bold text-dark dark:text-white text-[22px]">Installment Recovery List</h2>
           <p className="text-sm text-gray-500 dark:text-gray-400">Track all customers with pending balances in your outlet.</p>
+          <div className="mt-3"><DateRangeFilter value={range} onChange={setRange} /></div>
+          <p className="mt-1 text-xs text-gray-400">
+            {range.from || range.to ? 'Installments that fell due in the selected period and how much of them is still unpaid.' : 'No dates selected: full outstanding balance of every account.'}
+          </p>
         </div>
         <div className="rounded-lg bg-red-50 px-4 py-2 border border-red-100 dark:bg-red-500/10 dark:border-red-500/20">
           <p className="text-[10px] uppercase font-bold text-red-500">Total Outstanding</p>
@@ -70,7 +80,7 @@ export default function RecoveryReportPage() {
           <table className="w-full text-left">
             <thead>
               <tr className="bg-gray-50 text-[11px] uppercase text-gray-500 dark:bg-dark-3">
-                <th className="px-6 py-4">Customer Details</th>
+                <th className="px-6 py-4">S.No</th><th className="px-6 py-4">Customer Details</th>
                 <th className="px-6 py-4">Order Ref</th>
                 <th className="px-6 py-4 text-right">Total Amount</th>
                 <th className="px-6 py-4 text-right">Total Paid</th>
@@ -78,8 +88,8 @@ export default function RecoveryReportPage() {
               </tr>
             </thead>
             <tbody className="text-sm">
-              {data.map((item) => (
-                <tr key={item.order_id} className="border-b border-stroke last:border-0 hover:bg-gray-50 dark:border-dark-3 dark:hover:bg-dark-3 transition-colors">
+              {data.map((item, idx) => (
+                <tr key={item.order_id} className="border-b border-stroke last:border-0 hover:bg-gray-50 dark:border-dark-3 dark:hover:bg-dark-3 transition-colors"><td className="px-6 py-4 text-gray-500 tabular-nums">{idx + 1}</td>
                   <td className="px-6 py-4">
                     <div className="flex flex-col">
                       <span className="font-bold text-dark dark:text-white flex items-center gap-1.5">
@@ -105,7 +115,7 @@ export default function RecoveryReportPage() {
                 </tr>
               ))}
               {data.length === 0 && (
-                <tr><td colSpan={5} className="px-6 py-10 text-center text-gray-500 flex flex-col items-center gap-2">
+                <tr><td colSpan={6} className="px-6 py-10 text-center text-gray-500 flex flex-col items-center gap-2">
                   <AlertCircle className="h-8 w-8 text-gray-300" />
                   Great job! No pending installments found.
                 </td></tr>

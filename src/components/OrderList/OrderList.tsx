@@ -29,6 +29,7 @@ import { formatExactDate } from "@/utils/dateUtils";
 import { apiErrorMessage } from "@/lib/apiErrors";
 import { describeExpiry } from "@/lib/orderExpiry"
 
+import { serialColumn } from '@/utils/serialColumn'
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -918,6 +919,7 @@ const OrderListContent = ({ forcedStatus, forcedChannel, apiEndpoint, hideAction
       enableSorting: false,
       enableColumnFilter: false,
     }]),
+    serialColumn<Order>(),
     {
       accessorKey: 'updated_at',
       header: 'Activity Date',

@@ -218,7 +218,7 @@ export default function BulkAttendance({ shiftStart, shiftEnd, onSaved }: Props)
         <table className="w-full text-sm">
           <thead className="sticky top-0 z-10 bg-gray-2 dark:bg-dark-3">
             <tr>
-              <th className="px-3 py-2 text-left"><input type="checkbox" checked={allVisibleSelected} onChange={toggleAll} title="Select all shown" /></th>
+              <th className="px-3 py-2 text-left"><input type="checkbox" checked={allVisibleSelected} onChange={toggleAll} title="Select all shown" /></th><th className="px-3 py-2">S.No</th>
               <th className="px-3 py-2 text-left">Employee</th>
               <th className="px-3 py-2 text-left">Department</th>
               <th className="px-3 py-2 text-left">Status</th>
@@ -228,15 +228,15 @@ export default function BulkAttendance({ shiftStart, shiftEnd, onSaved }: Props)
             </tr>
           </thead>
           <tbody>
-            {loading && <tr><td colSpan={7} className="px-3 py-6 text-center text-gray-500">Loading...</td></tr>}
-            {!loading && visible.length === 0 && <tr><td colSpan={7} className="px-3 py-6 text-center text-gray-500">No employees</td></tr>}
-            {!loading && visible.map((e) => {
+            {loading && <tr><td colSpan={8} className="px-3 py-6 text-center text-gray-500">Loading...</td></tr>}
+            {!loading && visible.length === 0 && <tr><td colSpan={8} className="px-3 py-6 text-center text-gray-500">No employees</td></tr>}
+            {!loading && visible.map((e, idx) => {
               const r = rows[e.id];
               if (!r) return null;
               const worked = WORKED.includes(r.status);
               return (
                 <tr key={e.id} className={`border-t border-stroke dark:border-stroke-dark ${r.selected ? "bg-primary/5" : ""}`}>
-                  <td className="px-3 py-2"><input type="checkbox" checked={r.selected} onChange={(ev) => setRow(e.id, { selected: ev.target.checked })} /></td>
+                  <td className="px-3 py-2"><input type="checkbox" checked={r.selected} onChange={(ev) => setRow(e.id, { selected: ev.target.checked })} /></td><td className="px-3 py-2 text-gray-500 tabular-nums">{idx + 1}</td>
                   <td className="px-3 py-2">
                     <p className="font-medium">{e.full_name}</p>
                     <p className="text-xs text-gray-500">{e.employee_id}{e.designation ? ` · ${e.designation}` : ""}</p>

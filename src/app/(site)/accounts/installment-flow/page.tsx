@@ -10,6 +10,7 @@ import PageHeader from "@/components/Accounts/PageHeader";
 import EmptyState from "@/components/Accounts/EmptyState";
 import { ChartSkeleton } from "@/components/Accounts/Skeleton";
 import { PKR } from "@/components/Accounts/StatCard";
+import DateRangeFilter, { type DateRange } from "@/components/Accounts/DateRangeFilter";
 
 const Chart = dynamic(() => import("react-apexcharts"), { ssr: false });
 
@@ -33,6 +34,10 @@ const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 export default function InstallmentFlowPage() {
   const [range, setRange] = useState<(typeof RANGES)[number]>("Month");
+  // A picked From–To overrides the preset buttons (sent as range=Custom).
+  const [custom, setCustom] = useState<DateRange>({ from: "", to: "" });
+  const isCustom = !!(custom.from || custom.to);
+  const rq = isCustom ? `range=Custom&startDate=${custom.from}&endDate=${custom.to}` : `range=${range}`;
   const [flow, setFlow] = useState<FlowData | null>(null);
   const [channel, setChannel] = useState<ChannelRecovery | null>(null);
   const [loading, setLoading] = useState(true);
@@ -40,8 +45,8 @@ export default function InstallmentFlowPage() {
   useEffect(() => {
     setLoading(true);
     Promise.all([
-      fetch(`${BACKEND_URL}/api/accounts/installment-flow?range=${range}`, { headers: authHeaders() }).then((r) => r.json()),
-      fetch(`${BACKEND_URL}/api/accounts/recovery-analytics/channel-wise?range=${range}`, { headers: authHeaders() }).then((r) => r.json()),
+      fetch(`${BACKEND_URL}/api/accounts/installment-flow?${rq}`, { headers: authHeaders() }).then((r) => r.json()),
+      fetch(`${BACKEND_URL}/api/accounts/recovery-analytics/channel-wise?${rq}`, { headers: authHeaders() }).then((r) => r.json()),
     ])
       .then(([flowJson, channelJson]) => {
         if (flowJson.success) setFlow(flowJson.data);
@@ -49,7 +54,7 @@ export default function InstallmentFlowPage() {
       })
       .catch((err) => console.error("Failed to load installment flow analytics:", err))
       .finally(() => setLoading(false));
-  }, [range]);
+  }, [rq]);
 
   const trendOptions: ApexOptions = {
     chart: { type: "line", toolbar: { show: false }, fontFamily: "inherit" },
@@ -84,11 +89,14 @@ export default function InstallmentFlowPage() {
         actions={
           <div className="flex gap-1 rounded-xl bg-gray-100 p-1 dark:bg-dark-3">
             {RANGES.map((r) => (
-              <button key={r} onClick={() => setRange(r)} className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${range === r ? "bg-white text-[#ff3d3d] shadow-sm dark:bg-boxdark" : "text-gray-500"}`}>{r}</button>
+              <button key={r} onClick={() => { setRange(r); setCustom({ from: "", to: "" }); }} className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${!isCustom && range === r ? "bg-white text-[#ff3d3d] shadow-sm dark:bg-boxdark" : "text-gray-500"}`}>{r}</button>
             ))}
           </div>
         }
       />
+      <div className="mb-4">
+        <DateRangeFilter value={custom} onChange={setCustom} presets={false} />
+      </div>
 
       <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
         <div className="flex items-center gap-3 rounded-2xl border border-emerald-100 bg-gradient-to-br from-emerald-50 to-white p-5 dark:border-emerald-500/20 dark:from-emerald-500/10 dark:to-transparent">

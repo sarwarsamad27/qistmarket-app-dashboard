@@ -282,7 +282,7 @@ export default function ExpensesPage() {
                     <table className="w-full text-left border-collapse text-sm">
                         <thead>
                             <tr className="bg-gray-50 dark:bg-meta-4 text-[10px] font-black text-gray-500 dark:text-gray-400 uppercase tracking-[0.15em]">
-                                <th className="p-5 w-12" />
+                                <th className="p-5">S.No</th><th className="p-5 w-12" />
                                 <th className="p-5">Voucher # / Date</th>
                                 <th className="p-5">Payment Method</th>
                                 <th className="p-5">Total Amount</th>
@@ -293,21 +293,21 @@ export default function ExpensesPage() {
                         <tbody>
                             {filteredVouchers.length === 0 ? (
                                 <tr>
-                                    <td colSpan={6} className="p-24 text-center text-gray-400 opacity-60">
+                                    <td colSpan={7} className="p-24 text-center text-gray-400 opacity-60">
                                         <div className="bg-gray-50 dark:bg-meta-4 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4">
                                             <Receipt size={40} className="text-gray-300" />
                                         </div>
                                         <div className="font-black uppercase tracking-widest text-xs">No expense vouchers found</div>
                                     </td>
                                 </tr>
-                            ) : filteredVouchers.map(v => {
+                            ) : filteredVouchers.map((v, rowIdx) => {
                                 const isExpanded = expandedIds.has(v.id);
                                 return (
                                     <Fragment key={v.id}>
                                         <tr
                                             onClick={() => toggleExpand(v.id)}
                                             className={`group border-b border-stroke dark:border-strokedark hover:bg-gray-50 dark:hover:bg-meta-4/20 transition-all cursor-pointer ${isExpanded ? 'bg-primary/5 dark:bg-primary/10' : ''} ${deletedRowClass(v)}`}
-                                        >
+                                        ><td className="p-5 text-gray-500 tabular-nums">{rowIdx + 1}</td>
                                             <td className="p-5 text-center">
                                                 {isExpanded ? <ChevronDown size={18} className="text-primary mx-auto" strokeWidth={3} /> : <ChevronRight size={18} className="text-gray-300 mx-auto group-hover:text-primary transition-colors" />}
                                             </td>
@@ -360,7 +360,7 @@ export default function ExpensesPage() {
                                         {/* DETAIL ITEMS */}
                                         {isExpanded && (
                                             <tr className="bg-gray-50/30 dark:bg-meta-4/10">
-                                                <td colSpan={6} className="p-0 border-b border-stroke dark:border-strokedark">
+                                                <td colSpan={7} className="p-0 border-b border-stroke dark:border-strokedark">
                                                     <div className="px-16 py-8 animate-fade-in">
                                                         <div className="mb-6 flex items-center justify-between">
                                                             <div className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] flex items-center gap-2">
@@ -402,7 +402,7 @@ export default function ExpensesPage() {
                                                                 </tbody>
                                                                 <tfoot>
                                                                     <tr className="bg-gray-50/50 dark:bg-meta-4/30 font-black">
-                                                                        <td colSpan={3} className="p-4 text-right uppercase text-gray-400 tracking-[0.2em] text-[10px]">Total Voucher Value</td>
+                                                                        <td colSpan={4} className="p-4 text-right uppercase text-gray-400 tracking-[0.2em] text-[10px]">Total Voucher Value</td>
                                                                         <td className="p-4 text-right text-base text-gray-900 dark:text-white">PKR {v.total_amount.toLocaleString()}</td>
                                                                     </tr>
                                                                 </tfoot>

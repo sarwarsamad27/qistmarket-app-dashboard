@@ -103,11 +103,11 @@ export default function VendorAnalytics({ onOpenLedger }: { onOpenLedger: (vendo
         <div className="max-h-[480px] overflow-auto">
           <table className="w-full text-left text-sm">
             <thead className="sticky top-0 bg-gray-50 text-[11px] uppercase tracking-wide text-gray-500 dark:bg-dark-2 dark:text-gray-400">
-              <tr><th className="px-4 py-2.5">Vendor</th><th className="px-4 py-2.5 text-right">Purchased (period)</th><th className="px-4 py-2.5 text-right">Paid</th><th className="px-4 py-2.5 text-right">Outstanding</th><th className="px-4 py-2.5 text-right">Overdue</th><th className="px-4 py-2.5 text-right">Returns</th><th className="px-4 py-2.5 text-right">Avg days to pay</th><th className="px-4 py-2.5">Last purchase</th></tr>
+              <tr><th className="px-4 py-2.5">S.No</th><th className="px-4 py-2.5">Vendor</th><th className="px-4 py-2.5 text-right">Purchased (period)</th><th className="px-4 py-2.5 text-right">Paid</th><th className="px-4 py-2.5 text-right">Outstanding</th><th className="px-4 py-2.5 text-right">Overdue</th><th className="px-4 py-2.5 text-right">Returns</th><th className="px-4 py-2.5 text-right">Avg days to pay</th><th className="px-4 py-2.5">Last purchase</th></tr>
             </thead>
             <tbody>
-              {data.vendors.map((v) => (
-                <tr key={`${v.vendor_id}-${v.vendor_name}`} className="border-t border-slate-50 dark:border-white/5">
+              {data.vendors.map((v, idx) => (
+                <tr key={`${v.vendor_id}-${v.vendor_name}`} className="border-t border-slate-50 dark:border-white/5"><td className="px-4 py-2.5 font-medium text-gray-500 tabular-nums">{idx + 1}</td>
                   <td className="px-4 py-2.5 font-medium text-dark dark:text-white">
                     {v.vendor_id ? <button onClick={() => onOpenLedger(v.vendor_id!)} className="hover:text-[#ff3d3d] hover:underline">{v.vendor_name}</button> : v.vendor_name}
                     <p className="text-xs font-normal text-gray-400">{v.invoices} invoice(s)</p>
@@ -130,8 +130,8 @@ export default function VendorAnalytics({ onOpenLedger }: { onOpenLedger: (vendo
         <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-boxdark">
           <h3 className="mb-3 text-sm font-bold text-dark dark:text-white">Purchases by outlet (period)</h3>
           <table className="w-full text-left text-sm">
-            <thead className="text-[10px] uppercase text-gray-400"><tr><th className="py-1.5">Outlet</th><th className="py-1.5 text-right">Purchased</th><th className="py-1.5 text-right">Still owed</th></tr></thead>
-            <tbody>{data.byOutlet.map((o) => <tr key={o.outlet_id} className="border-t border-slate-100 dark:border-white/5"><td className="py-2">{o.outlet_name}</td><td className="py-2 text-right tabular-nums">{PKR(o.purchased)}</td><td className="py-2 text-right tabular-nums text-orange-600">{PKR(o.outstanding)}</td></tr>)}</tbody>
+            <thead className="text-[10px] uppercase text-gray-400"><tr><th className="py-1.5">S.No</th><th className="py-1.5">Outlet</th><th className="py-1.5 text-right">Purchased</th><th className="py-1.5 text-right">Still owed</th></tr></thead>
+            <tbody>{data.byOutlet.map((o, idx) => <tr key={o.outlet_id} className="border-t border-slate-100 dark:border-white/5"><td className="py-2 text-gray-500 tabular-nums">{idx + 1}</td><td className="py-2">{o.outlet_name}</td><td className="py-2 text-right tabular-nums">{PKR(o.purchased)}</td><td className="py-2 text-right tabular-nums text-orange-600">{PKR(o.outstanding)}</td></tr>)}</tbody>
           </table>
         </div>
         <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-boxdark">

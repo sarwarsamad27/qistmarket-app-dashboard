@@ -9,6 +9,7 @@ import PageHeader from "@/components/Accounts/PageHeader";
 import EmptyState from "@/components/Accounts/EmptyState";
 import { TableSkeleton } from "@/components/Accounts/Skeleton";
 import StatCard, { PKR } from "@/components/Accounts/StatCard";
+import DateRangeFilter, { type DateRange } from "@/components/Accounts/DateRangeFilter";
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
 const authHeaders = () => ({ Authorization: `Bearer ${Cookies.get("auth_token")}`, "Content-Type": "application/json" });
@@ -41,11 +42,15 @@ export default function AdminInstallmentAgingPage() {
   const [newDate, setNewDate] = useState("");
   const [reason, setReason] = useState("");
   const [saving, setSaving] = useState(false);
+  const [range, setRange] = useState<DateRange>({ from: "", to: "" });
   const [statusCounts, setStatusCounts] = useState<{ active: number; closed: number; total: number } | null>(null);
 
   const load = () => {
     setLoading(true);
-    fetch(`${BACKEND_URL}/api/accounts/aging`, { headers: authHeaders() })
+    const qs = new URLSearchParams();
+    if (range.from) qs.set("startDate", range.from);
+    if (range.to) qs.set("endDate", range.to);
+    fetch(`${BACKEND_URL}/api/accounts/aging?${qs}`, { headers: authHeaders() })
       .then((r) => r.json())
       .then((json) => { if (json.success) setData(json.data); })
       .catch((err) => console.error("Failed to load installment aging:", err))
@@ -57,7 +62,7 @@ export default function AdminInstallmentAgingPage() {
       .catch((err) => console.error("Failed to load installment status counts:", err));
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); }, [range.from, range.to]);
 
   const openReschedule = (item: AgingItem) => {
     setRescheduling(item);
@@ -91,6 +96,10 @@ export default function AdminInstallmentAgingPage() {
     <>
       <Breadcrumb pageName="Installment Aging" />
       <PageHeader icon={Clock} title="Installment Aging" subtitle="Overdue installments by age bucket, company-wide — with reschedule support." />
+      <div className="mb-4">
+        <DateRangeFilter value={range} onChange={setRange} />
+        <p className="mt-1.5 text-[11px] text-gray-400">Dates pick installments that fell due in that period; days overdue are always counted to today. Empty = all overdue installments.</p>
+      </div>
 
       {statusCounts && (
         <div className="mb-6 grid grid-cols-2 gap-4 sm:grid-cols-3">
@@ -118,11 +127,11 @@ export default function AdminInstallmentAgingPage() {
           <div className="overflow-x-auto rounded-2xl border border-slate-100 bg-white shadow-sm dark:border-white/10 dark:bg-boxdark">
             <table className="w-full text-left text-sm">
               <thead className="bg-gray-50 text-[11px] uppercase tracking-wide text-gray-500 dark:bg-dark-2 dark:text-gray-400">
-                <tr><th className="px-4 py-3 font-bold">Order</th><th className="px-4 py-3 font-bold">Customer</th><th className="px-4 py-3 font-bold">Outlet</th><th className="px-4 py-3 font-bold">Officer</th><th className="px-4 py-3 text-right font-bold">Days Overdue</th><th className="px-4 py-3 text-right font-bold">Outstanding</th><th className="px-4 py-3"></th></tr>
+                <tr><th className="px-4 py-3 font-bold">S.No</th><th className="px-4 py-3 font-bold">Order</th><th className="px-4 py-3 font-bold">Customer</th><th className="px-4 py-3 font-bold">Outlet</th><th className="px-4 py-3 font-bold">Officer</th><th className="px-4 py-3 text-right font-bold">Days Overdue</th><th className="px-4 py-3 text-right font-bold">Outstanding</th><th className="px-4 py-3"></th></tr>
               </thead>
               <tbody>
-                {data.items.slice(0, 150).map((it) => (
-                  <tr key={`${it.order_id}-${it.month}`} className="border-t border-slate-50 dark:border-white/5">
+                {data.items.slice(0, 150).map((it, idx) => (
+                  <tr key={`${it.order_id}-${it.month}`} className="border-t border-slate-50 dark:border-white/5"><td className="px-4 py-3.5 font-semibold text-gray-500 tabular-nums">{idx + 1}</td>
                     <td className="px-4 py-3.5 font-semibold text-[#ff3d3d]">{it.order_ref}</td>
                     <td className="px-4 py-3.5 text-gray-600 dark:text-gray-300">{it.customer_name}</td>
                     <td className="px-4 py-3.5 text-gray-600 dark:text-gray-300">{it.outlet_name}</td>

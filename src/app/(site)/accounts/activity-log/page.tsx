@@ -406,11 +406,11 @@ export default function ActivityLogPage() {
                     <div className="overflow-x-auto">
                       <table className="w-full text-left text-sm">
                         <thead className="bg-gray-50 text-[11px] uppercase tracking-wide text-gray-500 dark:bg-dark-2 dark:text-gray-400">
-                          <tr><th className="px-4 py-2.5 font-bold">Order Ref</th><th className="px-4 py-2.5 font-bold">Role</th><th className="px-4 py-2.5 font-bold">Customer</th><th className="px-4 py-2.5 font-bold">Status</th></tr>
+                          <tr><th className="px-4 py-2.5 font-bold">S.No</th><th className="px-4 py-2.5 font-bold">Order Ref</th><th className="px-4 py-2.5 font-bold">Role</th><th className="px-4 py-2.5 font-bold">Customer</th><th className="px-4 py-2.5 font-bold">Status</th></tr>
                         </thead>
                         <tbody>
                           {a.orders.map((o, j) => (
-                            <tr key={j} className="border-t border-slate-50 dark:border-white/5">
+                            <tr key={j} className="border-t border-slate-50 dark:border-white/5"><td className="px-4 py-2.5 font-medium text-gray-500 tabular-nums">{j + 1}</td>
                               <td className="px-4 py-2.5 font-medium text-dark dark:text-white">{o.order_ref}</td>
                               <td className="px-4 py-2.5 text-gray-600 dark:text-gray-300">{roleLabel(o.role)}</td>
                               <td className="px-4 py-2.5 text-gray-600 dark:text-gray-300">{o.customer_name || "—"}</td>
@@ -457,11 +457,11 @@ export default function ActivityLogPage() {
                 <div className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm dark:border-white/10 dark:bg-boxdark">
                   <table className="w-full text-left text-sm">
                     <thead className="bg-gray-50 text-[11px] uppercase tracking-wide text-gray-500 dark:bg-dark-2 dark:text-gray-400">
-                      <tr><th className="px-4 py-3 font-bold">Order Ref</th><th className="px-4 py-3 font-bold">Customer</th></tr>
+                      <tr><th className="px-4 py-3 font-bold">S.No</th><th className="px-4 py-3 font-bold">Order Ref</th><th className="px-4 py-3 font-bold">Customer</th></tr>
                     </thead>
                     <tbody>
-                      {shownUnassigned.map((o) => (
-                        <tr key={o.id} className="border-t border-slate-50 dark:border-white/5">
+                      {shownUnassigned.map((o, idx) => (
+                        <tr key={o.id} className="border-t border-slate-50 dark:border-white/5"><td className="px-4 py-3.5 font-medium text-gray-500 tabular-nums">{idx + 1}</td>
                           <td className="px-4 py-3.5 font-medium text-dark dark:text-white">{o.order_ref}</td>
                           <td className="px-4 py-3.5 text-gray-600 dark:text-gray-300">{o.customer_name || "—"}</td>
                         </tr>

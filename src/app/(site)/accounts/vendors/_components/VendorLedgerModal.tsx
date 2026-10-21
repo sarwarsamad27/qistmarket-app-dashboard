@@ -85,11 +85,11 @@ export default function VendorLedgerModal({ vendorId, onClose, onPay }: { vendor
               <div className="overflow-x-auto rounded-xl border border-slate-100 dark:border-white/10">
                 <table className="w-full text-left text-sm">
                   <thead className="bg-gray-50 text-[11px] uppercase tracking-wide text-gray-500 dark:bg-dark-2 dark:text-gray-400">
-                    <tr><th className="px-3 py-2.5">Date</th><th className="px-3 py-2.5">Type</th><th className="px-3 py-2.5">Reference</th><th className="px-3 py-2.5">Details</th><th className="px-3 py-2.5">Outlet</th><th className="px-3 py-2.5 text-right">Debit</th><th className="px-3 py-2.5 text-right">Credit</th><th className="px-3 py-2.5 text-right">Balance</th></tr>
+                    <tr><th className="px-3 py-2.5">S.No</th><th className="px-3 py-2.5">Date</th><th className="px-3 py-2.5">Type</th><th className="px-3 py-2.5">Reference</th><th className="px-3 py-2.5">Details</th><th className="px-3 py-2.5">Outlet</th><th className="px-3 py-2.5 text-right">Debit</th><th className="px-3 py-2.5 text-right">Credit</th><th className="px-3 py-2.5 text-right">Balance</th></tr>
                   </thead>
                   <tbody>
-                    {data.entries.map((e) => (
-                      <tr key={e.key} className="border-t border-slate-50 dark:border-white/5">
+                    {data.entries.map((e, idx) => (
+                      <tr key={e.key} className="border-t border-slate-50 dark:border-white/5"><td className="whitespace-nowrap px-3 py-2.5 text-xs text-gray-500 tabular-nums">{idx + 1}</td>
                         <td className="whitespace-nowrap px-3 py-2.5 text-xs text-gray-500">{new Date(e.date).toLocaleDateString()}</td>
                         <td className="px-3 py-2.5"><span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${TYPE_STYLE[e.type] || "bg-gray-100 text-gray-600"}`}>{e.type}</span></td>
                         <td className="px-3 py-2.5 font-mono text-xs text-dark dark:text-white">{e.reference}</td>
@@ -100,7 +100,7 @@ export default function VendorLedgerModal({ vendorId, onClose, onPay }: { vendor
                         <td className="px-3 py-2.5 text-right font-bold tabular-nums text-dark dark:text-white">{PKR(e.balance)}</td>
                       </tr>
                     ))}
-                    {!data.entries.length && <tr><td colSpan={8} className="px-3 py-8 text-center text-gray-500">No entries in this period.</td></tr>}
+                    {!data.entries.length && <tr><td colSpan={9} className="px-3 py-8 text-center text-gray-500">No entries in this period.</td></tr>}
                   </tbody>
                 </table>
               </div>

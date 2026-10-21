@@ -252,7 +252,7 @@ export default function PendingLegacyProfilesPage() {
                       onChange={toggleAllVisible}
                       className="h-4 w-4 cursor-pointer accent-red-600"
                     />
-                  </th>
+                  </th><th className="py-3 px-3">S.No</th>
                   <th className="py-3 px-3">Order Ref</th>
                   <th className="py-3 px-3">Name</th>
                   <th className="py-3 px-3">Phone</th>
@@ -263,7 +263,7 @@ export default function PendingLegacyProfilesPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-                {filtered.map((o) => (
+                {filtered.map((o, idx) => (
                   <tr key={o.id} className={selected.has(o.id) ? 'bg-blue-50/60 dark:bg-blue-500/5' : ''}>
                     <td className="py-2 px-3">
                       <input
@@ -273,7 +273,7 @@ export default function PendingLegacyProfilesPage() {
                         onChange={() => toggleOne(o.id)}
                         className="h-4 w-4 cursor-pointer accent-red-600"
                       />
-                    </td>
+                    </td><td className="py-2 px-3 text-gray-500 tabular-nums">{idx + 1}</td>
                     <td className="py-2 px-3 font-medium text-gray-700 dark:text-gray-200">{o.order_ref}</td>
                     <td className="py-2 px-3 text-gray-700 dark:text-gray-200">{o.customer_name}</td>
                     <td className="py-2 px-3 text-gray-700 dark:text-gray-200">{o.whatsapp_number}</td>

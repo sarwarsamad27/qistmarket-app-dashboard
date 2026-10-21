@@ -137,11 +137,11 @@ export default function DeviceList({ view, outlets, onSummary }: { view: DeviceV
           <div className="max-h-[620px] overflow-auto">
             <table className="w-full text-left text-sm">
               <thead className="sticky top-0 bg-gray-50 text-[11px] uppercase tracking-wide text-gray-500 dark:bg-dark-2 dark:text-gray-400">
-                <tr><th className="px-4 py-3">Customer / Order</th><th className="px-4 py-3">Device</th><th className="px-4 py-3">Status</th><th className="px-4 py-3 text-right">Outstanding</th><th className="px-4 py-3 text-right">Overdue</th><th className="px-4 py-3">Last Paid</th><th className="px-4 py-3">PTP</th><th className="px-4 py-3">Last Seen</th><th className="px-4 py-3 text-right">Action</th></tr>
+                <tr><th className="px-4 py-3">S.No</th><th className="px-4 py-3">Customer / Order</th><th className="px-4 py-3">Device</th><th className="px-4 py-3">Status</th><th className="px-4 py-3 text-right">Outstanding</th><th className="px-4 py-3 text-right">Overdue</th><th className="px-4 py-3">Last Paid</th><th className="px-4 py-3">PTP</th><th className="px-4 py-3">Last Seen</th><th className="px-4 py-3 text-right">Action</th></tr>
               </thead>
               <tbody>
-                {rows.map((d) => (
-                  <tr key={d.id} className="border-t border-slate-50 dark:border-white/5">
+                {rows.map((d, idx) => (
+                  <tr key={d.id} className="border-t border-slate-50 dark:border-white/5"><td className="px-4 py-3 text-gray-500 tabular-nums">{idx + 1}</td>
                     <td className="px-4 py-3"><p className="font-medium text-dark dark:text-white">{d.customer_name}</p><p className="font-mono text-[11px] text-gray-400">{d.order_ref} · {d.whatsapp_number || "—"}</p><p className="text-[11px] text-gray-400">{d.outlet_name}{d.recovery_officer ? ` · RO ${d.recovery_officer}` : ""}</p></td>
                     <td className="px-4 py-3"><p className="text-gray-600 dark:text-gray-300">{d.product_model || "—"}</p><p className="font-mono text-[11px] text-gray-400">{d.imei}</p></td>
                     <td className="px-4 py-3">

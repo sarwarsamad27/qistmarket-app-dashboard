@@ -5,6 +5,7 @@ import Loader from '@/components/common/Loader';
 import { useReactToPrint } from 'react-to-print';
 import * as XLSX from 'xlsx';
 import { formatExactDate } from '@/utils/dateUtils';
+import { pickedDay } from '@/utils/pkt';
 
 const API_BASE = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5000';
 
@@ -26,8 +27,8 @@ export default function InstallmentRecoveriesTab({ token, startDate, endDate, se
             try {
                 let url = `${API_BASE}/api/outlet-reports/installment-recoveries`;
                 const params = new URLSearchParams();
-                if (startDate) params.append('startDate', startDate.toISOString());
-                if (endDate) params.append('endDate', endDate.toISOString());
+                if (startDate) params.append('startDate', pickedDay(startDate));
+                if (endDate) params.append('endDate', pickedDay(endDate));
                 if (params.toString()) url += `?${params.toString()}`;
 
                 const res = await fetch(url, {
@@ -113,7 +114,7 @@ export default function InstallmentRecoveriesTab({ token, startDate, endDate, se
                         <table className="w-full text-left text-sm text-gray-600 dark:text-gray-400">
                             <thead className="bg-gray-50 text-gray-800 dark:bg-gray-900/50 dark:text-white">
                                 <tr>
-                                    <th className="px-4 py-3 font-medium">Paid Date</th>
+                                    <th className="px-4 py-3 font-medium">S.No</th><th className="px-4 py-3 font-medium">Paid Date</th>
                                     <th className="px-4 py-3 font-medium">Order Ref</th>
                                     <th className="px-4 py-3 font-medium">Customer</th>
                                     <th className="px-4 py-3 font-medium">Installment</th>
@@ -124,7 +125,7 @@ export default function InstallmentRecoveriesTab({ token, startDate, endDate, se
                             </thead>
                             <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
                                 {filteredRecoveries.length > 0 ? filteredRecoveries.map((r: any, idx: number) => (
-                                    <tr key={idx} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                                    <tr key={idx} className="hover:bg-gray-50 dark:hover:bg-gray-700/50"><td className="px-4 py-3 whitespace-nowrap text-gray-500 tabular-nums">{idx + 1}</td>
                                         <td className="px-4 py-3 whitespace-nowrap">{formatExactDate(r.paid_at, 'DD MMM YYYY, hh:mm A')}</td>
                                         <td className="px-4 py-3 font-medium text-blue-600">{r.order_ref}</td>
                                         <td className="px-4 py-3">
@@ -148,7 +149,7 @@ export default function InstallmentRecoveriesTab({ token, startDate, endDate, se
                                     </tr>
                                 )) : (
                                     <tr>
-                                        <td colSpan={7} className="px-4 py-8 text-center text-gray-500">No recoveries found for this period.</td>
+                                        <td colSpan={8} className="px-4 py-8 text-center text-gray-500">No recoveries found for this period.</td>
                                     </tr>
                                 )}
                             </tbody>

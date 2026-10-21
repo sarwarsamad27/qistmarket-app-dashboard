@@ -271,7 +271,7 @@ export default function HrBiometricPage() {
                   <th className="w-10 px-3 py-3">
                     <input type="checkbox" checked={selectableIds.length > 0 && selectableIds.every((i) => selected.includes(i))}
                       onChange={(e) => setSelected(e.target.checked ? selectableIds : [])} title="Select all not-linked users" />
-                  </th>
+                  </th><th className="px-3 py-3">S.No</th>
                   <th className="px-3 py-3 text-left">Device ID</th>
                   <th className="px-3 py-3 text-left">Name on device</th>
                   <th className="px-3 py-3 text-left">Role / Card</th>
@@ -283,12 +283,12 @@ export default function HrBiometricPage() {
                 </tr>
               </thead>
               <tbody>
-                {filteredUsers.length === 0 && <tr><td colSpan={9} className="px-3 py-10 text-center text-gray-500">{users.length ? "No users match." : "No device users yet — press Sync Now."}</td></tr>}
-                {filteredUsers.map((u) => (
+                {filteredUsers.length === 0 && <tr><td colSpan={10} className="px-3 py-10 text-center text-gray-500">{users.length ? "No users match." : "No device users yet — press Sync Now."}</td></tr>}
+                {filteredUsers.map((u, idx) => (
                   <tr key={u.id} className="border-t border-stroke dark:border-stroke-dark">
                     <td className="px-3 py-2 text-center">
                       {!u.employee && <input type="checkbox" checked={selected.includes(u.user_id)} onChange={(e) => setSelected(e.target.checked ? [...selected, u.user_id] : selected.filter((i) => i !== u.user_id))} />}
-                    </td>
+                    </td><td className="px-3 py-2 text-gray-500 tabular-nums">{idx + 1}</td>
                     <td className="px-3 py-2 font-mono font-semibold">{u.user_id}</td>
                     <td className="px-3 py-2">{u.name || <span className="text-gray-400">(no name)</span>}</td>
                     <td className="px-3 py-2 text-xs">
@@ -403,13 +403,13 @@ export default function HrBiometricPage() {
             </div>
             <table className="w-full text-sm">
               <thead className="text-xs text-gray-500"><tr className="border-b border-stroke dark:border-stroke-dark">
-                <th className="px-2 py-2 text-left">Date</th><th className="px-2 py-2 text-left">Status</th><th className="px-2 py-2 text-left">Check-in</th>
+                <th className="px-2 py-2">S.No</th><th className="px-2 py-2 text-left">Date</th><th className="px-2 py-2 text-left">Status</th><th className="px-2 py-2 text-left">Check-in</th>
                 <th className="px-2 py-2 text-left">Check-out</th><th className="px-2 py-2 text-left">OT</th><th className="px-2 py-2 text-left">All punches</th>
               </tr></thead>
               <tbody>
-                {days.length === 0 && <tr><td colSpan={6} className="px-2 py-8 text-center text-gray-500">No punches this month.</td></tr>}
-                {days.map((d) => (
-                  <tr key={d.date} className="border-b border-stroke dark:border-stroke-dark">
+                {days.length === 0 && <tr><td colSpan={7} className="px-2 py-8 text-center text-gray-500">No punches this month.</td></tr>}
+                {days.map((d, idx) => (
+                  <tr key={d.date} className="border-b border-stroke dark:border-stroke-dark"><td className="px-2 py-1.5 text-gray-500 tabular-nums">{idx + 1}</td>
                     <td className="px-2 py-1.5">{new Date(`${d.date}T00:00:00`).toLocaleDateString("en-PK", { weekday: "short", day: "2-digit", month: "short" })}</td>
                     <td className="px-2 py-1.5"><span className={`rounded-full px-2 py-0.5 text-xs capitalize ${d.status === "late" ? "bg-yellow-light-4/20 text-yellow-dark" : "bg-green/10 text-green"}`}>{d.status}</span></td>
                     <td className="px-2 py-1.5">{to12h(d.check_in)}</td>
@@ -432,11 +432,11 @@ export default function HrBiometricPage() {
             <p className="mb-3 text-xs text-red">Save these portal passwords now — they are not shown again (use Reset Password on the employee page later).</p>
             <table className="w-full text-sm">
               <thead className="text-xs text-gray-500"><tr className="border-b border-stroke dark:border-stroke-dark">
-                <th className="px-2 py-2 text-left">Device ID</th><th className="px-2 py-2 text-left">Name</th><th className="px-2 py-2 text-left">Employee ID</th><th className="px-2 py-2 text-left">Username</th><th className="px-2 py-2 text-left">Password</th>
+                <th className="px-2 py-2">S.No</th><th className="px-2 py-2 text-left">Device ID</th><th className="px-2 py-2 text-left">Name</th><th className="px-2 py-2 text-left">Employee ID</th><th className="px-2 py-2 text-left">Username</th><th className="px-2 py-2 text-left">Password</th>
               </tr></thead>
               <tbody>
-                {credentials.map((c) => (
-                  <tr key={c.id} className="border-b border-stroke dark:border-stroke-dark">
+                {credentials.map((c, idx) => (
+                  <tr key={c.id} className="border-b border-stroke dark:border-stroke-dark"><td className="px-2 py-1.5 text-gray-500 tabular-nums">{idx + 1}</td>
                     <td className="px-2 py-1.5 font-mono">{c.device_user_id}</td>
                     <td className="px-2 py-1.5"><Link href={`/hr/employees/${c.id}`} className="text-primary hover:underline">{c.full_name}</Link></td>
                     <td className="px-2 py-1.5 font-mono text-xs">{c.employee_id}</td>

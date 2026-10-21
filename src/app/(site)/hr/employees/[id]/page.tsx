@@ -421,15 +421,15 @@ export default function HrEmployeeDetailPage() {
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead><tr className="border-b border-stroke dark:border-stroke-dark">
-                  <th className="px-3 py-2 text-left">Date</th><th className="px-3 py-2 text-left">Status</th><th className="px-3 py-2 text-left">In</th>
+                  <th className="px-3 py-2">S.No</th><th className="px-3 py-2 text-left">Date</th><th className="px-3 py-2 text-left">Status</th><th className="px-3 py-2 text-left">In</th>
                   <th className="px-3 py-2 text-left">Out</th><th className="px-3 py-2 text-left">Source</th><th className="px-3 py-2 text-left">OT</th><th className="px-3 py-2 text-left">Details</th>
                 </tr></thead>
                 <tbody>
-                  {attendRecords.length === 0 && <tr><td colSpan={7} className="px-3 py-6 text-center text-gray-500">No records</td></tr>}
-                  {attendRecords.map((r) => {
+                  {attendRecords.length === 0 && <tr><td colSpan={8} className="px-3 py-6 text-center text-gray-500">No records</td></tr>}
+                  {attendRecords.map((r, idx) => {
                     const method = r.notes?.match(/\[method:(\w+)\]/)?.[1] || "";
                     return (
-                      <tr key={r.id} className="border-b border-stroke dark:border-stroke-dark">
+                      <tr key={r.id} className="border-b border-stroke dark:border-stroke-dark"><td className="px-3 py-2 text-gray-500 tabular-nums">{idx + 1}</td>
                         <td className="px-3 py-2">{new Date(r.date.slice(0, 10) + "T00:00:00Z").toLocaleDateString()}</td>
                         <td className="px-3 py-2"><span className={`rounded-full px-2 py-0.5 text-xs capitalize ${r.status === "present" ? "bg-green/10 text-green" : r.status === "late" ? "bg-yellow-light-4/20 text-yellow-dark" : r.status === "absent" ? "bg-red/10 text-red" : "bg-gray-2 text-gray-500"}`}>{r.status}</span></td>
                         <td className="px-3 py-2">{r.check_in || "-"}</td>
@@ -466,13 +466,13 @@ export default function HrEmployeeDetailPage() {
             <div className="overflow-x-auto rounded-xl border border-stroke bg-white dark:border-stroke-dark dark:bg-dark-2">
               <table className="w-full text-sm">
                 <thead><tr className="border-b border-stroke bg-gray-2 dark:border-stroke-dark dark:bg-dark-3">
-                  <th className="px-4 py-3 text-left">ID</th><th className="px-4 py-3 text-left">Type</th><th className="px-4 py-3 text-right">Total</th><th className="px-4 py-3 text-right">Deducted</th>
+                  <th className="px-4 py-3">S.No</th><th className="px-4 py-3 text-left">ID</th><th className="px-4 py-3 text-left">Type</th><th className="px-4 py-3 text-right">Total</th><th className="px-4 py-3 text-right">Deducted</th>
                   <th className="px-4 py-3 text-right">Monthly</th><th className="px-4 py-3 text-left">Start</th><th className="px-4 py-3 text-center">Status</th><th className="px-4 py-3 text-center">Action</th>
                 </tr></thead>
                 <tbody>
-                  {(!employee.loans || employee.loans.length === 0) && <tr><td colSpan={8} className="px-4 py-8 text-center text-gray-500">No loans</td></tr>}
-                  {employee.loans?.map((loan) => (
-                    <tr key={loan.id} className="border-b border-stroke dark:border-stroke-dark">
+                  {(!employee.loans || employee.loans.length === 0) && <tr><td colSpan={9} className="px-4 py-8 text-center text-gray-500">No loans</td></tr>}
+                  {employee.loans?.map((loan, idx) => (
+                    <tr key={loan.id} className="border-b border-stroke dark:border-stroke-dark"><td className="px-4 py-3 text-xs text-gray-500 tabular-nums">{idx + 1}</td>
                       <td className="px-4 py-3 font-mono text-xs">#{loan.id}</td>
                       <td className="px-4 py-3 capitalize">{loan.loan_type}</td>
                       <td className="px-4 py-3 text-right">Rs.{loan.total_amount.toLocaleString()}</td>
@@ -549,13 +549,13 @@ export default function HrEmployeeDetailPage() {
             <div className="overflow-x-auto rounded-xl border border-stroke bg-white dark:border-stroke-dark dark:bg-dark-2">
               <table className="w-full text-sm">
                 <thead><tr className="border-b border-stroke bg-gray-2 dark:border-stroke-dark dark:bg-dark-3">
-                  <th className="px-4 py-3 text-left">Period</th><th className="px-4 py-3 text-right">Basic</th><th className="px-4 py-3 text-right">Allowances</th><th className="px-4 py-3 text-right">Bonuses</th>
+                  <th className="px-4 py-3">S.No</th><th className="px-4 py-3 text-left">Period</th><th className="px-4 py-3 text-right">Basic</th><th className="px-4 py-3 text-right">Allowances</th><th className="px-4 py-3 text-right">Bonuses</th>
                   <th className="px-4 py-3 text-right">Commissions</th><th className="px-4 py-3 text-right">Deductions</th><th className="px-4 py-3 text-right">Net</th><th className="px-4 py-3 text-center">Status</th><th className="px-4 py-3 text-center">Actions</th>
                 </tr></thead>
                 <tbody>
-                  {(!employee.payroll_slips || employee.payroll_slips.length === 0) && <tr><td colSpan={9} className="px-4 py-8 text-center text-gray-500">No payroll slips</td></tr>}
-                  {employee.payroll_slips?.map((slip) => (
-                    <tr key={slip.id} className="border-b border-stroke dark:border-stroke-dark">
+                  {(!employee.payroll_slips || employee.payroll_slips.length === 0) && <tr><td colSpan={10} className="px-4 py-8 text-center text-gray-500">No payroll slips</td></tr>}
+                  {employee.payroll_slips?.map((slip, idx) => (
+                    <tr key={slip.id} className="border-b border-stroke dark:border-stroke-dark"><td className="px-4 py-3 text-gray-500 tabular-nums">{idx + 1}</td>
                       <td className="px-4 py-3">{months[slip.month - 1]} {slip.year}</td>
                       <td className="px-4 py-3 text-right">Rs.{slip.basic_salary.toLocaleString()}</td>
                       <td className="px-4 py-3 text-right">Rs.{slip.allowances.toLocaleString()}</td>
@@ -777,12 +777,12 @@ export default function HrEmployeeDetailPage() {
           <div className="overflow-x-auto rounded-xl border border-stroke bg-white dark:border-stroke-dark dark:bg-dark-2">
             <table className="w-full text-sm">
               <thead><tr className="border-b border-stroke bg-gray-2 dark:border-stroke-dark dark:bg-dark-3">
-                <th className="px-4 py-3 text-left">Type</th><th className="px-4 py-3 text-left">From</th><th className="px-4 py-3 text-left">To</th><th className="px-4 py-3 text-left">Reason</th><th className="px-4 py-3 text-center">Status</th>
+                <th className="px-4 py-3">S.No</th><th className="px-4 py-3 text-left">Type</th><th className="px-4 py-3 text-left">From</th><th className="px-4 py-3 text-left">To</th><th className="px-4 py-3 text-left">Reason</th><th className="px-4 py-3 text-center">Status</th>
               </tr></thead>
               <tbody>
-                {(!employee.leave_requests || employee.leave_requests.length === 0) && <tr><td colSpan={5} className="px-4 py-8 text-center text-gray-500">No leave requests</td></tr>}
-                {employee.leave_requests?.map((lr) => (
-                  <tr key={lr.id} className="border-b border-stroke dark:border-stroke-dark">
+                {(!employee.leave_requests || employee.leave_requests.length === 0) && <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-500">No leave requests</td></tr>}
+                {employee.leave_requests?.map((lr, idx) => (
+                  <tr key={lr.id} className="border-b border-stroke dark:border-stroke-dark"><td className="px-4 py-3 text-gray-500 tabular-nums">{idx + 1}</td>
                     <td className="px-4 py-3 capitalize">{lr.leave_type.replace("_", " ")}</td>
                     <td className="px-4 py-3">{new Date(lr.from_date).toLocaleDateString()}</td>
                     <td className="px-4 py-3">{new Date(lr.to_date).toLocaleDateString()}{lr.days ? ` (${lr.days}d)` : ""}</td>

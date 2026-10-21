@@ -123,11 +123,11 @@ export default function PaymentActivity({ outlets }: { outlets: { id: number; na
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
               <thead className="bg-gray-50 text-[11px] uppercase tracking-wide text-gray-500 dark:bg-dark-2 dark:text-gray-400">
-                <tr><th className="px-4 py-3">Paid on</th><th className="px-4 py-3">Customer / Order</th><th className="px-4 py-3">Outlet</th><th className="px-4 py-3">For</th><th className="px-4 py-3">How</th><th className="px-4 py-3">Collected by</th><th className="px-4 py-3 text-right">Amount</th></tr>
+                <tr><th className="px-4 py-3">S.No</th><th className="px-4 py-3">Paid on</th><th className="px-4 py-3">Customer / Order</th><th className="px-4 py-3">Outlet</th><th className="px-4 py-3">For</th><th className="px-4 py-3">How</th><th className="px-4 py-3">Collected by</th><th className="px-4 py-3 text-right">Amount</th></tr>
               </thead>
               <tbody>
-                {data.rows.map((p) => (
-                  <tr key={p.id} className="border-t border-slate-50 hover:bg-slate-50/70 dark:border-white/5 dark:hover:bg-white/5">
+                {data.rows.map((p, idx) => (
+                  <tr key={p.id} className="border-t border-slate-50 hover:bg-slate-50/70 dark:border-white/5 dark:hover:bg-white/5"><td className="whitespace-nowrap px-4 py-3 text-gray-500 tabular-nums">{(page - 1) * 25 + idx + 1}</td>
                     <td className="whitespace-nowrap px-4 py-3 text-gray-500">
                       {formatExactDate(p.paid_at, "DD MMM YYYY, hh:mm A")}
                       {p.backdated_days >= 3 && <p className="flex items-center gap-1 text-[11px] font-semibold text-amber-600" title={`Entered on ${formatExactDate(p.recorded_at, "DD MMM YYYY, hh:mm A")}`}><AlertTriangle className="size-3" /> entered {p.backdated_days} days later</p>}

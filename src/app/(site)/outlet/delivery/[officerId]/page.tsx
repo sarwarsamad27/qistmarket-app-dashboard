@@ -180,7 +180,7 @@ export default function OfficerOrdersPage({ params }: { params: Promise<{ office
                     <table className="w-full text-sm">
                         <thead>
                             <tr className="bg-gray-50 dark:bg-gray-700 text-left border-b border-gray-100 dark:border-gray-600">
-                                <th className="px-6 py-4 text-gray-600 dark:text-gray-300 font-bold uppercase tracking-wider">Order Ref</th>
+                                <th className="px-6 py-4 text-gray-600 dark:text-gray-300 font-bold uppercase tracking-wider">S.No</th><th className="px-6 py-4 text-gray-600 dark:text-gray-300 font-bold uppercase tracking-wider">Order Ref</th>
                                 <th className="px-6 py-4 text-gray-600 dark:text-gray-300 font-bold uppercase tracking-wider">Customer</th>
                                 <th className="px-6 py-4 text-gray-600 dark:text-gray-300 font-bold uppercase tracking-wider">Product</th>
                                 <th className="px-6 py-4 text-gray-600 dark:text-gray-300 font-bold uppercase tracking-wider">Status</th>
@@ -191,13 +191,13 @@ export default function OfficerOrdersPage({ params }: { params: Promise<{ office
                         <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
                             {orders.length === 0 ? (
                                 <tr>
-                                    <td colSpan={6} className="text-center py-16 text-gray-500 dark:text-gray-400">
+                                    <td colSpan={7} className="text-center py-16 text-gray-500 dark:text-gray-400">
                                         No approved orders assigned to this officer.
                                     </td>
                                 </tr>
                             ) : (
-                                orders.map((order) => (
-                                    <tr key={order.id} className="hover:bg-gray-50 dark:hover:bg-gray-750/30 transition-colors">
+                                orders.map((order, idx) => (
+                                    <tr key={order.id} className="hover:bg-gray-50 dark:hover:bg-gray-750/30 transition-colors"><td className="px-6 py-4 font-bold text-gray-500 tabular-nums">{idx + 1}</td>
                                         <td className="px-6 py-4 font-bold text-gray-900 dark:text-white">{order.order_ref}</td>
                                         <td className="px-6 py-4">
                                             <div className="font-medium text-gray-800 dark:text-gray-200">{order.customer_name}</div>

@@ -53,7 +53,7 @@ const InboxList = () => {
               </div>
               Sender
             </label>
-          </th>
+          </th><th className="py-5 pl-4 pr-4 lg:pl-10">S.No</th>
           <th className="hidden w-3/5 px-4 py-5 text-left font-medium xl:block">
             Subject
           </th>
@@ -94,7 +94,7 @@ const InboxList = () => {
                 </span>
                 <span className="truncate">{listItem.name}</span>
               </div>
-            </td>
+            </td><td className="py-4 pl-4 pr-4 lg:pl-10 text-gray-500 tabular-nums">{listIndex + 1}</td>
             <td className="hidden w-3/5 p-4 xl:block">
               <p className="font-medium">{listItem.subject}</p>
             </td>

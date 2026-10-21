@@ -20,6 +20,7 @@ import { X, Check, AlertCircle } from 'lucide-react'
 import { formatExactDate } from "@/utils/dateUtils";
 import { getErrorMessage } from "@/lib/apiErrors";
 
+import { serialColumn } from '@/utils/serialColumn'
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL
 
 interface WebsiteOrder {
@@ -211,6 +212,7 @@ export default function WebsiteOrdersTable() {
         />
       ),
     },
+    serialColumn<WebsiteOrder>(),
     {
       accessorKey: 'createdAt',
       header: 'Date',

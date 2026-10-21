@@ -262,7 +262,7 @@ export default function BlacklistPage() {
               <table className="w-full text-left text-sm">
                 <thead className="bg-gray-50 text-[11px] uppercase tracking-wide text-gray-500 dark:bg-dark-2 dark:text-gray-400">
                   <tr>
-                    <th className="px-4 py-3 font-bold">Customer</th>
+                    <th className="px-4 py-3 font-bold">S.No</th><th className="px-4 py-3 font-bold">Customer</th>
                     <th className="px-4 py-3 font-bold">CNIC</th>
                     <th className="px-4 py-3 font-bold">Phone</th>
                     <th className="px-4 py-3 font-bold">Reason</th>
@@ -272,7 +272,7 @@ export default function BlacklistPage() {
                 </thead>
                 <tbody>
                   {customers.map((c, i) => (
-                    <tr key={i} className="border-t border-slate-50 transition hover:bg-slate-50/70 dark:border-white/5 dark:hover:bg-white/5">
+                    <tr key={i} className="border-t border-slate-50 transition hover:bg-slate-50/70 dark:border-white/5 dark:hover:bg-white/5"><td className="px-4 py-3.5 font-semibold text-gray-500 tabular-nums">{i + 1}</td>
                       <td className="px-4 py-3.5 font-semibold text-dark dark:text-white">{c.customer.name}</td>
                       <td className="px-4 py-3.5 text-gray-600 dark:text-gray-300">{c.customer.cnic_number || "—"}</td>
                       <td className="px-4 py-3.5 text-gray-600 dark:text-gray-300">{c.customer.whatsapp_number}</td>
@@ -338,7 +338,7 @@ export default function BlacklistPage() {
               <table className="w-full text-left text-sm">
                 <thead className="bg-gray-50 text-[11px] uppercase tracking-wide text-gray-500 dark:bg-dark-2 dark:text-gray-400">
                   <tr>
-                    <th className="px-4 py-3 font-bold">Name</th>
+                    <th className="px-4 py-3 font-bold">S.No</th><th className="px-4 py-3 font-bold">Name</th>
                     <th className="px-4 py-3 font-bold">Role</th>
                     <th className="px-4 py-3 font-bold">CNIC</th>
                     <th className="px-4 py-3 font-bold">Phone</th>
@@ -347,8 +347,8 @@ export default function BlacklistPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {results.map((r) => (
-                    <tr key={`${r.role}-${r.id}`} className="border-t border-slate-50 dark:border-white/5">
+                  {results.map((r, idx) => (
+                    <tr key={`${r.role}-${r.id}`} className="border-t border-slate-50 dark:border-white/5"><td className="px-4 py-3.5 font-semibold text-gray-500 tabular-nums">{idx + 1}</td>
                       <td className="px-4 py-3.5 font-semibold text-dark dark:text-white">{r.name}</td>
                       <td className="px-4 py-3.5 text-gray-500">{r.role}</td>
                       <td className="px-4 py-3.5 text-gray-600 dark:text-gray-300">{r.cnic_number}</td>
@@ -456,7 +456,7 @@ export default function BlacklistPage() {
             <table className="w-full text-left text-sm">
               <thead className="bg-gray-50 text-[11px] uppercase tracking-wide text-gray-500 dark:bg-dark-2 dark:text-gray-400">
                 <tr>
-                  <th className="px-4 py-3 font-bold">Date</th>
+                  <th className="px-4 py-3 font-bold">S.No</th><th className="px-4 py-3 font-bold">Date</th>
                   <th className="px-4 py-3 font-bold">CNIC</th>
                   <th className="px-4 py-3 font-bold">Action</th>
                   <th className="px-4 py-3 font-bold">Reason Type</th>
@@ -466,8 +466,8 @@ export default function BlacklistPage() {
                 </tr>
               </thead>
               <tbody>
-                {history.map((h) => (
-                  <tr key={h.id} className="border-t border-slate-50 dark:border-white/5">
+                {history.map((h, idx) => (
+                  <tr key={h.id} className="border-t border-slate-50 dark:border-white/5"><td className="px-4 py-3.5 text-gray-500 tabular-nums">{idx + 1}</td>
                     <td className="px-4 py-3.5 text-gray-500">{new Date(h.created_at).toLocaleString()}</td>
                     <td className="px-4 py-3.5 text-gray-600 dark:text-gray-300">{h.cnic}</td>
                     <td className="px-4 py-3.5">

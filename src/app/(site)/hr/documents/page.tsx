@@ -233,7 +233,7 @@ export default function HrDocumentsPage() {
               <tr className="border-b border-stroke bg-gray-2 dark:border-stroke-dark dark:bg-dark-3">
                 <th className="w-10 px-3 py-3">
                   <input type="checkbox" checked={selectAll && filtered.length > 0} onChange={toggleSelectAll} className="h-4 w-4 rounded border-gray-300 text-primary" />
-                </th>
+                </th><th className="px-3 py-3">S.No</th>
                 <th className="px-4 py-3 text-left">Employee</th>
                 <th className="px-4 py-3 text-left">Department</th>
                 <th className="px-4 py-3 text-left">Designation</th>
@@ -243,16 +243,16 @@ export default function HrDocumentsPage() {
             </thead>
             <tbody>
               {filtered.length === 0 && (
-                <tr><td colSpan={6} className="px-4 py-12 text-center text-gray-500">No employees found</td></tr>
+                <tr><td colSpan={7} className="px-4 py-12 text-center text-gray-500">No employees found</td></tr>
               )}
-              {filtered.map((emp) => {
+              {filtered.map((emp, idx) => {
                 const empDocs = getEmployeeDocs(emp.id);
                 const isSelected = selectedIds.includes(emp.id);
                 return (
                   <tr key={emp.id} className={`border-b border-stroke transition-colors dark:border-stroke-dark ${isSelected ? "bg-primary/5" : "hover:bg-gray-1 dark:hover:bg-dark-3"}`}>
                     <td className="px-3 py-3">
                       <input type="checkbox" checked={isSelected} onChange={() => toggleSelect(emp.id)} className="h-4 w-4 rounded border-gray-300 text-primary" />
-                    </td>
+                    </td><td className="px-3 py-3 text-gray-500 tabular-nums">{idx + 1}</td>
                     <td className="px-4 py-3">
                       <div>
                         <p className="font-medium text-dark dark:text-white">{emp.full_name}</p>

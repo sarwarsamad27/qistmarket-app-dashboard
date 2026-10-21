@@ -81,12 +81,12 @@ export default function RiskRegister({ onAct }: { onAct: (cnic: string) => void 
           <div className="max-h-[620px] overflow-auto">
             <table className="w-full text-left text-sm">
               <thead className="sticky top-0 bg-gray-50 text-[11px] uppercase tracking-wide text-gray-500 dark:bg-dark-2 dark:text-gray-400">
-                <tr><th className="px-4 py-3">Customer</th><th className="px-4 py-3">Risk</th><th className="px-4 py-3 text-right">Outstanding</th><th className="px-4 py-3 text-right">Overdue</th><th className="px-4 py-3 text-right">Missed</th><th className="px-4 py-3 text-right">Paid % of due</th><th className="px-4 py-3"></th></tr>
+                <tr><th className="px-4 py-3">S.No</th><th className="px-4 py-3">Customer</th><th className="px-4 py-3">Risk</th><th className="px-4 py-3 text-right">Outstanding</th><th className="px-4 py-3 text-right">Overdue</th><th className="px-4 py-3 text-right">Missed</th><th className="px-4 py-3 text-right">Paid % of due</th><th className="px-4 py-3"></th></tr>
               </thead>
               <tbody>
-                {data.rows.map((r) => (
+                {data.rows.map((r, idx) => (
                   <Fragment key={r.cnic}>
-                    <tr onClick={() => setOpen(open === r.cnic ? null : r.cnic)} className="cursor-pointer border-t border-slate-50 hover:bg-slate-50/70 dark:border-white/5 dark:hover:bg-white/5">
+                    <tr onClick={() => setOpen(open === r.cnic ? null : r.cnic)} className="cursor-pointer border-t border-slate-50 hover:bg-slate-50/70 dark:border-white/5 dark:hover:bg-white/5"><td className="px-4 py-3 text-gray-500 tabular-nums">{idx + 1}</td>
                       <td className="px-4 py-3"><p className="font-medium text-dark dark:text-white">{r.name}{r.is_blacklisted && <span className="ml-1.5 rounded-full bg-rose-50 px-1.5 py-0.5 text-[10px] font-bold text-rose-700">blacklisted</span>}</p><p className="font-mono text-[11px] text-gray-400">{r.cnic} · {r.phone}</p></td>
                       <td className="px-4 py-3"><span className={`rounded-full px-2 py-0.5 text-[11px] font-bold uppercase ${TIER_STYLE[r.tier]}`}>{r.tier} · {r.score}</span></td>
                       <td className="px-4 py-3 text-right tabular-nums">{PKR(r.stats.outstanding)}</td>
@@ -97,7 +97,7 @@ export default function RiskRegister({ onAct }: { onAct: (cnic: string) => void 
                     </tr>
                     {open === r.cnic && (
                       <tr className="bg-slate-50/60 dark:bg-white/5">
-                        <td colSpan={7} className="px-6 py-3 text-xs text-gray-600 dark:text-gray-300">
+                        <td colSpan={8} className="px-6 py-3 text-xs text-gray-600 dark:text-gray-300">
                           <p className="mb-1 font-bold">Why this score</p>
                           <ul className="list-inside list-disc">{r.factors.map((f, i) => <li key={i}>{f}</li>)}</ul>
                           <p className="mt-1 text-gray-400">Orders: {r.order_refs.join(", ")}{r.outlets.length ? ` · ${r.outlets.join(", ")}` : ""}</p>

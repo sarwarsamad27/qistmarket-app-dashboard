@@ -102,10 +102,10 @@ export default function RecoveryChannels() {
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-left text-sm">
-                <thead className="bg-gray-50 text-[11px] uppercase text-gray-500 dark:bg-dark-2"><tr><th className="px-3 py-2">Channel</th><th className="px-3 py-2 text-right">Amount</th><th className="px-3 py-2">Share</th><th className="px-3 py-2 text-right">Payments</th><th className="px-3 py-2 text-right">Customers</th><th className="px-3 py-2 text-right">Avg</th><th className="px-3 py-2 text-right">Paid on time</th><th className="px-3 py-2 text-right">Paid late</th><th className="px-3 py-2 text-right">Avg days late</th></tr></thead>
+                <thead className="bg-gray-50 text-[11px] uppercase text-gray-500 dark:bg-dark-2"><tr><th className="px-3 py-2">S.No</th><th className="px-3 py-2">Channel</th><th className="px-3 py-2 text-right">Amount</th><th className="px-3 py-2">Share</th><th className="px-3 py-2 text-right">Payments</th><th className="px-3 py-2 text-right">Customers</th><th className="px-3 py-2 text-right">Avg</th><th className="px-3 py-2 text-right">Paid on time</th><th className="px-3 py-2 text-right">Paid late</th><th className="px-3 py-2 text-right">Avg days late</th></tr></thead>
                 <tbody>
-                  {data.channels.map((c) => (
-                    <tr key={c.key} className="border-t border-slate-100 dark:border-white/5">
+                  {data.channels.map((c, idx) => (
+                    <tr key={c.key} className="border-t border-slate-100 dark:border-white/5"><td className="px-3 py-2 text-gray-500 tabular-nums">{idx + 1}</td>
                       <td className="px-3 py-2"><span className="mr-2 inline-block size-2.5 rounded-full" style={{ backgroundColor: COLOR[c.key] }} /><span className="font-medium text-dark dark:text-white">{c.label}</span>{c.online && <span className="ml-1.5 rounded bg-blue-50 px-1.5 text-[10px] font-bold text-blue-700 dark:bg-blue-500/10">online</span>}</td>
                       <td className="px-3 py-2 text-right font-bold tabular-nums">{PKR(c.amount)}</td>
                       <td className="w-36 px-3 py-2"><div className="flex items-center gap-2"><div className="h-1.5 flex-1 overflow-hidden rounded-full bg-gray-100 dark:bg-white/10"><div className="h-full rounded-full" style={{ width: `${c.share}%`, backgroundColor: COLOR[c.key] }} /></div><span className="w-11 text-right text-xs tabular-nums text-gray-500">{c.share}%</span></div></td>
@@ -117,7 +117,7 @@ export default function RecoveryChannels() {
                       <td className="px-3 py-2 text-right tabular-nums text-gray-500">{c.avg_days_late ? `${c.avg_days_late} d` : "—"}</td>
                     </tr>
                   ))}
-                  {!data.channels.length && <tr><td colSpan={9} className="px-3 py-6 text-center text-gray-500">No installment payments in this range.</td></tr>}
+                  {!data.channels.length && <tr><td colSpan={10} className="px-3 py-6 text-center text-gray-500">No installment payments in this range.</td></tr>}
                 </tbody>
               </table>
             </div>
@@ -148,10 +148,10 @@ export default function RecoveryChannels() {
                         {openGap === r.channel && (
                           <div className="mt-2 max-h-64 overflow-auto rounded-lg border border-slate-100 bg-white dark:border-white/10 dark:bg-boxdark">
                             <table className="w-full text-left text-xs">
-                              <thead className="sticky top-0 bg-gray-50 uppercase text-gray-500 dark:bg-dark-2"><tr><th className="px-2 py-1.5">Order</th><th className="px-2 py-1.5 text-right">Gateway</th><th className="px-2 py-1.5 text-right">Ledger</th><th className="px-2 py-1.5 text-right">Diff</th></tr></thead>
+                              <thead className="sticky top-0 bg-gray-50 uppercase text-gray-500 dark:bg-dark-2"><tr><th className="px-2 py-1.5">S.No</th><th className="px-2 py-1.5">Order</th><th className="px-2 py-1.5 text-right">Gateway</th><th className="px-2 py-1.5 text-right">Ledger</th><th className="px-2 py-1.5 text-right">Diff</th></tr></thead>
                               <tbody>
-                                {r.gaps.map((g) => (
-                                  <tr key={g.order_id} className="border-t border-slate-100 dark:border-white/5">
+                                {r.gaps.map((g, idx) => (
+                                  <tr key={g.order_id} className="border-t border-slate-100 dark:border-white/5"><td className="px-2 py-1.5 text-gray-500 tabular-nums">{idx + 1}</td>
                                     <td className="px-2 py-1.5"><Link href={`/accounts/installment-receiving?order=${g.order_id}`} className="font-mono text-blue-600 hover:underline">{g.order_ref || `#${g.order_id}`}</Link><p className="text-gray-400">{g.customer}</p></td>
                                     <td className="px-2 py-1.5 text-right tabular-nums">{PKR(g.gateway)}</td>
                                     <td className="px-2 py-1.5 text-right tabular-nums">{PKR(g.ledger)}</td>
@@ -212,8 +212,9 @@ export default function RecoveryChannels() {
               <p className="mb-2 text-[11px] text-gray-400">Only payments where the collector was recorded.</p>
               <table className="w-full text-left text-sm">
                 <tbody>
-                  {data.collectors.map((c) => (
+                  {data.collectors.map((c, idx) => (
                     <tr key={c.id} className="border-t border-slate-100 first:border-0 dark:border-white/5">
+                      <td className="w-8 py-1.5 text-xs tabular-nums text-gray-400">{idx + 1}</td>
                       <td className="py-1.5"><p className="font-medium text-dark dark:text-white">{c.name}</p><p className="text-[11px] text-gray-400">{c.role} · {Object.entries(c.channels).map(([k, v]) => `${data.labels[k] || k} ${PKR(v)}`).join(" · ")}</p></td>
                       <td className="py-1.5 text-right text-xs tabular-nums text-gray-500">{c.count}</td>
                       <td className="py-1.5 text-right font-bold tabular-nums">{PKR(c.amount)}</td>

@@ -16,3 +16,11 @@ export const pktMonthStart = (): string => `${pktDate().slice(0, 8)}01`;
 
 /** YYYY-MM-DD `days` from today in Pakistan time (negative for the past). */
 export const pktAddDays = (days: number): string => pktDate(Date.now() + days * DAY_MS);
+
+/**
+ * YYYY-MM-DD of the calendar day picked in a date picker (a local-midnight Date). Sending
+ * `date.toISOString()` instead turns 1 Oct 00:00 into "30 Sep 19:00Z" — the server then had to
+ * guess the day, and on a PC not set to Pakistan time it guessed the wrong one.
+ */
+export const pickedDay = (d: Date): string =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
