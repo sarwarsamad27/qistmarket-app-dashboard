@@ -28,3 +28,7 @@ export const fmtMinutes = (m?: number | null) => {
   const h = Math.floor(m / 60);
   return h < 24 ? `${h}h ${m % 60}m` : `${Math.floor(h / 24)}d ${h % 24}h`;
 };
+
+// A date input reports "" (or a partial year like 0002-…) while it is being typed into —
+// only a complete, plausible date may become the filter.
+export const isCompleteDate = (v: string) => /^\d{4}-\d{2}-\d{2}$/.test(v) && Number(v.slice(0, 4)) >= 2000;

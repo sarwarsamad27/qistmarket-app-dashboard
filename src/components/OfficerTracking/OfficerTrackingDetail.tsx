@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, ReactNode, useCallback, useEffect, useMemo, useState } from "react";
+import { Fragment, ReactNode, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import Cookies from "js-cookie";
@@ -9,7 +9,7 @@ import Breadcrumb from "@/components/Breadcrumbs/Breadcrumb";
 import EmptyState from "@/components/Accounts/EmptyState";
 import { TableSkeleton } from "@/components/Accounts/Skeleton";
 import { apiErrorMessage } from "@/lib/apiErrors";
-import { ROLE_META, RoleKey, fmtRs, fmtDate, fmtDateTime, fmtMinutes, monthStart, today } from "./shared";
+import { ROLE_META, RoleKey, fmtRs, fmtDate, fmtDateTime, fmtMinutes, monthStart, today, isCompleteDate } from "./shared";
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
 
@@ -318,24 +318,32 @@ export default function OfficerTrackingDetail({ id, basePath }: { id: string; ba
     return next;
   });
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await fetch(`${BACKEND_URL}/api/officer-tracking/officers/${id}?from=${from}&to=${to}`, {
-        headers: { Authorization: `Bearer ${Cookies.get("auth_token")}` },
-      });
-      if (!res.ok) throw new Error(await apiErrorMessage(res, "Failed to load officer activity"));
-      const json = await res.json();
-      setData(json.data);
-    } catch (e: any) {
-      setError(e.message || "Failed to load officer activity");
-    } finally {
-      setLoading(false);
-    }
+  // Each change aborts the previous request, so a slower response for an older
+  // (or half-typed) range can never overwrite the one for the dates now shown.
+  useEffect(() => {
+    if (from > to) return;
+    const ctrl = new AbortController();
+    const t = setTimeout(async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const res = await fetch(`${BACKEND_URL}/api/officer-tracking/officers/${id}?from=${from}&to=${to}`, {
+          headers: { Authorization: `Bearer ${Cookies.get("auth_token")}` },
+          signal: ctrl.signal,
+        });
+        if (!res.ok) throw new Error(await apiErrorMessage(res, "Failed to load officer activity"));
+        const json = await res.json();
+        setData(json.data);
+        setExpanded(new Set());
+      } catch (e: any) {
+        if (e.name === "AbortError") return;
+        setError(e.message || "Failed to load officer activity");
+      } finally {
+        if (!ctrl.signal.aborted) setLoading(false);
+      }
+    }, 300);
+    return () => { clearTimeout(t); ctrl.abort(); };
   }, [id, from, to]);
-
-  useEffect(() => { load(); }, [load]);
 
   const role: RoleKey | null = data?.officer?.role || null;
   const tabs = useMemo(() => (role ? buildTabs(role, data) : []), [role, data]);
@@ -383,12 +391,14 @@ export default function OfficerTrackingDetail({ id, basePath }: { id: string; ba
           <div className="flex flex-wrap items-end gap-3">
             <label className="flex flex-col text-xs font-semibold text-gray-500">
               From
-              <input type="date" value={from} max={to} onChange={(e) => setFrom(e.target.value)} className="mt-1 rounded-lg border border-stroke bg-transparent px-3 py-2 text-sm text-dark dark:border-dark-3 dark:text-white" />
+              <input type="date" defaultValue={from} max={to} onChange={(e) => { if (isCompleteDate(e.target.value)) setFrom(e.target.value); }} className="mt-1 rounded-lg border border-stroke bg-transparent px-3 py-2 text-sm text-dark dark:border-dark-3 dark:text-white" />
             </label>
             <label className="flex flex-col text-xs font-semibold text-gray-500">
               To
-              <input type="date" value={to} min={from} onChange={(e) => setTo(e.target.value)} className="mt-1 rounded-lg border border-stroke bg-transparent px-3 py-2 text-sm text-dark dark:border-dark-3 dark:text-white" />
+              <input type="date" defaultValue={to} min={from} onChange={(e) => { if (isCompleteDate(e.target.value)) setTo(e.target.value); }} className="mt-1 rounded-lg border border-stroke bg-transparent px-3 py-2 text-sm text-dark dark:border-dark-3 dark:text-white" />
             </label>
+            {loading && <span className="pb-2 text-xs font-semibold text-gray-400">Updating…</span>}
+            {from > to && <span className="pb-2 text-xs font-semibold text-rose-500">"From" is after "To"</span>}
           </div>
         </div>
       )}

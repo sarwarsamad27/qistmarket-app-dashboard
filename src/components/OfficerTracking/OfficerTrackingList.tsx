@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import Cookies from "js-cookie";
 import { Search, Radar, Circle, ChevronRight } from "lucide-react";
@@ -9,7 +9,7 @@ import PageHeader from "@/components/Accounts/PageHeader";
 import EmptyState from "@/components/Accounts/EmptyState";
 import { TableSkeleton } from "@/components/Accounts/Skeleton";
 import { apiErrorMessage } from "@/lib/apiErrors";
-import { ROLE_META, RoleKey, fmtRs, monthStart, today } from "./shared";
+import { ROLE_META, RoleKey, fmtRs, monthStart, today, isCompleteDate } from "./shared";
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
 
@@ -41,28 +41,35 @@ export default function OfficerTrackingList({ basePath }: { basePath: string }) 
   const [to, setTo] = useState(today());
   const [search, setSearch] = useState("");
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const params = new URLSearchParams({ from, to });
-      if (outletId) params.set("outlet_id", outletId);
-      const res = await fetch(`${BACKEND_URL}/api/officer-tracking/officers?${params}`, {
-        headers: { Authorization: `Bearer ${Cookies.get("auth_token")}` },
-      });
-      if (!res.ok) throw new Error(await apiErrorMessage(res, "Failed to load officers"));
-      const json = await res.json();
-      setOfficers(json.data.officers || []);
-      setOutlets(json.data.outlets || []);
-      setIsGlobal(!!json.data.scope?.global);
-    } catch (e: any) {
-      setError(e.message || "Failed to load officers");
-    } finally {
-      setLoading(false);
-    }
+  // Each change aborts the previous request, so a slower response for an older
+  // (or half-typed) range can never overwrite the one for the dates now shown.
+  useEffect(() => {
+    if (from > to) return;
+    const ctrl = new AbortController();
+    const t = setTimeout(async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const params = new URLSearchParams({ from, to });
+        if (outletId) params.set("outlet_id", outletId);
+        const res = await fetch(`${BACKEND_URL}/api/officer-tracking/officers?${params}`, {
+          headers: { Authorization: `Bearer ${Cookies.get("auth_token")}` },
+          signal: ctrl.signal,
+        });
+        if (!res.ok) throw new Error(await apiErrorMessage(res, "Failed to load officers"));
+        const json = await res.json();
+        setOfficers(json.data.officers || []);
+        setOutlets(json.data.outlets || []);
+        setIsGlobal(!!json.data.scope?.global);
+      } catch (e: any) {
+        if (e.name === "AbortError") return;
+        setError(e.message || "Failed to load officers");
+      } finally {
+        if (!ctrl.signal.aborted) setLoading(false);
+      }
+    }, 300);
+    return () => { clearTimeout(t); ctrl.abort(); };
   }, [from, to, outletId]);
-
-  useEffect(() => { load(); }, [load]);
 
   const visible = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -113,11 +120,11 @@ export default function OfficerTrackingList({ basePath }: { basePath: string }) 
         )}
         <label className="flex flex-col text-xs font-semibold text-gray-500">
           From
-          <input type="date" value={from} max={to} onChange={(e) => setFrom(e.target.value)} className="mt-1 rounded-lg border border-stroke bg-transparent px-3 py-2 text-sm text-dark dark:border-dark-3 dark:text-white" />
+          <input type="date" defaultValue={from} max={to} onChange={(e) => { if (isCompleteDate(e.target.value)) setFrom(e.target.value); }} className="mt-1 rounded-lg border border-stroke bg-transparent px-3 py-2 text-sm text-dark dark:border-dark-3 dark:text-white" />
         </label>
         <label className="flex flex-col text-xs font-semibold text-gray-500">
           To
-          <input type="date" value={to} min={from} onChange={(e) => setTo(e.target.value)} className="mt-1 rounded-lg border border-stroke bg-transparent px-3 py-2 text-sm text-dark dark:border-dark-3 dark:text-white" />
+          <input type="date" defaultValue={to} min={from} onChange={(e) => { if (isCompleteDate(e.target.value)) setTo(e.target.value); }} className="mt-1 rounded-lg border border-stroke bg-transparent px-3 py-2 text-sm text-dark dark:border-dark-3 dark:text-white" />
         </label>
         <div className="relative min-w-[200px] flex-1">
           <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-gray-400" />
