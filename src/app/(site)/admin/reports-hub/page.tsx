@@ -41,22 +41,30 @@ const ENDPOINT: Record<(typeof TABS)[number]["key"], string> = {
 
 export default function AdminReportsHubPage() {
   const [tab, setTab] = useState<(typeof TABS)[number]["key"]>("daybook");
-  const [data, setData] = useState<any>(null);
+  // Data is kept together with the tab it was loaded for. Switching tabs renders once
+  // before the fetch effect runs; without this the new tab got the previous tab's data
+  // (e.g. Officer Recovery received the Daybook object and crashed the whole page).
+  const [loaded, setLoaded] = useState<{ tab: string; data: any } | null>(null);
   const [loading, setLoading] = useState(true);
   // Every tab is filtered by the same From–To range (default: this month).
   const [range, setRange] = useState<DateRange>({ from: pktMonthStart(), to: pktDate() });
 
+  const data = loaded?.tab === tab ? loaded.data : null;
+
   useEffect(() => {
+    let cancelled = false;
     setLoading(true);
-    setData(null);
+    setLoaded(null);
     const qs = new URLSearchParams();
     if (range.from) qs.set("startDate", range.from);
     if (range.to) qs.set("endDate", range.to);
     fetch(`${BACKEND_URL}${ENDPOINT[tab]}${qs.toString() ? `?${qs}` : ""}`, { headers: authHeaders() })
       .then((r) => r.json())
-      .then((json) => { if (json.success) setData(json.data); })
+      .then((json) => { if (!cancelled && json.success) setLoaded({ tab, data: json.data }); })
       .catch((err) => console.error(`Failed to load ${tab} report:`, err))
-      .finally(() => setLoading(false));
+      .finally(() => { if (!cancelled) setLoading(false); });
+    // A slower response from a tab the user already left must not land on the new one.
+    return () => { cancelled = true; };
   }, [tab, range.from, range.to]);
 
   return (
@@ -186,7 +194,7 @@ export default function AdminReportsHubPage() {
 
           {tab === "officer-recoveries" && (
             <ReportTable
-              rows={data}
+              rows={Array.isArray(data) ? data : []}
               empty="No officer recovery data available."
               columns={[
                 { header: "Officer", cell: (o: any) => o.officer_name },
