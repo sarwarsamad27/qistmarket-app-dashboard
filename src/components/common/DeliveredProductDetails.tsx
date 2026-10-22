@@ -55,6 +55,8 @@ export default function DeliveredProductDetails({
 
     const [editingProduct, setEditingProduct] = useState(false);
     const [productForm, setProductForm] = useState({ product_name: '', imei_serial: '', total_amount: '', advance_amount: '', monthly_amount: '', months: '' });
+    // What the form opened with — only fields that differ from it are sent.
+    const [productFormInitial, setProductFormInitial] = useState(productForm);
     const [savingProduct, setSavingProduct] = useState(false);
     const [outletInventory, setOutletInventory] = useState<{ id: number; product_name: string; imei_serial: string | null; color_variant: string | null; installment_price: number }[]>([]);
     const [selectedInventoryId, setSelectedInventoryId] = useState<string>('__custom__');
@@ -124,14 +126,16 @@ export default function DeliveredProductDetails({
     };
 
     const openEditProduct = async () => {
-        setProductForm({
+        const initial = {
             product_name: deliveredProduct.product_details?.product_name || '',
             imei_serial: deliveredProduct.product_details?.imei_serial || '',
             total_amount: deliveredProduct.product_details?.total_amount != null ? String(deliveredProduct.product_details.total_amount) : '',
             advance_amount: deliveredProduct.product_details?.advance_amount != null ? String(deliveredProduct.product_details.advance_amount) : '',
             monthly_amount: deliveredProduct.product_details?.monthly_amount != null ? String(deliveredProduct.product_details.monthly_amount) : '',
             months: deliveredProduct.product_details?.months != null ? String(deliveredProduct.product_details.months) : '',
-        });
+        };
+        setProductForm(initial);
+        setProductFormInitial(initial);
         setSelectedInventoryId('__custom__');
         setEditingProduct(true);
 
@@ -203,13 +207,23 @@ export default function DeliveredProductDetails({
     };
 
     const handleSaveProduct = async () => {
+        const changes = Object.fromEntries(
+            Object.entries(productForm).filter(([key, value]) => value.trim() !== productFormInitial[key as keyof typeof productForm].trim())
+        );
+        // With a ledger the backend derives the total from the saved rows.
+        if (deliveredProduct.payment_details?.installment_plan?.ledger_id) delete changes.total_amount;
+        if (Object.keys(changes).length === 0) {
+            toast('No changes to save');
+            setEditingProduct(false);
+            return;
+        }
         const token = Cookies.get('auth_token');
         setSavingProduct(true);
         try {
             const res = await fetch(`${BACKEND_URL}/api/orders/${deliveredProduct.order_info.id}/update-item`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-                body: JSON.stringify(productForm),
+                body: JSON.stringify(changes),
             });
             const json = await res.json();
             if (!res.ok || !json.success) throw new Error(json.message || 'Failed to save changes');
@@ -396,13 +410,29 @@ export default function DeliveredProductDetails({
 
     const isReturned = deliveredProduct.order_info?.status?.toLowerCase() === 'returned';
     // Once a ledger exists, the Pricing Plan/Payment Details cards below
-    // read their numbers from IT, not these Order fields — so saving a
-    // Total Amount that doesn't match Advance + Monthly x Months here would
-    // just get silently recomputed by the backend to keep the two in sync.
-    // Show that live instead of letting the admin type a number that won't
-    // actually stick.
+    // read their numbers from IT, not these Order fields, and the backend
+    // saves the total as the sum of the ledger rows
+    // (ledgerController.syncLedgerPricingFromOrderEdit). Preview that same
+    // figure: a real schedule is often not advance + monthly x months (short
+    // final month, adjusted rows), so that formula showed a different total
+    // the moment the form opened.
     const productEditLedgerId = deliveredProduct.payment_details?.installment_plan?.ledger_id;
-    const computedTotalAmount = (parseFloat(productForm.advance_amount) || 0) + (parseFloat(productForm.monthly_amount) || 0) * (parseInt(productForm.months, 10) || 0);
+    const computedTotalAmount = (() => {
+        const num = (v: string) => parseFloat(v) || 0;
+        const scheduleChanged = productForm.monthly_amount.trim() !== productFormInitial.monthly_amount.trim()
+            || productForm.months.trim() !== productFormInitial.months.trim();
+        if (!scheduleChanged) {
+            return num(productFormInitial.total_amount) - num(productFormInitial.advance_amount) + num(productForm.advance_amount);
+        }
+        // Paid/partial months are kept as they are; everything after the
+        // last of them is regenerated at the new monthly rate.
+        const installments: any[] = deliveredProduct.payment_details?.installment_plan?.installments || [];
+        let keptThroughMonth = 0;
+        for (const r of installments) if (r.status === 'paid' || r.status === 'partial') keptThroughMonth = Math.max(keptThroughMonth, Number(r.month));
+        const keptTotal = installments.filter((r) => Number(r.month) <= keptThroughMonth).reduce((s, r) => s + (Number(r.due_amount) || 0), 0);
+        const pendingMonths = Math.max(0, (parseInt(productForm.months, 10) || 0) - keptThroughMonth);
+        return num(productForm.advance_amount) + keptTotal + num(productForm.monthly_amount) * pendingMonths;
+    })();
 
     // Helper function to get delivery agent name
     const getDeliveryAgentName = () => {
