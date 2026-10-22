@@ -210,8 +210,11 @@ export default function DeliveredProductDetails({
         const changes = Object.fromEntries(
             Object.entries(productForm).filter(([key, value]) => value.trim() !== productFormInitial[key as keyof typeof productForm].trim())
         );
-        // With a ledger the backend derives the total from the saved rows.
-        if (deliveredProduct.payment_details?.installment_plan?.ledger_id) delete changes.total_amount;
+        // With a ledger, a typed Total decides the months (backend spreads it
+        // over them); otherwise the backend derives the total from the rows.
+        if (deliveredProduct.payment_details?.installment_plan?.ledger_id) {
+            if ('total_amount' in changes) delete changes.months;
+        }
         if (Object.keys(changes).length === 0) {
             toast('No changes to save');
             setEditingProduct(false);
@@ -417,19 +420,27 @@ export default function DeliveredProductDetails({
     // final month, adjusted rows), so that formula showed a different total
     // the moment the form opened.
     const productEditLedgerId = deliveredProduct.payment_details?.installment_plan?.ledger_id;
+    const num = (v: string) => parseFloat(v) || 0;
+    // Paid/partial months are kept as they are; everything after the last of
+    // them is regenerated.
+    const ledgerInstallments: any[] = deliveredProduct.payment_details?.installment_plan?.installments || [];
+    let keptThroughMonth = 0;
+    for (const r of ledgerInstallments) if (r.status === 'paid' || r.status === 'partial') keptThroughMonth = Math.max(keptThroughMonth, Number(r.month));
+    const keptTotal = ledgerInstallments.filter((r) => Number(r.month) <= keptThroughMonth).reduce((s, r) => s + (Number(r.due_amount) || 0), 0);
+    // Admin typed a Total: the months follow from it — full months at the
+    // monthly rate plus any leftover as a shorter last month.
+    const totalTouched = !!productEditLedgerId && productForm.total_amount.trim() !== productFormInitial.total_amount.trim();
+    const remainingForPending = num(productForm.total_amount) - num(productForm.advance_amount) - keptTotal;
+    const derivedMonths = totalTouched && num(productForm.monthly_amount) > 0 && remainingForPending >= 0
+        ? keptThroughMonth + Math.ceil(Math.round(remainingForPending * 100) / 100 / num(productForm.monthly_amount) - 1e-9)
+        : null;
     const computedTotalAmount = (() => {
-        const num = (v: string) => parseFloat(v) || 0;
+        if (totalTouched) return productForm.total_amount;
         const scheduleChanged = productForm.monthly_amount.trim() !== productFormInitial.monthly_amount.trim()
             || productForm.months.trim() !== productFormInitial.months.trim();
         if (!scheduleChanged) {
             return num(productFormInitial.total_amount) - num(productFormInitial.advance_amount) + num(productForm.advance_amount);
         }
-        // Paid/partial months are kept as they are; everything after the
-        // last of them is regenerated at the new monthly rate.
-        const installments: any[] = deliveredProduct.payment_details?.installment_plan?.installments || [];
-        let keptThroughMonth = 0;
-        for (const r of installments) if (r.status === 'paid' || r.status === 'partial') keptThroughMonth = Math.max(keptThroughMonth, Number(r.month));
-        const keptTotal = installments.filter((r) => Number(r.month) <= keptThroughMonth).reduce((s, r) => s + (Number(r.due_amount) || 0), 0);
         const pendingMonths = Math.max(0, (parseInt(productForm.months, 10) || 0) - keptThroughMonth);
         return num(productForm.advance_amount) + keptTotal + num(productForm.monthly_amount) * pendingMonths;
     })();
@@ -533,7 +544,7 @@ export default function DeliveredProductDetails({
                         <div className="space-y-4 rounded-lg border border-stroke bg-gray-50 p-4 dark:border-dark-3 dark:bg-dark-3">
                             <p className="text-xs text-amber-600 dark:text-amber-400 font-medium">
                                 {productEditLedgerId
-                                    ? 'Note: Advance/Monthly/Months corrections here also update the pending (unpaid) months in the ledger below — already-paid months are never touched. Total Amount is auto-calculated.'
+                                    ? 'Note: Advance/Monthly/Months/Total corrections here also update the pending (unpaid) months in the ledger below — already-paid months are never touched. Changing Total recalculates the months.'
                                     : 'Note: changing these does not update the installment ledger below — edit the ledger separately if it also needs correcting.'}
                             </p>
                             {outletInventory.length > 0 && (
@@ -573,12 +584,12 @@ export default function DeliveredProductDetails({
                                 <LabeledInput label="IMEI / Serial Number" value={productForm.imei_serial} onChange={(v) => setProductForm((f) => ({ ...f, imei_serial: v }))} />
                                 {productEditLedgerId ? (
                                     <div>
-                                        <label className="block text-xs font-medium text-gray-500 dark:text-gray-400">Total Amount (auto-calculated)</label>
+                                        <label className="block text-xs font-medium text-gray-500 dark:text-gray-400">Total Amount</label>
                                         <input
                                             type="number"
                                             value={computedTotalAmount}
-                                            disabled
-                                            className="mt-1 w-full rounded-lg border border-stroke bg-gray-100 px-3 py-2 text-sm text-dark dark:border-dark-3 dark:bg-dark-2/50 dark:text-white"
+                                            onChange={(e) => setProductForm((f) => ({ ...f, total_amount: e.target.value }))}
+                                            className="mt-1 w-full rounded-lg border border-stroke bg-white px-3 py-2 text-sm text-dark dark:border-dark-3 dark:bg-dark-2 dark:text-white"
                                         />
                                     </div>
                                 ) : (
@@ -586,8 +597,33 @@ export default function DeliveredProductDetails({
                                 )}
                                 <LabeledInput label="Advance Amount" type="number" value={productForm.advance_amount} onChange={(v) => setProductForm((f) => ({ ...f, advance_amount: v }))} />
                                 <LabeledInput label="Monthly Amount" type="number" value={productForm.monthly_amount} onChange={(v) => setProductForm((f) => ({ ...f, monthly_amount: v }))} />
-                                <LabeledInput label="Plan Duration (Months)" type="number" value={productForm.months} onChange={(v) => setProductForm((f) => ({ ...f, months: v }))} />
+                                {totalTouched ? (
+                                    <div>
+                                        <label className="block text-xs font-medium text-gray-500 dark:text-gray-400">Plan Duration (Months, from Total)</label>
+                                        <input
+                                            type="number"
+                                            value={derivedMonths ?? ''}
+                                            disabled
+                                            className="mt-1 w-full rounded-lg border border-stroke bg-gray-100 px-3 py-2 text-sm text-dark dark:border-dark-3 dark:bg-dark-2/50 dark:text-white"
+                                        />
+                                    </div>
+                                ) : (
+                                    <LabeledInput label="Plan Duration (Months)" type="number" value={productForm.months} onChange={(v) => setProductForm((f) => ({ ...f, months: v }))} />
+                                )}
                             </div>
+                            {totalTouched && (
+                                <p className="text-xs text-gray-500 dark:text-gray-400">
+                                    {derivedMonths == null
+                                        ? `Total must be at least Rs. ${(num(productForm.advance_amount) + keptTotal).toLocaleString()} (advance + ${keptThroughMonth} paid month(s)).`
+                                        : (() => {
+                                            const monthly = num(productForm.monthly_amount);
+                                            const pending = Math.round(remainingForPending * 100) / 100;
+                                            const full = Math.floor(pending / monthly + 1e-9);
+                                            const leftover = Math.round((pending - full * monthly) * 100) / 100;
+                                            return `Ledger: ${keptThroughMonth} paid month(s) unchanged, ${full} pending month(s) × Rs. ${monthly.toLocaleString()}${leftover > 0 ? ` + last month Rs. ${leftover.toLocaleString()}` : ''} = ${derivedMonths} months.`;
+                                        })()}
+                                </p>
+                            )}
                             <div className="flex gap-3">
                                 <button onClick={handleSaveProduct} disabled={savingProduct} className="rounded-lg bg-primary px-4 py-2 text-sm font-bold text-white disabled:opacity-50">
                                     {savingProduct ? 'Saving...' : 'Save Changes'}
