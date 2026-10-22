@@ -18,7 +18,7 @@ interface Row { monthNumber: number; dueDate: string | null; dueAmount: number; 
 interface Account {
   order: { id: number; order_ref: string; customer_name: string; whatsapp_number: string; cnic: string | null; product_name: string; outlet_name: string; status: string; is_delivered: boolean };
   account: { total: number; paid: number; remaining: number; overdue_amount: number; overdue_months: number; next_month: number | null; next_due_date: string | null; next_due_amount: number; installments: Row[] } | null;
-  payments: { id: number; type: string; month: number | null; amount: number; method: string | null; paid_at: string; collected_by: string | null }[];
+  payments: { id: number; type: string; month: number | null; amount: number; method: string | null; paid_at: string; collected_by: string | null; edited?: boolean }[];
 }
 
 const ROW_STATUS: Record<string, string> = {
@@ -216,7 +216,7 @@ export default function ReceivePanel({ initialOrderId, onReceived }: { initialOr
                     <div className="max-h-80 space-y-1.5 overflow-auto">
                       {acc.payments.length ? acc.payments.map((p) => (
                         <div key={p.id} className="flex justify-between gap-2 rounded-lg bg-slate-50 px-3 py-2 text-xs dark:bg-white/5">
-                          <div><p className="font-medium text-dark dark:text-white">{p.type === "installment" ? `Month ${p.month}` : p.type} · {p.method || "Cash"}</p><p className="text-gray-400">{new Date(p.paid_at).toLocaleString()}{p.collected_by ? ` · ${p.collected_by}` : ""}</p></div>
+                          <div><p className="font-medium text-dark dark:text-white">{p.type === "installment" ? `Month ${p.month}` : p.type} · {p.method || "Cash"}{p.edited && <span className="ml-1.5 rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">EDITED</span>}</p><p className="text-gray-400">{new Date(p.paid_at).toLocaleString()}{p.collected_by ? ` · ${p.collected_by}` : ""}</p></div>
                           <p className="font-bold tabular-nums text-emerald-600">{PKR(p.amount)}</p>
                         </div>
                       )) : <p className="text-xs text-gray-500">No payments yet.</p>}

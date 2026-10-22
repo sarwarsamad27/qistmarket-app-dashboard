@@ -19,6 +19,9 @@ interface PaymentRow {
   order_id: number;
   order_ref: string;
   received_at: string;
+  // Corrected in Edit Ledger (the ledger's EDITED badge); when it was entered, if its date was changed.
+  edited?: boolean;
+  original_received_at?: string | null;
   customer_name: string;
   customer_phone: string;
   item: string;
@@ -110,12 +113,14 @@ export default function DailyPaymentsPage() {
       "S.No", "Received Date & Time", "Customer Name", "Customer Number", "Item", "IMEI / Serial", "Amount",
       "Account Branch", "Method / Received At", "Collected By", "System Transaction ID", "1Bill / QR Transaction ID",
       "Partial / Fully Paid", "Payment For", "Installment Amount", "Installment Due Date", "Date of Purchase", "1Bill ID / QR ID", "Order Ref",
+      "Edited", "Originally Entered",
     ];
     const body = rows.map((r, i) => [
       i + 1, fmtDateTime(r.received_at), r.customer_name, r.customer_phone, r.item, r.imei || "", r.amount,
       r.account_branch || "", r.method, r.collected_by || "", r.system_txn_id, r.provider_txn_id || "",
       r.payment_status === "Full" ? "Fully Paid" : "Partial", r.payment_type === "advance" ? "Advance" : `Month ${r.month}`,
       r.installment_amount, fmtDate(r.due_date), fmtDate(r.purchase_date), r.bill_or_qr_id || "", r.order_ref,
+      r.edited ? "Edited" : "", r.original_received_at ? fmtDateTime(r.original_received_at) : "",
     ]);
     const totalRow = ["", "", "", "", "", "TOTAL", rows.reduce((s, r) => s + r.amount, 0)];
     const ws = XLSX.utils.aoa_to_sheet([headers, ...body, [], totalRow]);
@@ -241,7 +246,15 @@ export default function DailyPaymentsPage() {
                 {pageRows.map((r, i) => (
                   <tr key={`${r.system_txn_id}-${i}`} className="border-t border-slate-50 align-top transition hover:bg-slate-50/70 dark:border-white/5 dark:hover:bg-white/5">
                     <td className="px-3 py-3 text-gray-400">{(page - 1) * PAGE_SIZE + i + 1}</td>
-                    <td className="whitespace-nowrap px-3 py-3 text-gray-600 dark:text-gray-300">{fmtDateTime(r.received_at)}</td>
+                    <td className="whitespace-nowrap px-3 py-3 text-gray-600 dark:text-gray-300">
+                      {fmtDateTime(r.received_at)}
+                      {r.edited && (
+                        <span className="mt-1 block w-fit rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">EDITED</span>
+                      )}
+                      {r.original_received_at && (
+                        <span className="mt-0.5 block text-[10px] text-gray-400">Entered {fmtDateTime(r.original_received_at)}</span>
+                      )}
+                    </td>
                     <td className="px-3 py-3">
                       <p className="font-semibold text-dark dark:text-white">{r.customer_name}</p>
                       <p className="text-xs text-gray-500">{r.customer_phone}</p>

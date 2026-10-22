@@ -60,7 +60,9 @@ export default function InstallmentRecoveriesTab({ token, startDate, endDate, se
             "Installment Month": r.label,
             "Amount Recovered": r.amount,
             "Payment Method": r.payment_method,
-            "Customer Arrears": r.arrears || 0
+            "Customer Arrears": r.arrears || 0,
+            "Edited": r.edited ? "Edited" : "",
+            "Originally Entered": r.original_paid_at ? formatExactDate(r.original_paid_at, 'DD MMM YYYY, hh:mm A') : ""
         }));
         const ws = XLSX.utils.json_to_sheet(rows);
         const wb = XLSX.utils.book_new();
@@ -126,7 +128,16 @@ export default function InstallmentRecoveriesTab({ token, startDate, endDate, se
                             <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
                                 {filteredRecoveries.length > 0 ? filteredRecoveries.map((r: any, idx: number) => (
                                     <tr key={idx} className="hover:bg-gray-50 dark:hover:bg-gray-700/50"><td className="px-4 py-3 whitespace-nowrap text-gray-500 tabular-nums">{idx + 1}</td>
-                                        <td className="px-4 py-3 whitespace-nowrap">{formatExactDate(r.paid_at, 'DD MMM YYYY, hh:mm A')}</td>
+                                        <td className="px-4 py-3 whitespace-nowrap">
+                                            {formatExactDate(r.paid_at, 'DD MMM YYYY, hh:mm A')}
+                                            {/* Corrected in Edit Ledger — same EDITED badge as the ledger. */}
+                                            {r.edited && (
+                                                <span className="mt-1 block w-fit rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">EDITED</span>
+                                            )}
+                                            {r.original_paid_at && (
+                                                <span className="mt-0.5 block text-[10px] text-gray-400">Entered {formatExactDate(r.original_paid_at, 'DD MMM YYYY, hh:mm A')}</span>
+                                            )}
+                                        </td>
                                         <td className="px-4 py-3 font-medium text-blue-600">{r.order_ref}</td>
                                         <td className="px-4 py-3">
                                             <p className="font-medium text-gray-800 dark:text-white">{r.customer_name}</p>
