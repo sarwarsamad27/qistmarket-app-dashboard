@@ -888,8 +888,11 @@ export const PaymentDetailsSection = ({
                                                         );
                                                     })()}
                                                 </tr>
-                                            )) : editedRows.map((row) => (
+                                            )) : editedRows.map((row, idx) => (
                                                 <tr key={row.month} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+                                                    {/* S.No — the header has it; without this cell every column sat
+                                                        under the wrong heading (Customer Paid under "Amount Due"). */}
+                                                    <td className="px-4 py-2 text-sm text-gray-500 tabular-nums">{idx + 1}</td>
                                                     <td className="px-4 py-2 text-sm text-dark dark:text-white whitespace-nowrap">{row.label || `Month ${row.month}`}</td>
                                                     <td className="px-2 py-2">
                                                         <input
