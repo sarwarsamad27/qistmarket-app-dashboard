@@ -250,6 +250,12 @@ export const PaymentDetailsSection = ({
     };
 
     const startEdit = () => {
+        // Always a real number in the box — a blank Customer Paid read as "unchanged"
+        // on save, so the edit silently did nothing.
+        const num = (v: any) => {
+            const n = Number(v);
+            return String(Number.isFinite(n) ? n : 0);
+        };
         setEditedRows(installments.map((inst: any) => ({
             month: inst.month,
             label: inst.label,
@@ -259,8 +265,8 @@ export const PaymentDetailsSection = ({
             // overpayment shows as elsewhere on the page. Editing this and saving is what
             // lets an overpayment (or its correction) ripple onto later installments; see
             // ledgerController.editLedgerRows / cascadeLedgerPayments on the backend.
-            paid_amount: String(inst.collected_amount ?? inst.paid_amount ?? 0),
-            original_paid_amount: String(inst.collected_amount ?? inst.paid_amount ?? 0),
+            paid_amount: num(inst.collected_amount ?? inst.paid_amount ?? 0),
+            original_paid_amount: num(inst.collected_amount ?? inst.paid_amount ?? 0),
             payment_method: inst.payment_method || '',
             paid_at: toDatetimeLocal(inst.paid_at),
         })));
@@ -277,6 +283,12 @@ export const PaymentDetailsSection = ({
 
     const handleSaveRows = async () => {
         if (!ledgerId) return;
+        // A blank box would be sent as "unchanged" and the save would quietly do nothing.
+        const blank = editedRows.filter((r) => String(r.paid_amount ?? '').trim() === '' || !Number.isFinite(Number(r.paid_amount)));
+        if (blank.length) {
+            toast.error(`Customer Paid is empty for ${blank.map((r) => r.label || `Month ${r.month}`).join(', ')} — enter the amount (or 0) and save again.`, { duration: 8000 });
+            return;
+        }
         const token = Cookies.get('auth_token');
         if (!token) {
             toast.error('Authentication required');

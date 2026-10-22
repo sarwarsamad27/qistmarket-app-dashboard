@@ -22,6 +22,10 @@ interface PaymentRow {
   // Corrected in Edit Ledger (the ledger's EDITED badge); when it was entered, if its date was changed.
   edited?: boolean;
   original_received_at?: string | null;
+  // Taken off the ledger by a Super Admin — listed, not counted in the totals.
+  deleted?: boolean;
+  deleted_by?: string | null;
+  deleted_at?: string | null;
   customer_name: string;
   customer_phone: string;
   item: string;
@@ -113,7 +117,7 @@ export default function DailyPaymentsPage() {
       "S.No", "Received Date & Time", "Customer Name", "Customer Number", "Item", "IMEI / Serial", "Amount",
       "Account Branch", "Method / Received At", "Collected By", "System Transaction ID", "1Bill / QR Transaction ID",
       "Partial / Fully Paid", "Payment For", "Installment Amount", "Installment Due Date", "Date of Purchase", "1Bill ID / QR ID", "Order Ref",
-      "Edited", "Originally Entered",
+      "Edited", "Originally Entered", "Deleted (removed from ledger)",
     ];
     const body = rows.map((r, i) => [
       i + 1, fmtDateTime(r.received_at), r.customer_name, r.customer_phone, r.item, r.imei || "", r.amount,
@@ -121,8 +125,10 @@ export default function DailyPaymentsPage() {
       r.payment_status === "Full" ? "Fully Paid" : "Partial", r.payment_type === "advance" ? "Advance" : `Month ${r.month}`,
       r.installment_amount, fmtDate(r.due_date), fmtDate(r.purchase_date), r.bill_or_qr_id || "", r.order_ref,
       r.edited ? "Edited" : "", r.original_received_at ? fmtDateTime(r.original_received_at) : "",
+      r.deleted ? `Deleted${r.deleted_by ? ` by ${r.deleted_by}` : ""}${r.deleted_at ? ` on ${fmtDateTime(r.deleted_at)}` : ""}` : "",
     ]);
-    const totalRow = ["", "", "", "", "", "TOTAL", rows.reduce((s, r) => s + r.amount, 0)];
+    // Deleted receipts are listed but not part of the total, same as the page.
+    const totalRow = ["", "", "", "", "", "TOTAL", rows.filter((r) => !r.deleted).reduce((s, r) => s + r.amount, 0)];
     const ws = XLSX.utils.aoa_to_sheet([headers, ...body, [], totalRow]);
     ws["!cols"] = [6, 22, 24, 14, 30, 18, 12, 20, 34, 18, 24, 20, 14, 12, 14, 14, 14, 20, 22].map((wch) => ({ wch }));
     const wb = XLSX.utils.book_new();
@@ -248,8 +254,15 @@ export default function DailyPaymentsPage() {
                     <td className="px-3 py-3 text-gray-400">{(page - 1) * PAGE_SIZE + i + 1}</td>
                     <td className="whitespace-nowrap px-3 py-3 text-gray-600 dark:text-gray-300">
                       {fmtDateTime(r.received_at)}
-                      {r.edited && (
+                      {r.deleted ? (
+                        <span className="mt-1 block w-fit rounded bg-red-100 px-1.5 py-0.5 text-[10px] font-bold text-red-700 dark:bg-red-900/30 dark:text-red-300" title="Removed from the ledger in Edit Ledger — not counted in the totals">
+                          DELETED{r.deleted_by ? ` · ${r.deleted_by}` : ""}
+                        </span>
+                      ) : r.edited && (
                         <span className="mt-1 block w-fit rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">EDITED</span>
+                      )}
+                      {r.deleted && r.deleted_at && (
+                        <span className="mt-0.5 block text-[10px] text-red-400">Removed {fmtDateTime(r.deleted_at)}</span>
                       )}
                       {r.original_received_at && (
                         <span className="mt-0.5 block text-[10px] text-gray-400">Entered {fmtDateTime(r.original_received_at)}</span>
@@ -263,7 +276,7 @@ export default function DailyPaymentsPage() {
                       <p className="truncate" title={r.item}>{r.item}</p>
                       <p className="text-xs text-gray-400">{r.payment_type === "advance" ? "Advance" : `Month ${r.month}`} · {r.order_ref}</p>
                     </td>
-                    <td className="whitespace-nowrap px-3 py-3 text-right font-bold tabular-nums text-dark dark:text-white">{PKR(r.amount)}</td>
+                    <td className={`whitespace-nowrap px-3 py-3 text-right font-bold tabular-nums ${r.deleted ? "text-gray-400 line-through" : "text-dark dark:text-white"}`}>{PKR(r.amount)}</td>
                     <td className="px-3 py-3 text-gray-700 dark:text-gray-200">{r.account_branch || <span className="text-gray-400">—</span>}</td>
                     <td className="px-3 py-3">
                       <span className={`inline-block rounded-full px-2.5 py-1 text-xs font-bold ${CHANNEL_STYLE[r.channel]}`}>{r.method}</span>
