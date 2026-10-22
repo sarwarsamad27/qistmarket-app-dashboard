@@ -275,7 +275,7 @@ export const PaymentDetailsSection = ({
         setEditedRows((rows) => rows.map((r) => (r.month === month ? { ...r, [field]: value } : r)));
     };
 
-    const handleSaveRows = async (confirmBelowPayments = false) => {
+    const handleSaveRows = async () => {
         if (!ledgerId) return;
         const token = Cookies.get('auth_token');
         if (!token) {
@@ -290,7 +290,6 @@ export const PaymentDetailsSection = ({
                 body: JSON.stringify({
                     // Lets the backend refuse a save from a form opened before a payment came in.
                     ledger_updated_at: paymentDetails.installment_plan?.ledger_updated_at || null,
-                    confirm_below_payments: confirmBelowPayments,
                     rows: editedRows.map((r) => ({
                         month: r.month,
                         label: r.label,
@@ -312,11 +311,9 @@ export const PaymentDetailsSection = ({
                 if (onSaved) await onSaved();
                 return;
             }
+            // The ledger can't count less than was actually received — no override.
             if (res.status === 409 && json.code === 'BELOW_PAYMENTS') {
-                if (window.confirm(json.message)) {
-                    setSavingRows(false);
-                    await handleSaveRows(true);
-                }
+                toast.error(json.message, { duration: 10000 });
                 return;
             }
             if (!res.ok || !json.success) throw new Error(json.message || 'Failed to save ledger');
