@@ -199,7 +199,8 @@ export default function DailyPaymentsPage() {
             {data?.outlets.map((o) => <option key={o.id} value={o.id}>Received at {o.name}</option>)}
           </select>
           <select value={paymentStatus} onChange={(e) => setPaymentStatus(e.target.value)} className={selectCls}>
-            <option value="all">Partial + Fully paid</option>
+            <option value="all">All payments (including deleted)</option>
+            <option value="Deleted">Deleted only</option>
             <option value="Full">Fully paid only</option>
             <option value="Partial">Partial only</option>
           </select>
@@ -288,7 +289,7 @@ export default function DailyPaymentsPage() {
                     </td>
                     <td className="px-3 py-3">
                       <span className={`inline-block rounded-full px-2.5 py-1 text-xs font-bold ${r.payment_status === "Full" ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300" : "bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-300"}`}>
-                        {r.payment_status === "Full" ? "Fully Paid" : "Partial"}
+                        {r.deleted ? "Deleted" : r.payment_status === "Full" ? "Fully Paid" : "Partial"}
                       </span>
                     </td>
                     <td className="whitespace-nowrap px-3 py-3 text-gray-600 dark:text-gray-300">{fmtDate(r.due_date) || "—"}</td>

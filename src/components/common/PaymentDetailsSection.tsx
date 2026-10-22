@@ -283,10 +283,10 @@ export const PaymentDetailsSection = ({
 
     const handleSaveRows = async () => {
         if (!ledgerId) return;
-        // A blank box would be sent as "unchanged" and the save would quietly do nothing.
-        const blank = editedRows.filter((r) => String(r.paid_amount ?? '').trim() === '' || !Number.isFinite(Number(r.paid_amount)));
-        if (blank.length) {
-            toast.error(`Customer Paid is empty for ${blank.map((r) => r.label || `Month ${r.month}`).join(', ')} — enter the amount (or 0) and save again.`, { duration: 8000 });
+        // Clearing Customer Paid explicitly removes the amount; send zero, never unchanged.
+        const invalid = editedRows.filter((r) => !Number.isFinite(Number(r.paid_amount)) || Number(r.paid_amount) < 0);
+        if (invalid.length) {
+            toast.error(`Customer Paid is invalid for ${invalid.map((r) => r.label || `Month ${r.month}`).join(', ')} — enter the amount (or 0) and save again.`, { duration: 8000 });
             return;
         }
         const token = Cookies.get('auth_token');
@@ -989,7 +989,7 @@ export const PaymentDetailsSection = ({
                                         Cancel
                                     </button>
                                     <span className="text-xs text-gray-400">
-                                        Enter in <strong>Customer Paid</strong> only what the customer actually paid for that month. Any extra automatically
+                                        Clear <strong>Customer Paid</strong> or enter 0 to remove a payment; its history stays in Daily Payments as Deleted. Enter only what the customer actually paid for that month. Any extra automatically
                                         moves to the next month that isn&apos;t already covered — the preview column shows exactly where it will land before you save.
                                     </span>
                                 </div>
