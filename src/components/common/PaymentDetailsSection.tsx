@@ -804,7 +804,9 @@ export const PaymentDetailsSection = ({
                                                                                             ? 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-200'
                                                                                             : 'bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
                                                                                 )}>
-                                                                                    {(inst.admin_edited && inst.payment_method) ? inst.payment_method : g.method}
+                                                                                    {/* The admin-picked row method only names an admin entry —
+                                                                                        a real QR / 1Bill / branch payment keeps its own channel. */}
+                                                                                    {(inst.admin_edited && inst.payment_method && /admin entry/i.test(g.method)) ? inst.payment_method : g.method}
                                                                                 </span>
                                                                                 <span className={cn('block whitespace-nowrap text-[10px]', g.uncounted ? 'font-bold text-orange-600 dark:text-orange-400' : 'font-normal text-gray-500 dark:text-gray-400')}>
                                                                                     {viaAmount(g)}{g.uncounted ? ' · not counted' : ''}
@@ -813,16 +815,15 @@ export const PaymentDetailsSection = ({
                                                                         ))}
                                                                     </td>
                                                                     <td className="px-4 py-2 align-top font-mono text-xs text-gray-700 dark:text-gray-300">
-                                                                        {groups.map((g, i) => {
-                                                                            // Payment records don't carry branch/recovery receipt IDs —
-                                                                            // the ledger row keeps its latest one.
-                                                                            const txn = g.txn || (i === groups.length - 1 ? inst.transaction_id : null);
-                                                                            return (
-                                                                                <div key={i} className={cn(line(i), 'whitespace-nowrap')}>
-                                                                                    {txn ? <TxnId value={txn} /> : '-'}
-                                                                                </div>
-                                                                            );
-                                                                        })}
+                                                                        {/* Each payment's own ID (paymentChannelsByMonth matches it from the
+                                                                            ledger history). Never the row's transaction_id — that is only the
+                                                                            last payment that touched the month, so it showed one payment's ID
+                                                                            on every other payment of the month. */}
+                                                                        {groups.map((g, i) => (
+                                                                            <div key={i} className={cn(line(i), 'whitespace-nowrap')}>
+                                                                                {g.txn ? <TxnId value={g.txn} /> : '-'}
+                                                                            </div>
+                                                                        ))}
                                                                     </td>
                                                                     <td className="px-4 py-2 align-top text-sm font-semibold text-slate-800 dark:text-slate-200">
                                                                         {groups.map((g, i) => (
