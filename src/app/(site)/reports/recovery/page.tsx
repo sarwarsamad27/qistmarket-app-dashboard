@@ -4,8 +4,9 @@ import { useEffect, useState, useMemo } from 'react'
 import Cookies from 'js-cookie'
 import Breadcrumb from '@/components/Breadcrumbs/Breadcrumb'
 import Loader from '@/components/common/Loader'
-import { Phone, User, Banknote, AlertCircle } from 'lucide-react'
+import { Phone, User, Banknote, AlertCircle, UserCheck } from 'lucide-react'
 import OutletSelector from '@/components/common/OutletSelector'
+import RecoveryOfficerSelector from '@/components/common/RecoveryOfficerSelector'
 import DateRangeFilter, { type DateRange } from '@/components/Accounts/DateRangeFilter'
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
@@ -18,20 +19,23 @@ interface RecoveryItem {
   total_amount: number
   total_paid: number
   balance: number
+  recovery_officer: string | null
 }
 
 export default function GlobalRecoveryReportPage() {
   const [loading, setLoading] = useState(true)
   const [data, setData] = useState<RecoveryItem[]>([])
   const [outletId, setOutletId] = useState('all')
+  const [officerId, setOfficerId] = useState('all')
   const [range, setRange] = useState<DateRange>({ from: '', to: '' })
   const token = useMemo(() => Cookies.get('auth_token'), [])
 
-  const fetchRecovery = async (selOutletId: string, r: DateRange) => {
+  const fetchRecovery = async (selOutletId: string, selOfficerId: string, r: DateRange) => {
     if (!token) return
     setLoading(true)
     try {
       const qs = new URLSearchParams({ outletId: selOutletId })
+      if (selOfficerId !== 'all') qs.set('recoveryOfficerId', selOfficerId)
       if (r.from) qs.set('startDate', r.from)
       if (r.to) qs.set('endDate', r.to)
       const res = await fetch(`${BACKEND_URL}/api/outlet-reports/recovery?${qs}`, {
@@ -49,8 +53,8 @@ export default function GlobalRecoveryReportPage() {
   }
 
   useEffect(() => {
-    fetchRecovery(outletId, range)
-  }, [outletId, range.from, range.to, token])
+    fetchRecovery(outletId, officerId, range)
+  }, [outletId, officerId, range.from, range.to, token])
 
   const totals = useMemo(() => {
     return data.reduce((acc, item) => ({
@@ -70,6 +74,7 @@ export default function GlobalRecoveryReportPage() {
         </div>
         <div className="flex flex-wrap items-center gap-4">
           <OutletSelector selectedId={outletId} onSelect={setOutletId} />
+          <RecoveryOfficerSelector selectedId={officerId} onSelect={setOfficerId} />
           <DateRangeFilter value={range} onChange={setRange} />
         </div>
       </div>
@@ -96,6 +101,7 @@ export default function GlobalRecoveryReportPage() {
                 <tr className="text-[11px] uppercase text-gray-400">
                   <th className="px-6 py-4 w-16">S.No</th>
                   <th className="px-6 py-4">Customer Information</th>
+                  <th className="px-6 py-4">Recovery Officer</th>
                   <th className="px-6 py-4">Order Ref</th>
                   <th className="px-6 py-4 text-right">Total</th>
                   <th className="px-6 py-4 text-right">Paid</th>
@@ -104,7 +110,7 @@ export default function GlobalRecoveryReportPage() {
               </thead>
               <tbody className="text-sm">
                 {data.length === 0 ? (
-                  <tr><td colSpan={6} className="px-6 py-10 text-center text-gray-500 flex flex-col items-center gap-2 font-medium">
+                  <tr><td colSpan={7} className="px-6 py-10 text-center text-gray-500 flex flex-col items-center gap-2 font-medium">
                     <AlertCircle className="h-8 w-8 text-gray-300" />
                     No credit exposure found for the selected criteria.
                   </td></tr>
@@ -122,6 +128,15 @@ export default function GlobalRecoveryReportPage() {
                           </span>
                         </div>
                       </td>
+                      <td className="px-6 py-4">
+                        {item.recovery_officer ? (
+                          <span className="flex items-center gap-1.5 text-purple-600 font-medium">
+                            <UserCheck className="h-3.5 w-3.5" /> {item.recovery_officer}
+                          </span>
+                        ) : (
+                          <span className="text-gray-400 text-xs">— Unassigned</span>
+                        )}
+                      </td>
                       <td className="px-6 py-4 font-mono font-medium">{item.order_ref}</td>
                       <td className="px-6 py-4 text-right">Rs. {item.total_amount.toLocaleString()}</td>
                       <td className="px-6 py-4 text-right text-emerald-600 font-medium">Rs. {item.total_paid.toLocaleString()}</td>
@@ -137,3 +152,4 @@ export default function GlobalRecoveryReportPage() {
     </>
   )
 }
+

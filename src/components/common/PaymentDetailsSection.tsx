@@ -655,7 +655,7 @@ export const PaymentDetailsSection = ({
                                 <span className="text-gray-600 dark:text-gray-400">Payment Progress</span>
                                 <span className="font-medium text-dark dark:text-white">
                                     {Math.round((paymentDetails.installment_plan.summary?.paid_installments /
-                                       paymentDetails.installment_plan.summary?.total_installments) * 100)}%
+                                        paymentDetails.installment_plan.summary?.total_installments) * 100)}%
                                 </span>
                             </div>
                             <div className="h-2 overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
@@ -663,7 +663,7 @@ export const PaymentDetailsSection = ({
                                     className="h-full rounded-full bg-primary transition-all duration-500"
                                     style={{
                                         width: `${(paymentDetails.installment_plan.summary?.paid_installments /
-                                                 paymentDetails.installment_plan.summary?.total_installments) * 100}%`
+                                            paymentDetails.installment_plan.summary?.total_installments) * 100}%`
                                     }}
                                 />
                             </div>
@@ -710,8 +710,8 @@ export const PaymentDetailsSection = ({
                                                 <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300">Payment Date</th>
                                                 <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300">Method</th>
                                                 {!isEditMode && <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300">Transaction ID</th>}
-                                                 <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300">Received By</th>
-                                                 <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300">Outlet</th>
+                                                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300">Received By</th>
+                                                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300">Outlet</th>
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-800">
