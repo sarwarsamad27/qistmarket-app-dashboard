@@ -10,6 +10,7 @@ import toast from "react-hot-toast";
 import Image from "next/image";
 import { User, FileText, DollarSign, Activity, Star, ClipboardList, Calendar, Upload, Search, Trash2, Download, ShoppingBag, Camera, RotateCcw, Pencil } from "lucide-react";
 import EmployeeAvatar from "@/components/EmployeePortal/EmployeeAvatar";
+import EmployeeBiometricSetup from "@/components/EmployeePortal/EmployeeBiometricSetup";
 import EmployeeOrders from "@/components/EmployeePortal/EmployeeOrders";
 import { apiErrorMessage } from "@/lib/apiErrors";
 import { roleLabel } from "@/lib/roleLabels";
@@ -332,6 +333,7 @@ export default function HrEmployeeDetailPage() {
         {/* PROFILE */}
         {tab === "profile" && (
           <div className="grid gap-6 lg:grid-cols-2">
+            <EmployeeBiometricSetup employeeId={id} outletId={employee.outlet_id} onUpdated={load} />
             <div className="rounded-xl border border-stroke bg-white p-6 dark:border-stroke-dark dark:bg-dark-2">
               <h2 className="mb-4 font-semibold">Personal Details</h2>
               <div className="space-y-3 text-sm">
