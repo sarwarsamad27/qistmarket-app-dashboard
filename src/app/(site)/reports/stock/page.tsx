@@ -83,6 +83,11 @@ export default function GlobalStockSummaryPage() {
     }), { total: 0, inStock: 0, sold: 0, valuation: 0 })
   }, [data])
 
+  // Sort by available quantity (inStock) descending — highest available comes first
+  const sortedData = useMemo(() => {
+    return [...data].sort((a, b) => b.inStock - a.inStock)
+  }, [data])
+
   return (
     <>
       <Breadcrumb pageName="Global Stock Summary" />
@@ -122,7 +127,7 @@ export default function GlobalStockSummaryPage() {
                 </tr>
               </thead>
               <tbody className="text-sm">
-                {data.map((item, idx) => {
+                {sortedData.map((item, idx) => {
                   const isExpanded = expanded.has(item.product)
                   // Available units first, then sold — same order as the outlet Stock List
                   const units = [...(item.units || [])].sort((a, b) =>
