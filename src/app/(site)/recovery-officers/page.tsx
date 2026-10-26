@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import Link from 'next/link';
 import { LIVE_RESYNC_EVENT } from "@/lib/liveEvents";
 import Cookies from 'js-cookie';
 import toast from 'react-hot-toast';
@@ -49,7 +50,7 @@ interface Officer {
     current_recovery: {
         id: number;
         status: string;
-        order: { order_ref: string; customer_name: string };
+        order: { id?: number; order_ref: string; customer_name: string };
     } | null;
     monthly_online_hours: string;
     profile_history: ProfileHistory[];
@@ -468,9 +469,14 @@ export default function RecoveryOfficersPage() {
                                                         : `Last seen: ${formatExactDate((selectedOfficer.last_known_location?.timestamp || ''))}`}
                                                 </p>
                                             </div>
-                                            <button className="w-full py-2.5 bg-primary text-white rounded-lg font-semibold hover:bg-primary/90 transition">
+                                            <a
+                                                href={`https://www.google.com/maps/search/?api=1&query=${(selectedOfficer.current_location || selectedOfficer.last_known_location)?.latitude},${(selectedOfficer.current_location || selectedOfficer.last_known_location)?.longitude}`}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="block w-full py-2.5 text-center bg-primary text-white rounded-lg font-semibold hover:bg-primary/90 transition"
+                                            >
                                                 View on Map
-                                            </button>
+                                            </a>
                                         </div>
                                     ) : (
                                         <div className="text-center py-10 text-gray-500">No location data</div>
@@ -494,9 +500,14 @@ export default function RecoveryOfficersPage() {
                                                 {selectedOfficer.current_recovery.order.customer_name}
                                             </h5>
                                             <p className="text-xs text-gray-500 mt-1">Payment/Installment Recovery</p>
-                                            <button className="mt-4 w-full py-2 border border-stroke dark:border-strokedark rounded-lg text-sm font-semibold hover:bg-gray-50 dark:hover:bg-meta-4 transition">
-                                                View Details
-                                            </button>
+                                            {selectedOfficer.current_recovery.order.id ? (
+                                                <Link
+                                                    href={`/orders/${selectedOfficer.current_recovery.order.id}`}
+                                                    className="block mt-4 w-full py-2 text-center border border-stroke dark:border-strokedark rounded-lg text-sm font-semibold hover:bg-gray-50 dark:hover:bg-meta-4 transition"
+                                                >
+                                                    View Details
+                                                </Link>
+                                            ) : null}
                                         </div>
                                     ) : (
                                         <div className="text-center py-10 text-gray-500 italic">No active task</div>

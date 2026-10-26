@@ -28,6 +28,7 @@ interface PaymentRow {
   deleted_at?: string | null;
   customer_name: string;
   customer_phone: string;
+  alternate_phone?: string | null;
   item: string;
   imei: string | null;
   amount: number;
@@ -114,13 +115,13 @@ export default function DailyPaymentsPage() {
   const handleDownload = () => {
     if (!rows.length) return toast.error("Nothing to download for these filters");
     const headers = [
-      "S.No", "Received Date & Time", "Customer Name", "Customer Number", "Item", "IMEI / Serial", "Amount",
+      "S.No", "Received Date & Time", "Customer Name", "Customer Number", "Alternate Number", "Item", "IMEI / Serial", "Amount",
       "Account Branch", "Method / Received At", "Collected By", "System Transaction ID", "1Bill / QR Transaction ID",
       "Partial / Fully Paid", "Payment For", "Installment Amount", "Installment Due Date", "Date of Purchase", "1Bill ID / QR ID", "Order Ref",
       "Edited", "Originally Entered", "Deleted (removed from ledger)",
     ];
     const body = rows.map((r, i) => [
-      i + 1, fmtDateTime(r.received_at), r.customer_name, r.customer_phone, r.item, r.imei || "", r.amount,
+      i + 1, fmtDateTime(r.received_at), r.customer_name, r.customer_phone || "", r.alternate_phone || "", r.item, r.imei || "", r.amount,
       r.account_branch || "", r.method, r.collected_by || "", r.system_txn_id, r.provider_txn_id || "",
       r.payment_status === "Full" ? "Fully Paid" : "Partial", r.payment_type === "advance" ? "Advance" : `Month ${r.month}`,
       r.installment_amount, fmtDate(r.due_date), fmtDate(r.purchase_date), r.bill_or_qr_id || "", r.order_ref,
@@ -128,9 +129,9 @@ export default function DailyPaymentsPage() {
       r.deleted ? `Deleted${r.deleted_by ? ` by ${r.deleted_by}` : ""}${r.deleted_at ? ` on ${fmtDateTime(r.deleted_at)}` : ""}` : "",
     ]);
     // Deleted receipts are listed but not part of the total, same as the page.
-    const totalRow = ["", "", "", "", "", "TOTAL", rows.filter((r) => !r.deleted).reduce((s, r) => s + r.amount, 0)];
+    const totalRow = ["", "", "", "", "", "", "TOTAL", rows.filter((r) => !r.deleted).reduce((s, r) => s + r.amount, 0)];
     const ws = XLSX.utils.aoa_to_sheet([headers, ...body, [], totalRow]);
-    ws["!cols"] = [6, 22, 24, 14, 30, 18, 12, 20, 34, 18, 24, 20, 14, 12, 14, 14, 14, 20, 22].map((wch) => ({ wch }));
+    ws["!cols"] = [6, 22, 24, 14, 14, 30, 18, 12, 20, 34, 18, 24, 20, 14, 12, 14, 14, 14, 20, 22].map((wch) => ({ wch }));
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Daily Payments");
     XLSX.writeFile(wb, `daily_payments_${periodLabel}.xlsx`);
@@ -275,6 +276,7 @@ export default function DailyPaymentsPage() {
                     </td>
                     <td className="max-w-[220px] px-3 py-3 text-gray-700 dark:text-gray-200">
                       <p className="truncate" title={r.item}>{r.item}</p>
+                      {r.imei && <p className="font-mono text-[11px] text-gray-500">IMEI: {r.imei}</p>}
                       <p className="text-xs text-gray-400">{r.payment_type === "advance" ? "Advance" : `Month ${r.month}`} · {r.order_ref}</p>
                     </td>
                     <td className={`whitespace-nowrap px-3 py-3 text-right font-bold tabular-nums ${r.deleted ? "text-gray-400 line-through" : "text-dark dark:text-white"}`}>{PKR(r.amount)}</td>
