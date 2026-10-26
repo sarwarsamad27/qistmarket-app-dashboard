@@ -69,9 +69,12 @@ type Props = {
     onPay: (order: OrderInstallment, installment: InstallmentRow) => void;
     selectedIds?: number[];
     onSelectRow?: (id: number) => void;
+    // Header checkbox: select every matching row across all pages.
+    allSelected?: boolean;
+    onSelectAll?: (checked: boolean) => void;
 };
 
-export default function InstallmentsTable({ data, onPay, selectedIds = [], onSelectRow }: Props) {
+export default function InstallmentsTable({ data, onPay, selectedIds = [], onSelectRow, allSelected, onSelectAll }: Props) {
     const [expandedRows, setExpandedRows] = useState<number[]>([]);
 
     const [qrModalOpen, setQrModalOpen] = useState(false);
@@ -161,8 +164,11 @@ export default function InstallmentsTable({ data, onPay, selectedIds = [], onSel
                                 <input
                                     type="checkbox"
                                     className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                    checked={onSelectAll ? !!allSelected : undefined}
                                     onChange={(e) => {
-                                        if (onSelectRow) {
+                                        if (onSelectAll) {
+                                            onSelectAll(e.target.checked);
+                                        } else if (onSelectRow) {
                                             data.forEach(order => {
                                                 if (e.target.checked && !selectedIds.includes(order.order_id)) {
                                                     onSelectRow(order.order_id);

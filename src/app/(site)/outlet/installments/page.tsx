@@ -433,24 +433,81 @@ function InstallmentsContent() {
         fetchInstallments();
     }, [pagination.page, debouncedSearch, activeTab, startDate, endDate, item, ptpStatus, lockStatus, roId, minAmount, maxAmount, minBalance, maxBalance]);
 
+    const filterParams = (): Record<string, string> => ({
+        search: debouncedSearch,
+        category: activeTab,
+        ...(startDate && { start_date: startDate }),
+        ...(endDate && { end_date: endDate }),
+        ...(item && { item }),
+        ...(ptpStatus && { ptp: ptpStatus }),
+        ...(lockStatus && { lock_status: lockStatus }),
+        ...(roId && { ro_id: roId }),
+        ...(minAmount && { min_amount: minAmount }),
+        ...(maxAmount && { max_amount: maxAmount }),
+        ...(minBalance && { min_balance: minBalance }),
+        ...(maxBalance && { max_balance: maxBalance }),
+    });
+
+    // Every row matching the current filters, across all pages — `data` only
+    // holds the visible page, so export / select-all must go back to the API.
+    const fetchAllRows = async (): Promise<any[]> => {
+        const rows: any[] = [];
+        let page = 1;
+        let totalPages = 1;
+        do {
+            const query = new URLSearchParams({ page: String(page), limit: '1000', ...filterParams() }).toString();
+            const res = await fetch(`${API_BASE}/api/outlet/installments/due-list?${query}`, { headers: getAuthHeaders() });
+            const result = await res.json();
+            if (!result.success) throw new Error(result.message || 'Failed to load installments');
+            rows.push(...result.data.installments);
+            totalPages = result.data.pagination?.totalPages || 1;
+            page++;
+        } while (page <= totalPages);
+        return rows;
+    };
+
+    const [exporting, setExporting] = useState(false);
+    // Selection or nothing selected → every matching row; otherwise only the
+    // selected ones (which may sit on other pages).
+    const loadRowsToExport = async (): Promise<any[]> => {
+        setExporting(true);
+        try {
+            const all = await fetchAllRows();
+            return selectedIds.length > 0 ? all.filter(r => selectedIds.includes(r.order_id)) : all;
+        } catch (e: any) {
+            alert(e?.message || 'Export failed');
+            return [];
+        } finally {
+            setExporting(false);
+        }
+    };
+
+    const allSelected = pagination.total > 0 && selectedIds.length >= pagination.total;
+    const toggleSelectAll = async (checked: boolean) => {
+        if (!checked) { setSelectedIds([]); return; }
+        setExporting(true);
+        try {
+            const all = await fetchAllRows();
+            setSelectedIds(all.map(r => r.order_id));
+        } catch (e: any) {
+            alert(e?.message || 'Could not select all');
+        } finally {
+            setExporting(false);
+        }
+    };
+
+    // A selection belongs to one filter set; drop it when the filters change.
+    useEffect(() => {
+        setSelectedIds([]);
+    }, [debouncedSearch, activeTab, startDate, endDate, item, ptpStatus, lockStatus, roId, minAmount, maxAmount, minBalance, maxBalance]);
+
     const fetchInstallments = async () => {
         const seq = ++fetchSeq.current;
         setLoading(true);
         try {
             const query = new URLSearchParams({
                 page: pagination.page.toString(),
-                search: debouncedSearch,
-                category: activeTab,
-                ...(startDate && { start_date: startDate }),
-                ...(endDate && { end_date: endDate }),
-                ...(item && { item }),
-                ...(ptpStatus && { ptp: ptpStatus }),
-                ...(lockStatus && { lock_status: lockStatus }),
-                ...(roId && { ro_id: roId }),
-                ...(minAmount && { min_amount: minAmount }),
-                ...(maxAmount && { max_amount: maxAmount }),
-                ...(minBalance && { min_balance: minBalance }),
-                ...(maxBalance && { max_balance: maxBalance }),
+                ...filterParams(),
             }).toString();
 
             const res = await fetch(`${API_BASE}/api/outlet/installments/due-list?${query}`, {
@@ -492,10 +549,8 @@ function InstallmentsContent() {
         );
     };
 
-    const exportToCSV = () => {
-        const rowsToExport = selectedIds.length > 0
-            ? data.filter(item => selectedIds.includes(item.order_id))
-            : data;
+    const exportToCSV = async () => {
+        const rowsToExport = await loadRowsToExport();
 
         if (rowsToExport.length === 0) return;
 
@@ -573,10 +628,8 @@ function InstallmentsContent() {
         document.body.removeChild(link);
     };
 
-    const exportToPDF = () => {
-        const rowsToExport = selectedIds.length > 0
-            ? data.filter(item => selectedIds.includes(item.order_id))
-            : data;
+    const exportToPDF = async () => {
+        const rowsToExport = await loadRowsToExport();
 
         if (rowsToExport.length === 0) return;
 
@@ -764,17 +817,19 @@ function InstallmentsContent() {
                 <div className="flex w-full lg:w-auto gap-2">
                     <button
                         onClick={exportToCSV}
+                        disabled={exporting}
                         className="flex-1 lg:flex-none px-6 py-3.5 rounded-2xl bg-gray-900 dark:bg-white dark:text-gray-900 text-white text-[10px] font-black uppercase tracking-widest hover:opacity-90 transition-all flex items-center justify-center gap-1.5 shadow-sm"
                     >
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
-                        CSV {selectedIds.length > 0 ? `(${selectedIds.length})` : ''}
+                        {exporting ? '...' : 'CSV'} {selectedIds.length > 0 ? `(${selectedIds.length})` : ''}
                     </button>
                     <button
                         onClick={exportToPDF}
+                        disabled={exporting}
                         className="flex-1 lg:flex-none px-6 py-3.5 rounded-2xl bg-red-600 dark:bg-red-600 text-white text-[10px] font-black uppercase tracking-widest hover:opacity-90 transition-all flex items-center justify-center gap-1.5 shadow-sm"
                     >
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>
-                        PDF {selectedIds.length > 0 ? `(${selectedIds.length})` : ''}
+                        {exporting ? '...' : 'PDF'} {selectedIds.length > 0 ? `(${selectedIds.length})` : ''}
                     </button>
                 </div>
             </div>
@@ -841,6 +896,8 @@ function InstallmentsContent() {
                         onPay={handlePayClick}
                         selectedIds={selectedIds}
                         onSelectRow={toggleRowSelection}
+                        allSelected={allSelected}
+                        onSelectAll={toggleSelectAll}
                     />
 
                     {/* Pagination */}
