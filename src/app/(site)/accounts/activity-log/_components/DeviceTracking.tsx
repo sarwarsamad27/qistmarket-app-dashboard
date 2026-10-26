@@ -8,6 +8,7 @@ import { TableSkeleton } from "@/components/Accounts/Skeleton";
 import ExportMenu from "@/components/Accounts/ExportMenu";
 import { deviceName } from "@/utils/deviceName";
 
+import { pktDay, pktDateTime } from "@/utils/pkt";
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
 
 interface Device { device: string; last_used: string; first_seen: string | null; is_new: boolean }
@@ -58,7 +59,7 @@ export default function DeviceTracking() {
               { header: "IPs", value: (u) => u.ips.join(", ") },
               { header: "Devices", value: (u) => u.devices.map((d) => deviceName(d.device)).join(", ") },
               { header: "New devices (7d)", value: (u) => u.new_devices, numeric: true },
-              { header: "Last login", value: (u) => (u.last_login ? new Date(u.last_login).toLocaleString() : "") },
+              { header: "Last login", value: (u) => (u.last_login ? pktDateTime(u.last_login) : "") },
             ]} getRows={() => data?.users || []} />
           ) : (
             <ExportMenu title="Device & IP tracking by IP" columns={[
@@ -67,7 +68,7 @@ export default function DeviceTracking() {
               { header: "Account count", value: (i) => i.user_count, numeric: true },
               { header: "Logins", value: (i) => i.logins, numeric: true },
               { header: "Failed", value: (i) => i.failed, numeric: true },
-              { header: "Last seen", value: (i) => new Date(i.last_seen).toLocaleString() },
+              { header: "Last seen", value: (i) => pktDateTime(i.last_seen) },
             ]} getRows={() => data?.ips || []} />
           )}
         </div>
@@ -88,7 +89,7 @@ export default function DeviceTracking() {
                       <td className={`px-4 py-3 text-right tabular-nums ${u.failed ? "font-semibold text-rose-600" : ""}`}>{u.failed}</td>
                       <td className="px-4 py-3 text-right tabular-nums">{u.ip_count}</td>
                       <td className="px-4 py-3 text-right tabular-nums">{u.device_count}{u.new_devices > 0 && <span className="ml-1.5 rounded-full bg-amber-50 px-1.5 py-0.5 text-[10px] font-bold text-amber-700 dark:bg-amber-500/10">{u.new_devices} new</span>}</td>
-                      <td className="px-4 py-3 text-xs text-gray-500">{u.last_login ? new Date(u.last_login).toLocaleString() : "—"}<p className="font-mono">{u.last_ip}</p></td>
+                      <td className="px-4 py-3 text-xs text-gray-500">{u.last_login ? pktDateTime(u.last_login) : "—"}<p className="font-mono">{u.last_ip}</p></td>
                     </tr>
                     {expanded === u.user_id && (
                       <tr className="bg-slate-50/60 dark:bg-white/5">
@@ -99,7 +100,7 @@ export default function DeviceTracking() {
                               <div key={i} className="flex flex-wrap items-center gap-2">
                                 <span className="font-semibold text-dark dark:text-white">{deviceName(d.device)}</span>
                                 {d.is_new && <span className="rounded-full bg-amber-50 px-1.5 py-0.5 text-[10px] font-bold text-amber-700">new this week</span>}
-                                <span className="text-gray-400">first seen {d.first_seen ? new Date(d.first_seen).toLocaleDateString() : "—"} · last used {new Date(d.last_used).toLocaleString()}</span>
+                                <span className="text-gray-400">first seen {d.first_seen ? pktDay(d.first_seen) : "—"} · last used {pktDateTime(d.last_used)}</span>
                                 <span className="w-full truncate text-[10px] text-gray-400" title={d.device}>{d.device}</span>
                               </div>
                             ))}
@@ -125,7 +126,7 @@ export default function DeviceTracking() {
                     <td className="px-4 py-3 text-xs text-gray-600 dark:text-gray-300"><span className={`mr-1.5 rounded-full px-1.5 py-0.5 text-[10px] font-bold ${i.user_count >= 3 ? "bg-amber-50 text-amber-700" : "bg-gray-100 text-gray-500"}`}>{i.user_count}</span>{i.users.slice(0, 8).join(", ")}{i.users.length > 8 ? "…" : ""}</td>
                     <td className="px-4 py-3 text-right tabular-nums">{i.logins}</td>
                     <td className={`px-4 py-3 text-right tabular-nums ${i.failed ? "font-semibold text-rose-600" : ""}`}>{i.failed}</td>
-                    <td className="px-4 py-3 text-xs text-gray-500">{new Date(i.last_seen).toLocaleString()}</td>
+                    <td className="px-4 py-3 text-xs text-gray-500">{pktDateTime(i.last_seen)}</td>
                   </tr>
                 ))}
               </tbody>

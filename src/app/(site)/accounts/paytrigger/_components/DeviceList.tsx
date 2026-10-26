@@ -11,9 +11,10 @@ import { PKR } from "@/components/Accounts/StatCard";
 import ExportMenu from "@/components/Accounts/ExportMenu";
 import { getErrorMessage } from "@/lib/apiErrors";
 
+import { pktDay } from "@/utils/pkt";
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
 const authHeaders = () => ({ Authorization: `Bearer ${Cookies.get("auth_token")}` });
-const day = (d?: string | null) => (d ? new Date(d).toLocaleDateString() : "—");
+const day = (d?: string | null) => pktDay(d);
 
 export type DeviceView = "locked" | "unlocked_overdue" | "locked_paid" | "ptp" | "offline" | "all";
 export interface DeviceRow {

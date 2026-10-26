@@ -20,9 +20,10 @@ import WarehousePanel from "./_components/WarehousePanel";
 import VendorAnalytics from "./_components/VendorAnalytics";
 import DeletedBadge, { askDeleteReason, deletedRowClass, SoftDeleted } from "@/components/common/DeletedBadge";
 
+import { pktDay } from "@/utils/pkt";
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
 const authHeaders = () => ({ Authorization: `Bearer ${Cookies.get("auth_token")}`, "Content-Type": "application/json" });
-const day = (d?: string | null) => (d ? new Date(d).toLocaleDateString() : "—");
+const day = (d?: string | null) => pktDay(d);
 
 const BUCKET_COLORS: Record<string, string> = { not_due: "text-slate-500", "0-30": "text-emerald-600", "31-60": "text-amber-600", "61-90": "text-orange-600", "90+": "text-rose-600" };
 

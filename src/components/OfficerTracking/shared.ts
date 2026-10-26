@@ -16,11 +16,11 @@ export const monthStart = () => pktMonthStart();
 
 export const fmtDateTime = (v?: string | null) =>
   v
-    ? new Date(v).toLocaleString("en-GB", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", hour12: true })
+    ? new Date(v).toLocaleString("en-GB", { timeZone: "Asia/Karachi", day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", hour12: true })
     : "—";
 
 export const fmtDate = (v?: string | null) =>
-  v ? new Date(v).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "—";
+  v ? new Date(v).toLocaleDateString("en-GB", { timeZone: "Asia/Karachi", day: "2-digit", month: "short", year: "numeric" }) : "—";
 
 export const fmtMinutes = (m?: number | null) => {
   if (m == null) return "—";

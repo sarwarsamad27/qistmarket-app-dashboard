@@ -9,9 +9,10 @@ import { PKR } from "@/components/Accounts/StatCard";
 import ExportMenu from "@/components/Accounts/ExportMenu";
 import { apiErrorMessage } from "@/lib/apiErrors";
 
+import { pktDay } from "@/utils/pkt";
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
 const authHeaders = () => ({ Authorization: `Bearer ${Cookies.get("auth_token")}`, "Content-Type": "application/json" });
-const day = (d?: string | null) => (d ? new Date(d).toLocaleDateString() : "—");
+const day = (d?: string | null) => pktDay(d);
 
 interface Line {
   id: number; line_no: number; txn_date: string; description: string | null; reference: string | null; debit: number; credit: number; balance: number | null;

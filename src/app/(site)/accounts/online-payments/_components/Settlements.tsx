@@ -14,9 +14,10 @@ import { apiErrorMessage } from "@/lib/apiErrors";
 import { pktDate } from '@/utils/pkt'
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
+import { pktDay, pktDateTime } from "@/utils/pkt";
 const authHeaders = () => ({ Authorization: `Bearer ${Cookies.get("auth_token")}`, "Content-Type": "application/json" });
 const ymd = (d: Date) => pktDate(d);
-const day = (d?: string | null) => (d ? new Date(d).toLocaleDateString() : "—");
+const day = (d?: string | null) => pktDay(d);
 
 interface DailyRow { date: string; channel: string; channel_label: string; count: number; amount: number; batched: number; settled: number; pending: number }
 interface Batch {
@@ -351,7 +352,7 @@ function BatchDetail({ id, onBack }: { id: number; onBack: () => void }) {
               {items.map((i, idx) => (
                 <tr key={i.id} className="border-t border-slate-100 dark:border-white/5"><td className="px-3 py-2 text-xs text-gray-500 tabular-nums">{idx + 1}</td>
                   <td className="px-3 py-2 font-mono text-xs">{i.gateway_txn_id}</td>
-                  <td className="px-3 py-2 text-xs text-gray-500">{i.txn_date ? new Date(i.txn_date).toLocaleString() : "—"}</td>
+                  <td className="px-3 py-2 text-xs text-gray-500">{i.txn_date ? pktDateTime(i.txn_date) : "—"}</td>
                   <td className="px-3 py-2 text-xs">{i.payer || i.consumer_number || "—"}</td>
                   <td className="px-3 py-2 text-right tabular-nums">{i.amount ? PKR(i.amount) : "—"}</td>
                   <td className="px-3 py-2 text-right tabular-nums">{i.sheet_amount !== null ? PKR(i.sheet_amount) : "—"}</td>

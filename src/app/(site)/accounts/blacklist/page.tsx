@@ -14,6 +14,7 @@ import { TableSkeleton } from "@/components/Accounts/Skeleton";
 import { PKR } from "@/components/Accounts/StatCard";
 import { apiErrorMessage, getErrorMessage } from "@/lib/apiErrors";
 
+import { pktDay, pktDateTime } from "@/utils/pkt";
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
 const authHeaders = () => ({ Authorization: `Bearer ${Cookies.get("auth_token")}`, "Content-Type": "application/json" });
 
@@ -413,7 +414,7 @@ export default function BlacklistPage() {
               <div key={p.id} className="flex flex-wrap items-start justify-between gap-3 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm dark:border-white/10 dark:bg-boxdark">
                 <div className="min-w-0 flex-1">
                   <p className="font-bold text-dark dark:text-white">{p.customer_name || "—"} <span className="font-mono text-xs font-normal text-gray-400">{p.cnic}</span></p>
-                  <p className="text-xs text-gray-500">{p.reason || "No reason given"} · requested by {p.created_by?.full_name || "—"} on {new Date(p.created_at).toLocaleDateString()}</p>
+                  <p className="text-xs text-gray-500">{p.reason || "No reason given"} · requested by {p.created_by?.full_name || "—"} on {pktDay(p.created_at)}</p>
                   {p.risk && (
                     <div className="mt-2 rounded-xl bg-slate-50 px-3 py-2 text-xs dark:bg-white/5">
                       <span className={`mr-2 rounded-full px-2 py-0.5 font-bold uppercase ${p.risk.tier === "high" ? "bg-rose-100 text-rose-700" : p.risk.tier === "medium" ? "bg-amber-100 text-amber-700" : "bg-emerald-100 text-emerald-700"}`}>{p.risk.tier} risk · {p.risk.score}</span>
@@ -437,7 +438,7 @@ export default function BlacklistPage() {
       {tab === "history" && history.length > 0 && (
         <div className="mb-3 flex justify-end">
           <ExportMenu title="Blacklist Action History" columns={[
-            { header: "Date", value: (h: HistoryRow) => new Date(h.created_at).toLocaleString() },
+            { header: "Date", value: (h: HistoryRow) => pktDateTime(h.created_at) },
             { header: "CNIC", value: (h) => h.cnic },
             { header: "Action", value: (h) => h.action },
             { header: "Reason type", value: (h) => h.reason_label || h.category || "" },
@@ -468,7 +469,7 @@ export default function BlacklistPage() {
               <tbody>
                 {history.map((h, idx) => (
                   <tr key={h.id} className="border-t border-slate-50 dark:border-white/5"><td className="px-4 py-3.5 text-gray-500 tabular-nums">{idx + 1}</td>
-                    <td className="px-4 py-3.5 text-gray-500">{new Date(h.created_at).toLocaleString()}</td>
+                    <td className="px-4 py-3.5 text-gray-500">{pktDateTime(h.created_at)}</td>
                     <td className="px-4 py-3.5 text-gray-600 dark:text-gray-300">{h.cnic}</td>
                     <td className="px-4 py-3.5">
                       <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${h.action === "blacklist" ? "bg-rose-50 text-rose-600 dark:bg-rose-500/10" : "bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10"}`}>

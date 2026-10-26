@@ -8,6 +8,7 @@ import { TableSkeleton, ChartSkeleton } from "@/components/Accounts/Skeleton";
 import { PKR } from "@/components/Accounts/StatCard";
 import ExportMenu from "@/components/Accounts/ExportMenu";
 
+import { pktDay } from "@/utils/pkt";
 const Chart = dynamic(() => import("react-apexcharts"), { ssr: false });
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
 
@@ -97,7 +98,7 @@ export default function VendorAnalytics({ onOpenLedger }: { onOpenLedger: (vendo
             { header: "Returns %", value: (v) => v.return_rate, numeric: true },
             { header: "Avg days to pay", value: (v) => v.avg_days_to_pay ?? "", numeric: true },
             { header: "Invoices", value: (v) => v.invoices, numeric: true },
-            { header: "Last purchase", value: (v) => (v.last_purchase ? new Date(v.last_purchase).toLocaleDateString() : "") },
+            { header: "Last purchase", value: (v) => (v.last_purchase ? pktDay(v.last_purchase) : "") },
           ]} getRows={() => data.vendors} />
         </div>
         <div className="max-h-[480px] overflow-auto">
@@ -118,7 +119,7 @@ export default function VendorAnalytics({ onOpenLedger }: { onOpenLedger: (vendo
                   <td className="px-4 py-2.5 text-right tabular-nums">{v.overdue > 0 ? <span className="font-semibold text-rose-600">{PKR(v.overdue)}</span> : "—"}</td>
                   <td className="px-4 py-2.5 text-right tabular-nums text-gray-600 dark:text-gray-300">{v.return_rate}%</td>
                   <td className="px-4 py-2.5 text-right tabular-nums text-gray-600 dark:text-gray-300">{v.avg_days_to_pay ?? "—"}</td>
-                  <td className="px-4 py-2.5 text-xs text-gray-500">{v.last_purchase ? new Date(v.last_purchase).toLocaleDateString() : "—"}</td>
+                  <td className="px-4 py-2.5 text-xs text-gray-500">{v.last_purchase ? pktDay(v.last_purchase) : "—"}</td>
                 </tr>
               ))}
             </tbody>

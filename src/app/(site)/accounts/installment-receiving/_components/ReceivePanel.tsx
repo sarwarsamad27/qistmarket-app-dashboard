@@ -9,9 +9,10 @@ import { TableSkeleton } from "@/components/Accounts/Skeleton";
 import { PKR } from "@/components/Accounts/StatCard";
 import { apiErrorMessage } from "@/lib/apiErrors";
 
+import { pktDay, pktDateTime } from "@/utils/pkt";
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
 const authHeaders = () => ({ Authorization: `Bearer ${Cookies.get("auth_token")}`, "Content-Type": "application/json" });
-const day = (d?: string | null) => (d ? new Date(d).toLocaleDateString() : "—");
+const day = (d?: string | null) => pktDay(d);
 
 interface Hit { order_id: number; order_ref: string; customer_name: string; whatsapp_number: string; product_name: string; outlet_name: string; status: string; is_delivered: boolean; has_ledger: boolean; remaining: number; overdue_amount: number; overdue_months: number; next_due_date: string | null; next_due_amount: number }
 interface Row { monthNumber: number; dueDate: string | null; dueAmount: number; paidAmount: number; remainingAmount: number; status: string; paidAt?: string | null }
@@ -216,7 +217,7 @@ export default function ReceivePanel({ initialOrderId, onReceived }: { initialOr
                     <div className="max-h-80 space-y-1.5 overflow-auto">
                       {acc.payments.length ? acc.payments.map((p) => (
                         <div key={p.id} className="flex justify-between gap-2 rounded-lg bg-slate-50 px-3 py-2 text-xs dark:bg-white/5">
-                          <div><p className="font-medium text-dark dark:text-white">{p.type === "installment" ? `Month ${p.month}` : p.type} · {p.method || "Cash"}{p.edited && <span className="ml-1.5 rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">EDITED</span>}</p><p className="text-gray-400">{new Date(p.paid_at).toLocaleString()}{p.collected_by ? ` · ${p.collected_by}` : ""}</p></div>
+                          <div><p className="font-medium text-dark dark:text-white">{p.type === "installment" ? `Month ${p.month}` : p.type} · {p.method || "Cash"}{p.edited && <span className="ml-1.5 rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">EDITED</span>}</p><p className="text-gray-400">{pktDateTime(p.paid_at)}{p.collected_by ? ` · ${p.collected_by}` : ""}</p></div>
                           <p className="font-bold tabular-nums text-emerald-600">{PKR(p.amount)}</p>
                         </div>
                       )) : <p className="text-xs text-gray-500">No payments yet.</p>}

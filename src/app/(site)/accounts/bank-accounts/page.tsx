@@ -16,6 +16,7 @@ import BankLedger from "./_components/BankLedger";
 import StatementImport from "./_components/StatementImport";
 import Reconciliation from "./_components/Reconciliation";
 
+import { pktDay } from "@/utils/pkt";
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
 
 interface BankAccount {
@@ -36,7 +37,7 @@ interface Statement { id: number; file_url: string; file_name: string | null; pe
 type TxnKind = "deposit" | "withdrawal" | "adjustment";
 
 const authHeaders = () => ({ Authorization: `Bearer ${Cookies.get("auth_token")}`, "Content-Type": "application/json" });
-const day = (d?: string | null) => (d ? new Date(d).toLocaleDateString() : "—");
+const day = (d?: string | null) => pktDay(d);
 
 const KIND_INFO: Record<TxnKind, { title: string; help: string; icon: any; color: string }> = {
   deposit: { title: "Record Deposit", help: "Money received into this account (cheque, cash deposited at the branch, transfer received). Outlet / Head Office cash deposits come through Deposit Requests instead.", icon: ArrowDownToLine, color: "bg-emerald-600" },

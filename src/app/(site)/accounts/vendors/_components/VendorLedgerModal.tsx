@@ -8,6 +8,7 @@ import ExportMenu from "@/components/Accounts/ExportMenu";
 import DateRangeFilter, { DateRange } from "@/components/Accounts/DateRangeFilter";
 import { TableSkeleton } from "@/components/Accounts/Skeleton";
 
+import { pktDay } from "@/utils/pkt";
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
 
 interface Entry { key: string; date: string; type: string; reference: string; details: string; outlet: string | null; debit: number; credit: number; balance: number; status?: string }
@@ -50,7 +51,7 @@ export default function VendorLedgerModal({ vendorId, onClose, onPay }: { vendor
             )}
             {data && (
               <ExportMenu title={`Vendor Ledger ${data.vendor.name}`} columns={[
-                { header: "Date", value: (e: Entry) => new Date(e.date).toLocaleDateString() },
+                { header: "Date", value: (e: Entry) => pktDay(e.date) },
                 { header: "Type", value: (e) => e.type },
                 { header: "Reference", value: (e) => e.reference },
                 { header: "Details", value: (e) => e.details },
@@ -90,7 +91,7 @@ export default function VendorLedgerModal({ vendorId, onClose, onPay }: { vendor
                   <tbody>
                     {data.entries.map((e, idx) => (
                       <tr key={e.key} className="border-t border-slate-50 dark:border-white/5"><td className="whitespace-nowrap px-3 py-2.5 text-xs text-gray-500 tabular-nums">{idx + 1}</td>
-                        <td className="whitespace-nowrap px-3 py-2.5 text-xs text-gray-500">{new Date(e.date).toLocaleDateString()}</td>
+                        <td className="whitespace-nowrap px-3 py-2.5 text-xs text-gray-500">{pktDay(e.date)}</td>
                         <td className="px-3 py-2.5"><span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${TYPE_STYLE[e.type] || "bg-gray-100 text-gray-600"}`}>{e.type}</span></td>
                         <td className="px-3 py-2.5 font-mono text-xs text-dark dark:text-white">{e.reference}</td>
                         <td className="max-w-[300px] px-3 py-2.5 text-xs text-gray-600 dark:text-gray-300">{e.details}</td>

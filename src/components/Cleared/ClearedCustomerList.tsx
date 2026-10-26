@@ -21,6 +21,7 @@ interface CustomerGroup {
   customer: any
   ledgerSummary: any
   orders: any[]
+  converted_sale?: { order_id: number; order_ref: string; status: string; created_at: string } | null
 }
 
 const fmt = (n: number) => `Rs. ${Number(n).toLocaleString()}`
@@ -168,6 +169,16 @@ const ClearedCustomerList = () => {
           >
             View Profile
           </button>
+          {row.original.converted_sale ? (
+            <button
+              onClick={() => router.push(`/orders/${row.original.converted_sale!.order_id}`)}
+              title="Open the sale made from this account"
+              className="flex flex-col items-start rounded-xl border border-blue-200 bg-blue-50 px-4 py-1.5 text-left transition-all hover:bg-blue-100 dark:border-blue-900/40 dark:bg-blue-900/20 whitespace-nowrap"
+            >
+              <span className="text-[9px] font-black uppercase tracking-widest text-blue-500">Already in Sale</span>
+              <span className="text-xs font-bold text-blue-700 underline dark:text-blue-300">{row.original.converted_sale.order_ref}</span>
+            </button>
+          ) : (
           <button
             onClick={() => {
               if (row.original.customer.is_blacklisted) return;
@@ -182,6 +193,7 @@ const ClearedCustomerList = () => {
           >
             Convert Sale
           </button>
+          )}
         </div>
       ),
     },

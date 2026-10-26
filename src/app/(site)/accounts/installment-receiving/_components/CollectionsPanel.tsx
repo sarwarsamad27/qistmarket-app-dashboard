@@ -12,6 +12,7 @@ import { pktDate } from '@/utils/pkt'
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
 
+import { pktDateTime } from "@/utils/pkt";
 interface Row { id: number; paid_at: string; order_id: number; order_ref: string; customer_name: string; outlet_name: string; month: number | null; amount: number; method: string; channel: string; collected_by: string; collector_role: string | null; at_head_office: boolean }
 interface Totals { count: number; amount: number; cash: number; online: number; bank: number; other: number }
 
@@ -63,7 +64,7 @@ export default function CollectionsPanel({ refreshKey }: { refreshKey: number })
         <div className="ml-auto">
           <ExportMenu title="Installment Collections" subtitle={`${range.from || "…"} to ${range.to || "…"}`} columns={[
             { header: "#", value: (_: Row, i) => i + 1 },
-            { header: "Date", value: (r) => new Date(r.paid_at).toLocaleString() },
+            { header: "Date", value: (r) => pktDateTime(r.paid_at) },
             { header: "Order", value: (r) => r.order_ref },
             { header: "Customer", value: (r) => r.customer_name },
             { header: "Outlet", value: (r) => r.outlet_name },
@@ -86,7 +87,7 @@ export default function CollectionsPanel({ refreshKey }: { refreshKey: number })
                 {rows.map((r, i) => (
                   <tr key={r.id} className="border-t border-slate-50 dark:border-white/5">
                     <td className="px-4 py-3 text-xs text-gray-400">{i + 1}</td>
-                    <td className="whitespace-nowrap px-4 py-3 text-xs text-gray-500">{new Date(r.paid_at).toLocaleString()}</td>
+                    <td className="whitespace-nowrap px-4 py-3 text-xs text-gray-500">{pktDateTime(r.paid_at)}</td>
                     <td className="px-4 py-3"><p className="font-medium text-dark dark:text-white">{r.customer_name}</p><p className="font-mono text-[11px] text-gray-400">{r.order_ref}</p></td>
                     <td className="px-4 py-3 text-gray-600 dark:text-gray-300">{r.outlet_name}</td>
                     <td className="px-4 py-3 text-gray-500">{r.month ?? "—"}</td>

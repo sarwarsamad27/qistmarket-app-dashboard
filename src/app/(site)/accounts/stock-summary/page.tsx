@@ -8,12 +8,13 @@ import PageHeader from "@/components/Accounts/PageHeader";
 import EmptyState from "@/components/Accounts/EmptyState";
 import StatCard, { PKR } from "@/components/Accounts/StatCard";
 import { TableSkeleton } from "@/components/Accounts/Skeleton";
-import ExportMenu from "@/components/Accounts/ExportMenu";
+import ExportMenu, { fetchAllPages } from "@/components/Accounts/ExportMenu";
 import DateRangeFilter, { DateRange } from "@/components/Accounts/DateRangeFilter";
 
+import { pktDay, pktDateTime } from "@/utils/pkt";
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
 const authHeaders = () => ({ Authorization: `Bearer ${Cookies.get("auth_token")}` });
-const day = (d?: string | null) => (d ? new Date(d).toLocaleDateString() : "—");
+const day = (d?: string | null) => pktDay(d);
 
 interface Item { id: number; outlet_id: number; outlet_name: string; is_warehouse: boolean; product_name: string; category: string | null; color_variant: string | null; imei_serial: string | null; quantity: number; purchase_price: number; sale_price: number | null; value: number; status: string; is_used: boolean; created_at: string; age_days: number }
 interface OutletSum { outlet_id: number; outlet_name: string; is_warehouse: boolean; units: number; value: number; products: number; aged_60: number }
@@ -108,11 +109,11 @@ export default function AccountsStockSummaryPage() {
     ]).finally(() => setReturnsLoading(false));
   }, [tab]);
 
-  const fetchAllTransfers = async () => {
-    const qs = new URLSearchParams({ page: "1", limit: "5000", ...(tFilter.status && { status: tFilter.status }), ...(tFilter.outletId && { outletId: tFilter.outletId }), ...(dTSearch.trim() && { search: dTSearch.trim() }), ...(tRange.from && { startDate: tRange.from }), ...(tRange.to && { endDate: tRange.to }) });
+  const fetchAllTransfers = () => fetchAllPages(async (p, limit) => {
+    const qs = new URLSearchParams({ page: String(p), limit: String(limit), ...(tFilter.status && { status: tFilter.status }), ...(tFilter.outletId && { outletId: tFilter.outletId }), ...(dTSearch.trim() && { search: dTSearch.trim() }), ...(tRange.from && { startDate: tRange.from }), ...(tRange.to && { endDate: tRange.to }) });
     const j = await (await fetch(`${BACKEND_URL}/api/accounts/stock/transfers?${qs}`, { headers: authHeaders() })).json();
     return (j.data || []) as Transfer[];
-  };
+  });
 
   const searchImei = async (e?: React.FormEvent, value?: string) => {
     e?.preventDefault();
@@ -246,7 +247,7 @@ export default function AccountsStockSummaryPage() {
             </div>
             <div className="ml-auto">
               <ExportMenu title="Stock Transfers" columns={[
-                { header: "Date", value: (t: Transfer) => new Date(t.created_at).toLocaleString() },
+                { header: "Date", value: (t: Transfer) => pktDateTime(t.created_at) },
                 { header: "Product", value: (t) => t.product_name },
                 { header: "IMEI", value: (t) => t.imei_serial || "" },
                 { header: "From", value: (t) => t.from },
@@ -264,7 +265,7 @@ export default function AccountsStockSummaryPage() {
                   <thead className={thead}><tr><th className="px-4 py-3">S.No</th><th className="px-4 py-3">Date</th><th className="px-4 py-3">Product</th><th className="px-4 py-3">IMEI</th><th className="px-4 py-3">From</th><th className="px-4 py-3">To</th><th className="px-4 py-3 text-right">Qty</th><th className="px-4 py-3">Status</th></tr></thead>
                   <tbody>{transfers.map((t, idx) => (
                     <tr key={t.id} className="border-t border-slate-50 dark:border-white/5"><td className="whitespace-nowrap px-4 py-3 text-xs text-gray-500 tabular-nums">{(tPage - 1) * 50 + idx + 1}</td>
-                      <td className="whitespace-nowrap px-4 py-3 text-xs text-gray-500">{new Date(t.created_at).toLocaleString()}</td>
+                      <td className="whitespace-nowrap px-4 py-3 text-xs text-gray-500">{pktDateTime(t.created_at)}</td>
                       <td className="px-4 py-3 font-medium text-dark dark:text-white">{t.product_name}</td>
                       <td className="px-4 py-3 font-mono text-xs">{t.imei_serial ? <button onClick={() => trackImei(t.imei_serial)} className="text-blue-600 hover:underline">{t.imei_serial}</button> : "—"}</td>
                       <td className="px-4 py-3 text-gray-600 dark:text-gray-300">{t.from}</td>
@@ -393,7 +394,7 @@ export default function AccountsStockSummaryPage() {
                 <div className="mb-3 flex items-center justify-between">
                   <h3 className="text-sm font-bold text-dark dark:text-white">History — “{timeline.query}”</h3>
                   <ExportMenu title={`IMEI history ${timeline.query}`} columns={[
-                    { header: "Date", value: (e: TimelineEvent) => (e.date ? new Date(e.date).toLocaleString() : "") },
+                    { header: "Date", value: (e: TimelineEvent) => (e.date ? pktDateTime(e.date) : "") },
                     { header: "Event", value: (e) => e.type },
                     { header: "IMEI", value: (e) => e.imei },
                     { header: "What", value: (e) => e.title },
@@ -407,7 +408,7 @@ export default function AccountsStockSummaryPage() {
                         <span className="absolute -left-1.5 mt-1.5 size-3 rounded-full border-2 border-white bg-[#ff3d3d] dark:border-boxdark" />
                         <div className="flex flex-wrap items-center gap-2">
                           <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${EVENT_STYLE[e.type] || "bg-gray-100 text-gray-600"}`}>{e.type}</span>
-                          <span className="text-xs text-gray-400">{e.date ? new Date(e.date).toLocaleString() : "—"}</span>
+                          <span className="text-xs text-gray-400">{e.date ? pktDateTime(e.date) : "—"}</span>
                         </div>
                         <p className="mt-0.5 text-sm font-medium text-dark dark:text-white">{e.title}</p>
                         <p className="text-xs text-gray-500">{e.detail}{e.imei && e.imei !== timeline.query ? ` · ${e.imei}` : ""}</p>

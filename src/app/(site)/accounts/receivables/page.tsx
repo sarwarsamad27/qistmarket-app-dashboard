@@ -13,9 +13,10 @@ import { PKR } from "@/components/Accounts/StatCard";
 import ExportMenu from "@/components/Accounts/ExportMenu";
 import DateRangeFilter, { type DateRange } from "@/components/Accounts/DateRangeFilter";
 
+import { pktDay } from "@/utils/pkt";
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
 const authHeaders = () => ({ Authorization: `Bearer ${Cookies.get("auth_token")}` });
-const day = (d?: string | null) => (d ? new Date(d).toLocaleDateString() : "—");
+const day = (d?: string | null) => pktDay(d);
 
 interface Account {
   order_id: number; order_ref: string; customer_name: string; whatsapp_number: string; product_name: string; outlet_id: number | null; outlet_name: string;

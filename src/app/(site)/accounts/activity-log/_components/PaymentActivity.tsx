@@ -7,7 +7,7 @@ import { Search, Wallet, ChevronLeft, ChevronRight, AlertTriangle } from "lucide
 import EmptyState from "@/components/Accounts/EmptyState";
 import { TableSkeleton } from "@/components/Accounts/Skeleton";
 import { PKR } from "@/components/Accounts/StatCard";
-import ExportMenu from "@/components/Accounts/ExportMenu";
+import ExportMenu, { fetchAllPages } from "@/components/Accounts/ExportMenu";
 import DateRangeFilter, { DateRange } from "@/components/Accounts/DateRangeFilter";
 import { formatExactDate } from "@/utils/dateUtils";
 
@@ -63,7 +63,7 @@ export default function PaymentActivity({ outlets }: { outlets: { id: number; na
   }, [dq, f, range, page]);
 
   const setFilter = (k: keyof typeof f, v: string) => { setF({ ...f, [k]: v }); setPage(1); };
-  const fetchAll = async () => (await (await fetch(`${BACKEND_URL}/api/accounts/audit/payments?${params(1, 5000)}`, { headers: authHeaders() })).json()).data as Payment[];
+  const fetchAll = () => fetchAllPages(async (p, limit) => ((await (await fetch(`${BACKEND_URL}/api/accounts/audit/payments?${params(p, limit)}`, { headers: authHeaders() })).json()).data || []) as Payment[]);
 
   return (
     <div className="space-y-4">

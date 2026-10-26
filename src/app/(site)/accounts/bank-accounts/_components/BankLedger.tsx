@@ -10,9 +10,10 @@ import ExportMenu, { ExportColumn } from "@/components/Accounts/ExportMenu";
 import DateRangeFilter, { DateRange } from "@/components/Accounts/DateRangeFilter";
 import { ListOrdered } from "lucide-react";
 
+import { pktDateTime } from "@/utils/pkt";
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
 const authHeaders = () => ({ Authorization: `Bearer ${Cookies.get("auth_token")}` });
-const fmt = (d?: string | null) => (d ? new Date(d).toLocaleString() : "—");
+const fmt = (d?: string | null) => pktDateTime(d);
 
 export interface LedgerRow {
   id: number;

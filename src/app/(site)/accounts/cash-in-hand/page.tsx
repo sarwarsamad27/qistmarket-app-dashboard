@@ -12,14 +12,15 @@ import PageHeader from "@/components/Accounts/PageHeader";
 import EmptyState from "@/components/Accounts/EmptyState";
 import { TableSkeleton } from "@/components/Accounts/Skeleton";
 import { PKR } from "@/components/Accounts/StatCard";
-import ExportMenu, { ExportColumn } from "@/components/Accounts/ExportMenu";
+import ExportMenu, { ExportColumn, fetchAllPages } from "@/components/Accounts/ExportMenu";
 import DateRangeFilter, { DateRange, inDateRange } from "@/components/Accounts/DateRangeFilter";
 import TransactionDetailModal from "@/components/Accounts/TransactionDetailModal";
 import { apiErrorMessage, getErrorMessage } from "@/lib/apiErrors";
 
+import { pktDay, pktDateTime } from "@/utils/pkt";
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
 const authHeaders = () => ({ Authorization: `Bearer ${Cookies.get("auth_token")}`, "Content-Type": "application/json" });
-const fmt = (d?: string | null) => (d ? new Date(d).toLocaleString() : "—");
+const fmt = (d?: string | null) => pktDateTime(d);
 
 interface CashEntry {
   id: number | string;
@@ -397,15 +398,15 @@ export default function CashInHandPage() {
     { header: "Accepted at", value: (s) => fmt(s.accepted_at) },
   ];
 
-  const fetchAllSubs = async () => {
+  const fetchAllSubs = () => fetchAllPages(async (p, limit) => {
     const qs = new URLSearchParams({
-      status: subStatus, page: "1", limit: "1000",
+      status: subStatus, page: String(p), limit: String(limit),
       ...(subRange.from && { startDate: subRange.from }), ...(subRange.to && { endDate: subRange.to }),
       ...(subOutlet && { outletId: subOutlet }), ...(subSearch.trim() && { search: subSearch.trim() }),
     });
     const j = await (await fetch(`${BACKEND_URL}/api/accounts/cash/submissions?${qs}`, { headers: authHeaders() })).json();
     return (j.data || []) as SubmissionRow[];
-  };
+  });
 
   const headline = [
     { key: "total" as const, label: "Total Cash In Hand", value: data?.totalCashInHand || 0, note: "Outlets + officers + Head Office", icon: Wallet, tone: "emerald" },
@@ -576,7 +577,7 @@ export default function CashInHandPage() {
                                             <td className="py-2 font-medium text-dark dark:text-white">{of.officer_name}</td>
                                             <td className="py-2 font-mono text-gray-500">{of.username || "—"}</td>
                                             <td className="py-2 text-gray-500">{of.role}</td>
-                                            <td className="py-2 text-gray-500">{of.oldest_entry ? new Date(of.oldest_entry).toLocaleDateString() : "—"}</td>
+                                            <td className="py-2 text-gray-500">{of.oldest_entry ? pktDay(of.oldest_entry) : "—"}</td>
                                             <td className="py-2 text-right tabular-nums text-gray-500">{of.count}</td>
                                             <td className="py-2 text-right font-bold tabular-nums text-amber-700">{PKR(of.pending)}</td>
                                           </tr>
@@ -621,7 +622,7 @@ export default function CashInHandPage() {
                   { header: "Role", value: (o) => o.role },
                   { header: "Outlet", value: (o) => o.outlet_name },
                   { header: "Unsubmitted entries", value: (o) => o.count },
-                  { header: "Oldest unsubmitted", value: (o) => (o.oldest_entry ? new Date(o.oldest_entry).toLocaleDateString() : "") },
+                  { header: "Oldest unsubmitted", value: (o) => (o.oldest_entry ? pktDay(o.oldest_entry) : "") },
                   { header: "Holding (PKR)", value: (o) => o.pending, numeric: true },
                 ]} getRows={() => filteredOfficers} />
               </div>
@@ -641,7 +642,7 @@ export default function CashInHandPage() {
                           <td className="px-4 py-3.5 font-mono text-xs text-gray-500">{o.username || "—"}</td>
                           <td className="px-4 py-3.5 text-gray-600 dark:text-gray-300">{o.role}</td>
                           <td className="px-4 py-3.5 text-gray-600 dark:text-gray-300">{o.outlet_name}</td>
-                          <td className="px-4 py-3.5 text-gray-500">{o.oldest_entry ? new Date(o.oldest_entry).toLocaleDateString() : "—"}</td>
+                          <td className="px-4 py-3.5 text-gray-500">{o.oldest_entry ? pktDay(o.oldest_entry) : "—"}</td>
                           <td className="px-4 py-3.5 text-right tabular-nums text-gray-600 dark:text-gray-300">{o.count}</td>
                           <td className="px-4 py-3.5 text-right font-bold tabular-nums text-amber-700">{PKR(o.pending)}</td>
                         </tr>

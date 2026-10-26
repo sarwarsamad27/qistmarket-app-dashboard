@@ -24,3 +24,23 @@ export const pktAddDays = (days: number): string => pktDate(Date.now() + days * 
  */
 export const pickedDay = (d: Date): string =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+
+/**
+ * dd/mm/yyyy of `d` in Pakistan time, for tables and exported files. A bare
+ * `toLocaleDateString()` follows the PC's own settings — mm/dd/yyyy on a US-set
+ * PC, and the wrong day near midnight on one not set to Pakistan time.
+ */
+export const pktDay = (d?: Date | string | number | null, empty = "—"): string => {
+  if (d === null || d === undefined || d === "") return empty;
+  const date = d instanceof Date ? d : new Date(d);
+  return isNaN(date.getTime()) ? empty : date.toLocaleDateString("en-GB", { timeZone: TZ });
+};
+
+/** dd/mm/yyyy, hh:mm am/pm of `d` in Pakistan time (see pktDay). */
+export const pktDateTime = (d?: Date | string | number | null, empty = "—"): string => {
+  if (d === null || d === undefined || d === "") return empty;
+  const date = d instanceof Date ? d : new Date(d);
+  return isNaN(date.getTime())
+    ? empty
+    : date.toLocaleString("en-GB", { timeZone: TZ, day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", hour12: true });
+};

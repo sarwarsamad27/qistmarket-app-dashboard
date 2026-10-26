@@ -9,12 +9,13 @@ import EmptyState from "@/components/Accounts/EmptyState";
 import { TableSkeleton } from "@/components/Accounts/Skeleton";
 import { formatExactDate } from "@/utils/dateUtils";
 import { roleLabel } from "@/lib/roleLabels";
-import ExportMenu, { ExportColumn } from "@/components/Accounts/ExportMenu";
+import ExportMenu, { ExportColumn, fetchAllPages } from "@/components/Accounts/ExportMenu";
 import DateRangeFilter, { DateRange } from "@/components/Accounts/DateRangeFilter";
 import DeviceTracking from "./_components/DeviceTracking";
 import PaymentActivity from "./_components/PaymentActivity";
 import { deviceName, isMobileApp } from "@/utils/deviceName";
 
+import { pktDateTime } from "@/utils/pkt";
 // IP + device, readable: "Mobile app" / "Windows · Chrome", raw string on hover.
 const DeviceCell = ({ ip, ua }: { ip: string | null; ua: string | null }) => (
   <>
@@ -29,7 +30,7 @@ const authHeaders = () => ({ Authorization: `Bearer ${Cookies.get("auth_token")}
 interface LogEntry { id: number; action: string; details: string; created_at: string; ip_address: string | null; device_info: string | null; user_name?: string; user: { username: string; full_name: string } | null; outlet: { name: string; code: string } | null }
 
 const LOG_COLUMNS: ExportColumn<LogEntry>[] = [
-  { header: "Date", value: (l) => new Date(l.created_at).toLocaleString() },
+  { header: "Date", value: (l) => pktDateTime(l.created_at) },
   { header: "Action", value: (l) => l.action },
   { header: "Details", value: (l) => l.details },
   { header: "User", value: (l) => l.user?.full_name || l.user_name || "" },
@@ -139,19 +140,19 @@ export default function ActivityLogPage() {
     if (range.to) params.set("endDate", range.to);
     return params;
   };
-  const fetchAllLogs = async () => {
-    const j = await (await fetch(`${BACKEND_URL}/api/accounts/activity-logs?${logParams(1, 5000)}`, { headers: authHeaders() })).json();
+  const fetchAllLogs = () => fetchAllPages(async (p, limit) => {
+    const j = await (await fetch(`${BACKEND_URL}/api/accounts/activity-logs?${logParams(p, limit)}`, { headers: authHeaders() })).json();
     return (j.logs || []) as LogEntry[];
-  };
-  const fetchAllLogins = async () => {
-    const params = new URLSearchParams({ limit: "5000" });
+  });
+  const fetchAllLogins = () => fetchAllPages(async (p, limit) => {
+    const params = new URLSearchParams({ page: String(p), limit: String(limit) });
     if (loginStatus) params.set("status", loginStatus);
     if (dLoginSearch) params.set("search", dLoginSearch);
     if (loginRange.from) params.set("startDate", loginRange.from);
     if (loginRange.to) params.set("endDate", loginRange.to);
     const j = await (await fetch(`${BACKEND_URL}/api/accounts/audit/login-history?${params}`, { headers: authHeaders() })).json();
     return (j.data || []) as LogEntry[];
-  };
+  });
 
   useEffect(() => {
     if (tab !== "all") return;

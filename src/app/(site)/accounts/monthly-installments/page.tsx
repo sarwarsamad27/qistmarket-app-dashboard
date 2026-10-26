@@ -19,9 +19,10 @@ import { pktDate } from '@/utils/pkt'
 
 const Chart = dynamic(() => import("react-apexcharts"), { ssr: false });
 
+import { pktDay } from "@/utils/pkt";
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
 const authHeaders = () => ({ Authorization: `Bearer ${Cookies.get("auth_token")}`, "Content-Type": "application/json" });
-const day = (d?: string | null) => (d ? new Date(d).toLocaleDateString() : "—");
+const day = (d?: string | null) => pktDay(d);
 
 interface MonthRow { month: string; label: string; due: number; paidOfDue: number; unpaidOfDue: number; recovered: number; target: number; isProjected?: boolean; recoveryPercentage: number; paidOfDuePercentage: number; targetPercentage: number | null }
 interface ScheduleRow { order_id: number; order_ref: string; customer_name: string; whatsapp_number: string; outlet_name: string; month_number: number; due_date: string; amount: number; paid: number; remaining: number; status: "paid" | "partial" | "unpaid" | "overdue"; paid_at: string | null }

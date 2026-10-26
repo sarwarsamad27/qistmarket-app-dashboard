@@ -18,6 +18,60 @@ export interface ExportColumn<T> {
 
 type Format = "xlsx" | "csv" | "pdf";
 
+/**
+ * jsPDF's built-in font is Latin-1 only: one "—" (or any character past U+00FF) in a
+ * string makes it write the whole cell as spaced-out garbage. Swap the common ones
+ * for plain equivalents and drop the rest.
+ */
+export const pdfText = (s: string) => s
+  .replace(/[‐-―−]/g, "-")
+  .replace(/[‘’‚]/g, "'")
+  .replace(/[“”„]/g, '"')
+  .replace(/…/g, "...")
+  .replace(/•/g, "·")
+  .replace(/₨/g, "Rs")
+  .replace(/[←-⇿]/g, "->")
+  .replace(/[^\x00-\xFF]/g, "");
+
+/**
+ * CSV opened in Excel turns digit strings into numbers: a phone loses its leading 0,
+ * an IMEI shows as 8.66863E+14 and a 16-digit 1Bill ID loses its last digit. Such
+ * values are written as ="…" so Excel keeps them as text.
+ */
+const csvCell = (raw: unknown) => {
+  if (typeof raw === "number") return String(raw);
+  const v = String(raw);
+  if (/^(0\d+|\+\d+|\d{11,})$/.test(v)) return `="${v}"`;
+  return /[",\r\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v;
+};
+export const toCsv = (rows: unknown[][]) =>
+  rows.map((r) => r.map((v) => csvCell(v === null || v === undefined ? "" : v)).join(",")).join("\r\n");
+
+/** Saves a CSV with a BOM so Excel reads Urdu / special characters as UTF-8. */
+export function downloadCsv(rows: unknown[][], fileName: string) {
+  const blob = new Blob(["﻿" + toCsv(rows)], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = fileName;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+/**
+ * Every row of a paged list, for an export: asks for page after page until one comes
+ * back short. A single "limit=5000" request silently cut the file off at 5000 rows.
+ */
+export async function fetchAllPages<T>(fetchPage: (page: number, limit: number) => Promise<T[]>, limit = 1000): Promise<T[]> {
+  const all: T[] = [];
+  for (let page = 1; page <= 500; page++) {
+    const rows = await fetchPage(page, limit);
+    all.push(...rows);
+    if (rows.length < limit) break;
+  }
+  return all;
+}
+
 const safeName = (s: string) => s.replace(/[^\w\- ]+/g, "").trim().replace(/\s+/g, "_") || "export";
 const stamp = () => pktDate();
 
@@ -32,14 +86,15 @@ export function exportRows<T>(format: Format, title: string, columns: ExportColu
   if (format === "pdf") {
     const doc = new jsPDF({ orientation: columns.length > 6 ? "landscape" : "portrait", unit: "pt", format: "a4" });
     doc.setFontSize(14);
-    doc.text(title, 40, 40);
+    doc.text(pdfText(title), 40, 40);
     doc.setFontSize(9);
     doc.setTextColor(110);
-    doc.text(`${subtitle ? `${subtitle} — ` : ""}Generated ${new Date().toLocaleString()} — ${rows.length} row(s)`, 40, 56);
+    const generated = new Date().toLocaleString("en-GB", { timeZone: "Asia/Karachi", day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", hour12: true });
+    doc.text(pdfText(`${subtitle ? `${subtitle} - ` : ""}Generated ${generated} - ${rows.length} row(s)`), 40, 56);
     autoTable(doc, {
       startY: 70,
-      head: [columns.map((c) => c.header)],
-      body: table.map((r) => r.map((v) => (typeof v === "number" ? v.toLocaleString("en-PK") : String(v)))),
+      head: [columns.map((c) => pdfText(c.header))],
+      body: table.map((r) => r.map((v) => (typeof v === "number" ? v.toLocaleString("en-PK") : pdfText(String(v))))),
       styles: { fontSize: 8, cellPadding: 4 },
       headStyles: { fillColor: [255, 61, 61] },
       columnStyles: Object.fromEntries(columns.map((c, i) => [i, c.numeric ? { halign: "right" } : {}])),
@@ -49,18 +104,11 @@ export function exportRows<T>(format: Format, title: string, columns: ExportColu
     return;
   }
 
-  const ws = XLSX.utils.aoa_to_sheet([columns.map((c) => c.header), ...table]);
   if (format === "csv") {
-    const csv = XLSX.utils.sheet_to_csv(ws);
-    const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `${fileBase}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+    downloadCsv([columns.map((c) => c.header), ...table], `${fileBase}.csv`);
     return;
   }
+  const ws = XLSX.utils.aoa_to_sheet([columns.map((c) => c.header), ...table]);
   ws["!cols"] = columns.map((c, i) => ({ wch: Math.min(48, Math.max(c.header.length, ...table.slice(0, 200).map((r) => String(r[i]).length)) + 2) }));
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, safeName(title).slice(0, 31));

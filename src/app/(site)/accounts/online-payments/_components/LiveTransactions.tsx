@@ -12,6 +12,7 @@ import DateRangeFilter, { DateRange } from "@/components/Accounts/DateRangeFilte
 import { pktDate } from '@/utils/pkt'
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
+import { pktDateTime } from "@/utils/pkt";
 const ymd = (d: Date) => pktDate(d);
 
 export interface OnlineTxn {
@@ -107,7 +108,7 @@ export default function LiveTransactions() {
         </div>
         <div className="ml-auto">
           <ExportMenu title="Online Payments" subtitle={`${range.from || "…"} to ${range.to || "…"}`} columns={[
-            { header: "Date / time", value: (t: OnlineTxn) => new Date(t.date).toLocaleString() },
+            { header: "Date / time", value: (t: OnlineTxn) => pktDateTime(t.date) },
             { header: "Channel", value: (t) => (t.channel === "1bill" ? "1Bill" : "SmartPay QR") },
             { header: "Gateway Txn ID", value: (t) => t.gateway_txn_id },
             { header: "Consumer no", value: (t) => t.consumer_number },
@@ -136,7 +137,7 @@ export default function LiveTransactions() {
                 {data.transactions.map((t, i) => (
                   <tr key={`${t.channel}-${t.log_id}`} className="border-t border-slate-50 dark:border-white/5">
                     <td className="px-4 py-3 text-xs text-gray-400">{i + 1}</td>
-                    <td className="whitespace-nowrap px-4 py-3 text-xs text-gray-500">{new Date(t.date).toLocaleString()}</td>
+                    <td className="whitespace-nowrap px-4 py-3 text-xs text-gray-500">{pktDateTime(t.date)}</td>
                     <td className="px-4 py-3"><span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${CHANNEL_STYLE[t.channel]}`}>{t.channel === "1bill" ? "1Bill" : "QR"}</span><p className="mt-0.5 font-mono text-[11px] text-gray-500">{t.gateway_txn_id}</p>{t.bank && <p className="text-[10px] text-gray-400">{t.bank}</p>}</td>
                     <td className="px-4 py-3"><p className="font-medium text-dark dark:text-white">{t.payer}</p><p className="font-mono text-[11px] text-gray-400">{t.consumer_number}{t.phone ? ` · ${t.phone}` : ""}</p></td>
                     <td className="px-4 py-3 text-xs text-gray-600 dark:text-gray-300">{data.purposes[t.purpose] || t.purpose}{t.order_ref && <p>{t.order_id ? <Link href={`/accounts/installment-receiving?order=${t.order_id}`} className="font-mono text-blue-600 hover:underline">{t.order_ref}</Link> : t.order_ref}</p>}{t.reference && <p className="font-mono text-gray-400">{t.reference}</p>}</td>

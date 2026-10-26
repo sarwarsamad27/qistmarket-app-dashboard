@@ -7,6 +7,7 @@ import Cookies from "js-cookie";
 import { ArrowLeft, ChevronDown, ChevronRight, Circle, Download, Radar, Search } from "lucide-react";
 import Breadcrumb from "@/components/Breadcrumbs/Breadcrumb";
 import EmptyState from "@/components/Accounts/EmptyState";
+import { downloadCsv } from "@/components/Accounts/ExportMenu";
 import { TableSkeleton } from "@/components/Accounts/Skeleton";
 import { apiErrorMessage } from "@/lib/apiErrors";
 import { ROLE_META, RoleKey, fmtRs, fmtDate, fmtDateTime, fmtMinutes, monthStart, today, isCompleteDate } from "./shared";
@@ -43,8 +44,8 @@ const When = ({ value }: { value?: string | null }) => {
   const d = new Date(value);
   return (
     <div className="whitespace-nowrap">
-      <p className="font-medium">{d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}</p>
-      <p className="text-xs text-gray-500">{d.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true })}</p>
+      <p className="font-medium">{d.toLocaleDateString("en-GB", { timeZone: "Asia/Karachi", day: "2-digit", month: "short", year: "numeric" })}</p>
+      <p className="text-xs text-gray-500">{d.toLocaleTimeString("en-US", { timeZone: "Asia/Karachi", hour: "2-digit", minute: "2-digit", hour12: true })}</p>
     </div>
   );
 };
@@ -291,15 +292,9 @@ function summaryCards(role: RoleKey, s: any): { label: string; value: string | n
 }
 
 function exportCsv(filename: string, tab: TabDef) {
-  const esc = (v: any) => `"${String(v ?? "").replace(/"/g, '""')}"`;
-  const header = tab.columns.map((c) => esc(c.label)).join(",");
-  const lines = tab.rows.map((r) => tab.columns.map((c) => esc(c.csv ? c.csv(r) : r[c.key])).join(","));
-  const blob = new Blob([[header, ...lines].join("\n")], { type: "text/csv;charset=utf-8" });
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(blob);
-  a.download = filename;
-  a.click();
-  URL.revokeObjectURL(a.href);
+  const header = tab.columns.map((c) => c.label);
+  const lines = tab.rows.map((r) => tab.columns.map((c) => (c.csv ? c.csv(r) : r[c.key])));
+  downloadCsv([header, ...lines], filename);
 }
 
 export default function OfficerTrackingDetail({ id, basePath }: { id: string; basePath: string }) {
