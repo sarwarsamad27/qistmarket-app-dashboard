@@ -83,9 +83,9 @@ export default function GlobalStockSummaryPage() {
     }), { total: 0, inStock: 0, sold: 0, valuation: 0 })
   }, [data])
 
-  // Sort by available quantity (inStock) descending — highest available comes first
+  // Sort by total stock descending — biggest stock comes first; ties broken by available
   const sortedData = useMemo(() => {
-    return [...data].sort((a, b) => b.inStock - a.inStock)
+    return [...data].sort((a, b) => b.total - a.total || b.inStock - a.inStock)
   }, [data])
 
   return (
