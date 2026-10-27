@@ -88,7 +88,7 @@ const rs = (n: number) => `Rs. ${Math.round(n).toLocaleString()}`;
 // How a month's money came in — same labels as Accounts → Daily Payments
 // (backend: accountsPaymentsController.paymentChannelsByMonth). Payments
 // through the same channel/person/outlet are folded into one line.
-type ReceivedVia = { amount: number; date: string; method: string; channel: 'qr' | '1bill' | 'branch'; collected_by: string | null; outlet: string | null; txn_id?: string | null; payment_id?: number | null; receipt_total?: number; uncounted?: boolean };
+type ReceivedVia = { amount: number; date: string; method: string; channel: 'qr' | '1bill' | 'branch'; collected_by: string | null; outlet: string | null; txn_id?: string | null; system_txn_id?: string | null; payment_id?: number | null; receipt_total?: number; uncounted?: boolean };
 // One line per payment: records of the same payment (same method + paid time, e.g.
 // one QR saved as two records, or a receipt split over months) are folded together.
 type ViaGroup = { method: string; channel: ReceivedVia['channel']; collected_by: string | null; outlet: string | null; date: string; amount: number; total: number; txn: string | null; uncounted: boolean };
@@ -99,7 +99,7 @@ const groupReceivedVia = (list?: ReceivedVia[]): ViaGroup[] => {
         if (g) g.amount += p.amount;
         else groups.push({
             method: p.method, channel: p.channel, collected_by: p.collected_by, outlet: p.outlet, date: p.date,
-            amount: p.amount, total: p.receipt_total ?? p.amount, txn: p.txn_id || null, uncounted: false,
+            amount: p.amount, total: p.receipt_total ?? p.amount, txn: p.txn_id || p.system_txn_id || null, uncounted: false,
         });
     }
     return groups;
@@ -872,7 +872,10 @@ export const PaymentDetailsSection = ({
                                                                     {inst.paid_amount > 0 ? (inst.payment_method || (isOnline ? 'Online Payment' : '-')) : '-'}
                                                                 </td>
                                                                 <td className="px-4 py-2 align-top font-mono text-xs text-gray-700 dark:text-gray-300">
-                                                                    {inst.paid_amount > 0 && inst.transaction_id ? <TxnId value={inst.transaction_id} /> : '-'}
+                                                                    {/* No payment record behind the month — fall back to its ledger id. */}
+                                                                    {inst.paid_amount > 0 && (inst.transaction_id || orderId)
+                                                                        ? <TxnId value={inst.transaction_id || `LDG-${orderId}-M${inst.month}`} />
+                                                                        : '-'}
                                                                 </td>
                                                                 <td className="px-4 py-2 text-sm font-semibold text-slate-800 dark:text-slate-200">
                                                                     {inst.paid_amount > 0
