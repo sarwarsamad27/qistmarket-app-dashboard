@@ -39,7 +39,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const loadUserFromToken = () => {
+  const loadUserFromToken = async (signal: AbortSignal) => {
     const token = Cookies.get("auth_token");
     if (token) {
       try {
@@ -53,17 +53,33 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           return;
         }
         setUser(decoded);
-        // A Sub Admin's pages can be changed by a Super Admin after login — pick up the
-        // current list (the backend enforces it either way; this keeps the menu in step).
-        if (decoded.is_sub_admin) {
-          fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/user/me`, { headers: { Authorization: `Bearer ${token}` } })
-            .then((r) => (r.ok ? r.json() : null))
-            .then((data) => {
-              if (data?.user && Array.isArray(data.user.sub_admin_pages)) {
-                setUser((prev) => (prev ? { ...prev, sub_admin_pages: data.user.sub_admin_pages } : prev));
-              }
-            })
-            .catch(() => {});
+        // Login tokens omit photos and can outlive profile edits by an admin.
+        // Hydrate every portal from the saved profile, keeping token role claims
+        // intact: /user/me returns a role object instead of the token's string.
+        try {
+          const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/user/me`, {
+            headers: { Authorization: `Bearer ${token}` },
+            cache: "no-store",
+            signal,
+          });
+          const data = response.ok ? await response.json() : null;
+          if (data?.user && !signal.aborted && Cookies.get("auth_token") === token) {
+            const profile = data.user;
+            setUser((prev) => prev?.id === decoded.id ? {
+              ...prev,
+              full_name: profile.full_name,
+              email: profile.email,
+              phone: profile.phone,
+              cnic: profile.cnic,
+              bio: profile.bio,
+              image: profile.image,
+              coverImage: profile.coverImage,
+              ...(Array.isArray(profile.sub_admin_pages)
+                ? { sub_admin_pages: profile.sub_admin_pages } : {}),
+            } : prev);
+          }
+        } catch {
+          // Keep the existing session if the profile request is unavailable.
         }
       } catch (error) {
         console.error("Invalid JWT token", error);
@@ -73,11 +89,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     } else {
       setUser(null);
     }
-    setLoading(false);
+    if (!signal.aborted) setLoading(false);
   };
 
   useEffect(() => {
-    loadUserFromToken();
+    const controller = new AbortController();
+    void loadUserFromToken(controller.signal);
+    return () => controller.abort();
   }, []);
 
   const updateUserLocally = (updatedData: Partial<User>) => {
