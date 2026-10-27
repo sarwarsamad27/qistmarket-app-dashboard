@@ -141,20 +141,12 @@ const ImageCropModal: React.FC<ImageCropModalProps> = ({
       setPanOffset({ x: 0, y: 0 });
       setZoom(100);
 
-      // Set default crop box based on target
-      if (target === "coverImage") {
-        setCropTypeState("wide");
-        const w = CANVAS_W - 40;
-        const h = Math.round(w / 3);
-        const y = Math.round((CANVAS_H - h) / 2);
-        setCropBox({ x: 20, y, w, h });
-      } else {
-        setCropTypeState("square");
-        const size = Math.min(CANVAS_W, CANVAS_H) - 60;
-        const x = Math.round((CANVAS_W - size) / 2);
-        const y = Math.round((CANVAS_H - size) / 2);
-        setCropBox({ x, y, w: size, h: size });
-      }
+      // Start with the entire image selected, without forcing an aspect ratio.
+      const fit = Math.min(CANVAS_W / img.naturalWidth, CANVAS_H / img.naturalHeight);
+      const w = img.naturalWidth * fit;
+      const h = img.naturalHeight * fit;
+      setCropTypeState("free");
+      setCropBox({ x: (CANVAS_W - w) / 2, y: (CANVAS_H - h) / 2, w, h });
     };
     img.src = src;
   }, [src, target]);
@@ -170,7 +162,7 @@ const ImageCropModal: React.FC<ImageCropModalProps> = ({
     ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
 
     // Draw image centered with zoom + pan
-    const scale = zoom / 100;
+    const scale = Math.min(CANVAS_W / img.naturalWidth, CANVAS_H / img.naturalHeight) * zoom / 100;
     const iw = img.naturalWidth * scale;
     const ih = img.naturalHeight * scale;
     const sx = (CANVAS_W - iw) / 2 + panRef.current.x * scale;
@@ -340,7 +332,7 @@ const ImageCropModal: React.FC<ImageCropModalProps> = ({
     const img = imgRef.current;
     if (!img || !target) return;
 
-    const scale = zoom / 100;
+    const scale = Math.min(CANVAS_W / img.naturalWidth, CANVAS_H / img.naturalHeight) * zoom / 100;
     const iw = img.naturalWidth * scale;
     const ih = img.naturalHeight * scale;
     const sx = (CANVAS_W - iw) / 2 + panRef.current.x * scale;
@@ -479,10 +471,11 @@ interface ImageUploadFieldProps {
   inputName: string;
   onFileSelect: (file: File, name: string) => void;
   onRemove: () => void;
+  onCrop: () => void;
 }
 
 const ImageUploadField: React.FC<ImageUploadFieldProps> = ({
-  label, type, preview, existingUrl, inputName, onFileSelect, onRemove,
+  label, type, preview, existingUrl, inputName, onFileSelect, onRemove, onCrop,
 }) => {
   const inputRef = useRef<HTMLInputElement>(null);
   const displaySrc = preview || existingUrl || null;
@@ -513,15 +506,15 @@ const ImageUploadField: React.FC<ImageUploadFieldProps> = ({
           {type === "cover" ? (
             <div className="h-[56px] w-[140px] overflow-hidden rounded-lg border border-stroke dark:border-dark-3 bg-gray-100 dark:bg-dark-3 flex items-center justify-center">
               {displaySrc ? (
-                <img src={displaySrc} alt="Cover" className="h-full w-full object-cover" />
+                <img src={displaySrc} alt="Cover" className="h-full w-full object-contain" />
               ) : (
                 <span className="text-xs text-gray-400">No photo</span>
               )}
             </div>
           ) : (
-            <div className="h-16 w-16 overflow-hidden rounded-full border-2 border-stroke dark:border-dark-3 bg-gray-100 dark:bg-dark-3 flex items-center justify-center">
+            <div className="h-16 w-16 overflow-hidden rounded-lg border-2 border-stroke dark:border-dark-3 bg-gray-100 dark:bg-dark-3 flex items-center justify-center">
               {displaySrc ? (
-                <img src={displaySrc} alt="Profile" className="h-full w-full object-cover" />
+                <img src={displaySrc} alt="Profile" className="h-full w-full object-contain" />
               ) : (
                 <span className="text-xs text-gray-400">No</span>
               )}
@@ -561,13 +554,13 @@ const ImageUploadField: React.FC<ImageUploadFieldProps> = ({
               </svg>
               {displaySrc ? "Change image" : "Upload image"}
             </button>
-            {displaySrc && (
+            {preview && (
               <button
                 type="button"
-                onClick={() => inputRef.current?.click()}
+                onClick={onCrop}
                 className="text-xs text-[#ff3d3d] hover:underline"
               >
-                Re-crop
+                Crop (optional)
               </button>
             )}
           </div>
@@ -710,17 +703,18 @@ const UsersTable = () => {
 
   // ── Image handlers ──────────────────────────────────────────────────────────
 
-  // Called when user picks a file — open crop modal
+  // Keep the original file; cropping is a separate, optional action.
   const handleFileSelect = (file: File, name: string) => {
     const reader = new FileReader();
     reader.onload = (e) => {
       const src = e.target?.result as string;
-      setPendingFile({ file, name });
-      setCropState({
-        open: true,
-        target: name as "image" | "coverImage",
-        src,
-      });
+      if (name === "image") {
+        setImagePreview(src);
+        setImageFile(file);
+      } else {
+        setCoverPreview(src);
+        setCoverImageFile(file);
+      }
     };
     reader.readAsDataURL(file);
   };
@@ -1266,6 +1260,7 @@ const UsersTable = () => {
             existingUrl={formData.coverImage}
             inputName="coverImage"
             onFileSelect={handleFileSelect}
+            onCrop={() => coverPreview && setCropState({ open: true, target: "coverImage", src: coverPreview })}
             onRemove={() => handleRemoveImage("coverImage")}
           />
 
@@ -1277,6 +1272,7 @@ const UsersTable = () => {
             existingUrl={formData.image}
             inputName="image"
             onFileSelect={handleFileSelect}
+            onCrop={() => imagePreview && setCropState({ open: true, target: "image", src: imagePreview })}
             onRemove={() => handleRemoveImage("image")}
           />
         </div>

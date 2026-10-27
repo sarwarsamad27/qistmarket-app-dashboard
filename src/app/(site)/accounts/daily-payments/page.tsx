@@ -38,8 +38,11 @@ interface PaymentRow {
   channel: "branch" | "qr" | "1bill";
   method: string;
   collected_by: string | null;
+  // THE Transaction ID — same one the order page's Installment Schedule shows.
+  transaction_id: string;
   system_txn_id: string;
   provider_txn_id: string | null;
+  cash_txn_id: string | null;
   payment_status: "Partial" | "Full";
   installment_amount: number;
   due_date: string | null;
@@ -116,13 +119,13 @@ export default function DailyPaymentsPage() {
     if (!rows.length) return toast.error("Nothing to download for these filters");
     const headers = [
       "S.No", "Received Date & Time", "Customer Name", "Customer Number", "Alternate Number", "Item", "IMEI / Serial", "Amount",
-      "Account Branch", "Method / Received At", "Collected By", "System Transaction ID", "1Bill / QR Transaction ID",
+      "Account Branch", "Method / Received At", "Collected By", "Transaction ID", "System Transaction ID", "Officer Cash Transaction ID",
       "Partial / Fully Paid", "Payment For", "Installment Amount", "Installment Due Date", "Date of Purchase", "1Bill ID / QR ID", "Order Ref",
       "Edited", "Originally Entered", "Deleted (removed from ledger)",
     ];
     const body = rows.map((r, i) => [
       i + 1, fmtDateTime(r.received_at), r.customer_name, r.customer_phone || "", r.alternate_phone || "", r.item, r.imei || "", r.amount,
-      r.account_branch || "", r.method, r.collected_by || "", r.system_txn_id, r.provider_txn_id || "",
+      r.account_branch || "", r.method, r.collected_by || "", r.transaction_id, r.system_txn_id, r.cash_txn_id || "",
       r.payment_status === "Full" ? "Fully Paid" : "Partial", r.payment_type === "advance" ? "Advance" : `Month ${r.month}`,
       r.installment_amount, fmtDate(r.due_date), fmtDate(r.purchase_date), r.bill_or_qr_id || "", r.order_ref,
       r.edited ? "Edited" : "", r.original_received_at ? fmtDateTime(r.original_received_at) : "",
@@ -286,8 +289,9 @@ export default function DailyPaymentsPage() {
                       {r.collected_by && <p className="mt-1 text-xs text-gray-400">by {r.collected_by}</p>}
                     </td>
                     <td className="px-3 py-3 font-mono text-xs">
-                      <p className="text-gray-700 dark:text-gray-200" title="System transaction ID">{r.system_txn_id}</p>
-                      {r.provider_txn_id && <p className="text-gray-400" title={r.channel === "qr" ? "QR transaction ID" : "1Bill transaction ID"}>{r.channel === "qr" ? "QR" : "1Bill"}: {r.provider_txn_id}</p>}
+                      <p className="text-gray-700 dark:text-gray-200" title="Transaction ID">{r.transaction_id}</p>
+                      {r.transaction_id !== r.system_txn_id && <p className="text-gray-400" title="System transaction ID">{r.system_txn_id}</p>}
+                      {r.cash_txn_id && <p className="text-gray-400" title="Officer cash transaction (Cash in Hand)">Cash: {r.cash_txn_id}</p>}
                     </td>
                     <td className="px-3 py-3">
                       <span className={`inline-block rounded-full px-2.5 py-1 text-xs font-bold ${r.payment_status === "Full" ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300" : "bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-300"}`}>

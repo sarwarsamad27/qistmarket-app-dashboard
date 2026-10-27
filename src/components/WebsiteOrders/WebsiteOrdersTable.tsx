@@ -18,7 +18,7 @@ import Loader from '@/components/common/Loader'
 import { cn } from '@/lib/utils'
 import { X, Check, AlertCircle } from 'lucide-react'
 import { formatExactDate } from "@/utils/dateUtils";
-import { getErrorMessage } from "@/lib/apiErrors";
+import { apiErrorMessage, getErrorMessage } from "@/lib/apiErrors";
 
 import { serialColumn } from '@/utils/serialColumn'
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL
@@ -46,6 +46,7 @@ export default function WebsiteOrdersTable() {
   const [orders, setOrders] = useState<WebsiteOrder[]>([])
   const [loading, setLoading] = useState(true)
   const [isPickingUp, setIsPickingUp] = useState(false)
+  const [pickupErrors, setPickupErrors] = useState<string[]>([])
   const [rowSelection, setRowSelection] = useState({})
   const [globalFilter, setGlobalFilter] = useState('')
   const [pagination, setPagination] = useState({
@@ -105,46 +106,52 @@ export default function WebsiteOrdersTable() {
 
   const handlePickup = async (ordersToPickup: WebsiteOrder[]) => {
     setIsPickingUp(true)
+    setPickupErrors([])
     const token = Cookies.get('auth_token')
 
     try {
       let successCount = 0
-      let failCount = 0
+      const failures: string[] = []
 
       for (const wo of ordersToPickup) {
-        const payload = {
-          customer_name: wo.fullName,
-          whatsapp_number: wo.phone,
-          alternate_contact: wo.alternativePhone || '',
-          address: wo.address,
-          city: wo.city,
-          area: wo.area,
-          product_name: wo.productName,
-          total_amount: wo.totalDealValue.toString(),
-          advance_amount: wo.advanceAmount.toString(),
-          monthly_amount: wo.monthlyAmount.toString(),
-          months: wo.months.toString(),
-          website_token_number: wo.tokenNumber
-        }
+        try {
+          const payload = {
+            customer_name: wo.fullName,
+            whatsapp_number: wo.phone,
+            alternate_contact: wo.alternativePhone || '',
+            address: wo.address,
+            city: wo.city,
+            area: wo.area,
+            product_name: wo.productName,
+            total_amount: wo.totalDealValue?.toString() ?? '',
+            advance_amount: wo.advanceAmount?.toString() ?? '',
+            monthly_amount: wo.monthlyAmount?.toString() ?? '',
+            months: wo.months?.toString() ?? '',
+            website_token_number: wo.tokenNumber
+          }
 
-        const res = await fetch(`${BACKEND_URL}/api/orders/website-pickup`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`
-          },
-          body: JSON.stringify(payload)
-        })
+          const res = await fetch(`${BACKEND_URL}/api/orders/website-pickup`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${token}`
+            },
+            body: JSON.stringify(payload)
+          })
 
-        if (res.ok) {
-          successCount++
-        } else {
-          failCount++
+          if (res.ok) {
+            successCount++
+          } else {
+            failures.push(`${wo.tokenNumber}: ${await apiErrorMessage(res)}`)
+          }
+        } catch (error) {
+          failures.push(`${wo.tokenNumber}: ${getErrorMessage(error, 'Unable to pick up this order.')}`)
         }
       }
 
       if (successCount > 0) toast.success(`${successCount} orders picked up!`)
-      if (failCount > 0) toast.error(`${failCount} orders failed.`)
+      setPickupErrors(failures)
+      if (failures.length > 0) toast.error(`${failures.length} orders failed. See the reasons below.`, { duration: 6000 })
 
       setPickupConfirmModal(null)
       setRowSelection({})
@@ -363,6 +370,15 @@ export default function WebsiteOrdersTable() {
           </div>
         </div>
       </div>
+
+      {pickupErrors.length > 0 && (
+        <div role="alert" className="mx-7.5 mb-4 rounded-lg border border-red-300 bg-red-50 p-4 text-sm text-red-800 dark:bg-red-950 dark:text-red-200">
+          <p className="font-semibold">Orders could not be picked up:</p>
+          <ul className="mt-2 list-disc space-y-1 pl-5">
+            {pickupErrors.map((message, index) => <li key={index}>{message}</li>)}
+          </ul>
+        </div>
+      )}
 
       {/* Table Body */}
       <div className="grid grid-cols-1 overflow-x-auto">
