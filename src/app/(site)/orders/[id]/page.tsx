@@ -9,6 +9,7 @@ import { Modal } from '@/components/Modal/Modal';
 import Loader from '@/components/common/Loader';
 import toast from "react-hot-toast";
 import { useAuth } from '../../../../../contexts/AuthContext';
+import AssignOutletControl from '@/components/common/AssignOutletControl';
 import DeliveredProductDetails from '@/components/common/DeliveredProductDetails';
 import RecoveryVisitDetails from '@/components/common/RecoveryVisitDetails';
 import { MediaCard } from '@/components/common/MediaCard';
@@ -301,8 +302,8 @@ interface Order {
     cancelled_reason?: string | null;
     postponed_feedback?: string | null;
     cancelled_at?: string | null;
-    created_by: { username: string; full_name: string } | null;
-    delivery_officer?: { username: string; full_name: string; id: number } | null;
+    created_by: { username: string; full_name: string; outlet?: { id: number; name: string } | null } | null;
+    delivery_officer?: { username: string; full_name: string; id: number; outlet?: { id: number; name: string } | null } | null;
     recovery_officer?: { username: string; full_name: string; id: number } | null;
     delivery_assigned_at?: string | null;
     recovery_assigned_at?: string | null;
@@ -386,6 +387,7 @@ export default function OrderDetailsPage() {
     const [savingReview, setSavingReview] = useState(false);
     const [deletingReviewId, setDeletingReviewId] = useState<number | null>(null);
     const { user } = useAuth();
+    const [changingOutlet, setChangingOutlet] = useState(false);
     // Fetch verification data for this order
     const fetchVerification = async () => {
         try {
@@ -1481,9 +1483,19 @@ export default function OrderDetailsPage() {
                         </div>
                         <div>
                             <p className="text-sm text-gray-500 dark:text-gray-400">Outlet</p>
-                            <p className="font-semibold">
+                            <p className={`font-semibold ${order.outlet ? '' : 'text-red-600'}`}>
                                 {order.outlet ? `${order.outlet.name}${order.outlet.code ? ` (${order.outlet.code})` : ''}` : 'Not Assigned'}
+                                {order.outlet && (user?.role === 'Super Admin' || user?.is_sub_admin) && !changingOutlet && (
+                                    <button onClick={() => setChangingOutlet(true)} className="ml-2 text-xs font-bold text-[#ff3d3d] hover:underline">Change</button>
+                                )}
                             </p>
+                            {(user?.role === 'Super Admin' || user?.is_sub_admin) && (!order.outlet || changingOutlet) && (
+                                <AssignOutletControl
+                                    orderId={order.id}
+                                    suggestedOutletId={order.outlet?.id ?? order.delivery_officer?.outlet?.id ?? order.created_by?.outlet?.id ?? null}
+                                    onAssigned={() => { setChangingOutlet(false); fetchOrder(); }}
+                                />
+                            )}
                         </div>
                         <div>
                             <p className="text-sm text-gray-500 dark:text-gray-400">Suggested Product Name</p>

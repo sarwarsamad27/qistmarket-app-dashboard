@@ -304,6 +304,12 @@ export const NAV_DATA = [
         items: [],
       },
       {
+        title: "Unassigned Accounts",
+        icon: Icons.UsersIcon,
+        url: "/admin/unassigned-accounts",
+        items: [],
+      },
+      {
         title: "EMI Calculator",
         icon: Icons.CalculatorIcon,
         url: "/admin/emi-calculator",
