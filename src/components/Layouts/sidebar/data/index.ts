@@ -298,6 +298,12 @@ export const NAV_DATA = [
         items: [],
       },
       {
+        title: "Installment View",
+        icon: Icons.Calendar,
+        url: "/admin/installment-view",
+        items: [],
+      },
+      {
         title: "EMI Calculator",
         icon: Icons.CalculatorIcon,
         url: "/admin/emi-calculator",

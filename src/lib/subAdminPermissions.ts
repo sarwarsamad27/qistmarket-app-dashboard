@@ -138,6 +138,7 @@ export const SUB_ADMIN_PAGE_CATALOG: SubAdminGroup[] = [
       { url: "/admin/recovery-management", title: "Recovery Management" },
       { url: "/admin/delivery-management", title: "Delivery Management" },
       { url: "/admin/installment-aging", title: "Installment Aging" },
+      { url: "/admin/installment-view", title: "Installment View" },
       { url: "/admin/emi-calculator", title: "EMI Calculator" },
       { url: "/admin/sales-targets", title: "Sales Targets" },
       { url: "/admin/field-ops", title: "Field Ops" },
@@ -161,7 +162,7 @@ const ORDER_PAGE_URLS = [
   "/", ...(SUB_ADMIN_PAGE_CATALOG.find((g) => g.group === "Orders")?.pages.map((p) => p.url) || []),
   "/admin/customers", "/admin/customers/blacklist", "/admin/customers/cleared",
   "/orders-for-approval", "/approved-order-list", "/recovery-orders", "/delivery-officers",
-  "/admin/command-center", "/admin/legacy-import/pending", "/admin/installment-aging", "/admin/recovery-management",
+  "/admin/command-center", "/admin/legacy-import/pending", "/admin/installment-aging", "/admin/installment-view", "/admin/recovery-management",
 ];
 
 export function isSubAdmin(user: any): boolean {

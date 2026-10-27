@@ -11,6 +11,8 @@ import EmptyState from "@/components/Accounts/EmptyState";
 import { StatCardSkeleton, ChartSkeleton, TableSkeleton } from "@/components/Accounts/Skeleton";
 import { PKR } from "@/components/Accounts/StatCard";
 import DateRangeFilter, { type DateRange } from "@/components/Accounts/DateRangeFilter";
+import Link from "next/link";
+import MethodBadges from "@/components/Accounts/MethodBadges";
 
 const Chart = dynamic(() => import("react-apexcharts"), { ssr: false });
 
@@ -42,6 +44,8 @@ interface AgingItem {
   daysOverdue: number;
   bucket: string;
   outstanding: number;
+  methods?: string[];
+  order_methods?: string[];
 }
 
 interface AgingBucketItem {
@@ -66,6 +70,7 @@ interface AgingOrder {
   officer_name: string;
   installments: AgingItem[];
   outstanding: number;
+  methods: string[];
   oldestDue: string;
   daysOverdue: number;
   bucket: string;
@@ -122,6 +127,7 @@ export default function InstallmentAgingPage() {
           officer_name: item.officer_name,
           installments: [],
           outstanding: 0,
+          methods: item.order_methods || [],
           oldestDue: item.dueDate,
           daysOverdue: item.daysOverdue,
           bucket: item.bucket,
@@ -139,7 +145,7 @@ export default function InstallmentAgingPage() {
     const q = search.trim().toLowerCase();
     if (!q) return orders;
     return orders.filter((o) =>
-      [o.order_ref, o.customer_name, o.outlet_name, o.officer_name, PKR(o.outstanding), String(o.outstanding)]
+      [o.order_ref, o.customer_name, o.outlet_name, o.officer_name, ...o.methods, PKR(o.outstanding), String(o.outstanding)]
         .some((v) => (v || "").toLowerCase().includes(q))
     );
   }, [orders, search]);
@@ -309,7 +315,7 @@ export default function InstallmentAgingPage() {
                 type="text"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search order ref, customer, outlet, officer..."
+                placeholder="Search order ref, customer, outlet, officer, method..."
                 className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2 pl-9 pr-3 text-sm text-dark outline-none transition focus:border-[#ff3d3d] focus:bg-white dark:border-white/10 dark:bg-dark-3 dark:text-white"
               />
             </div>
@@ -326,6 +332,7 @@ export default function InstallmentAgingPage() {
                   <th className="px-4 py-3 font-bold">Customer</th>
                   <th className="px-4 py-3 font-bold">Outlet</th>
                   <th className="px-4 py-3 font-bold">Officer</th>
+                  <th className="px-4 py-3 font-bold">Method</th>
                   <th className="px-4 py-3 text-center font-bold">Overdue Inst.</th>
                   <th className="px-4 py-3 font-bold">Oldest Due</th>
                   <th className="px-4 py-3 text-right font-bold">Days Overdue</th>
@@ -335,7 +342,7 @@ export default function InstallmentAgingPage() {
               <tbody>
                 {filteredOrders.length === 0 ? (
                   <tr>
-                    <td colSpan={9} className="px-4 py-10 text-center text-sm text-gray-400">No orders match &ldquo;{search}&rdquo;</td>
+                    <td colSpan={10} className="px-4 py-10 text-center text-sm text-gray-400">No orders match &ldquo;{search}&rdquo;</td>
                   </tr>
                 ) : (
                   filteredOrders.map((o, i) => {
@@ -350,12 +357,15 @@ export default function InstallmentAgingPage() {
                           <td className="px-4 py-3.5 font-semibold text-dark dark:text-white">
                             <span className="inline-flex items-center gap-1.5">
                               {open ? <ChevronDown className="size-3.5 text-gray-400" /> : <ChevronRight className="size-3.5 text-gray-400" />}
-                              {o.order_ref}
+                              <Link href={`/orders/${o.order_id}`} onClick={(e) => e.stopPropagation()} className="text-[#ff3d3d] hover:underline">
+                                {o.order_ref}
+                              </Link>
                             </span>
                           </td>
                           <td className="px-4 py-3.5 text-gray-600 dark:text-gray-300">{o.customer_name}</td>
                           <td className="px-4 py-3.5 text-gray-600 dark:text-gray-300">{o.outlet_name}</td>
                           <td className="px-4 py-3.5 text-gray-600 dark:text-gray-300">{o.officer_name}</td>
+                          <td className="px-4 py-3.5"><MethodBadges methods={o.methods} /></td>
                           <td className="px-4 py-3.5 text-center tabular-nums text-gray-600 dark:text-gray-300">{o.installments.length}</td>
                           <td className="px-4 py-3.5 text-gray-500">{new Date(o.oldestDue).toLocaleDateString()}</td>
                           <td className="px-4 py-3.5 text-right tabular-nums font-semibold" style={{ color: BUCKET_COLORS[o.bucket] }}>
@@ -368,6 +378,7 @@ export default function InstallmentAgingPage() {
                             <tr key={`${o.order_id}-${it.month}`} className="bg-slate-50/60 text-xs dark:bg-white/5">
                               <td />
                               <td colSpan={4} className="px-4 py-2 pl-10 text-gray-500">Month {it.month}</td>
+                              <td className="px-4 py-2"><MethodBadges methods={it.methods || []} empty="Not paid yet" /></td>
                               <td />
                               <td className="px-4 py-2 text-gray-500">{new Date(it.dueDate).toLocaleDateString()}</td>
                               <td className="px-4 py-2 text-right tabular-nums font-semibold" style={{ color: BUCKET_COLORS[it.bucket] }}>
