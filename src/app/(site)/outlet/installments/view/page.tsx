@@ -38,22 +38,15 @@ const getAuthHeaders = () => {
   return { Authorization: `Bearer ${token}`, "Content-Type": "application/json" };
 };
 
-const MONTHS_LIST = [
-  { value: 1, label: "January" },
-  { value: 2, label: "February" },
-  { value: 3, label: "March" },
-  { value: 4, label: "April" },
-  { value: 5, label: "May" },
-  { value: 6, label: "June" },
-  { value: 7, label: "July" },
-  { value: 8, label: "August" },
-  { value: 9, label: "September" },
-  { value: 10, label: "October" },
-  { value: 11, label: "November" },
-  { value: 12, label: "December" }
-];
-
-const YEARS_LIST = [2024, 2025, 2026, 2027, 2028];
+const ACCOUNT_CATEGORIES = [
+  ['all', 'All Accounts', 'This month: paid and unpaid installments'],
+  ['regular', 'Regular Accounts', 'Current installment only; no older arrears'],
+  ['fresh', 'Fresh Accounts', 'Due today or upcoming; no overdue installment'],
+  ['overdue', 'Overdue Accounts', '2+ unpaid installments due'],
+  ['blacklist', 'Blacklist Accounts', '3+ unpaid installments due'],
+  ['defaulter', 'Defaulter Accounts', '3+ due; no payment for 3 months'],
+  ['ptp', 'PTP Accounts', 'Accounts with a promise to pay'],
+] as const;
 
 function InstallmentsViewContent() {
   const searchParams = useSearchParams();
@@ -86,8 +79,13 @@ function InstallmentsViewContent() {
     min_balance: "",
     max_balance: ""
   });
-  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
-  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const selectedMonth = Number(pktDate(new Date()).slice(5, 7));
+  const selectedYear = Number(pktDate(new Date()).slice(0, 4));
+  const [categoryCounts, setCategoryCounts] = useState<Record<string, { customers: number }>>({});
+  const [agingPreset, setAgingPreset] = useState('all');
+  const [agingMin, setAgingMin] = useState('');
+  const [agingMax, setAgingMax] = useState('');
+  const [exporting, setExporting] = useState(false);
   const [page, setPage] = useState(1);
   const [limit] = useState(25);
 
@@ -243,6 +241,9 @@ function InstallmentsViewContent() {
         limit: limit.toString(),
         search: debouncedSearch,
         category,
+        view_rules: 'current',
+        aging_min: agingMin,
+        aging_max: agingMax,
         month: selectedMonth.toString(),
         year: selectedYear.toString(),
         ...(advFilters.item && { item: advFilters.item }),
@@ -264,6 +265,7 @@ function InstallmentsViewContent() {
       if (seq !== fetchSeq.current) return; // a newer search already went out
       if (resData.success) {
         setInstallments(resData.data.installments || []);
+        setCategoryCounts(resData.data.categories_summary || {});
         setStats(resData.data.stats || {
           totalDueThisMonth: 0,
           totalPaidThisMonth: 0,
@@ -290,30 +292,11 @@ function InstallmentsViewContent() {
     } finally {
       if (seq === fetchSeq.current) setLoading(false);
     }
-  }, [page, limit, debouncedSearch, category, selectedMonth, selectedYear, advFilters, colFilters.status]);
+  }, [page, limit, debouncedSearch, category, selectedMonth, selectedYear, advFilters, colFilters.status, agingMin, agingMax]);
 
   useEffect(() => {
     fetchInstallments();
   }, [fetchInstallments]);
-
-  // Reset page when filters change
-  const handleCategoryChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    setCategory(e.target.value as any);
-    setPage(1);
-    setSelectedRows([]);
-  };
-
-  const handleMonthChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    setSelectedMonth(parseInt(e.target.value));
-    setPage(1);
-    setSelectedRows([]);
-  };
-
-  const handleYearChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    setSelectedYear(parseInt(e.target.value));
-    setPage(1);
-    setSelectedRows([]);
-  };
 
   // Filter local rows using column-level advanced filters
   const filteredInstallments = installments.filter(inst => {
@@ -424,7 +407,9 @@ function InstallmentsViewContent() {
         row.order_ref || '',
         row.arrearsAmount || 0,
         row.smartpay_consumer_number || '',
-        row.status || ''
+        row.status || '',
+        row.agingDays ?? '',
+        row.dueInstallmentCount ?? 0
       ];
     });
   };
@@ -433,7 +418,7 @@ function InstallmentsViewContent() {
     "S No.", "Area", "Installment Due Date", "Date of Purchase", "Customer Name", "Contact No.", "Alternate No.",
     "G1. Name", "G1. No.", "G2. Name", "G2. Number", "Item", "Device Serial No.", "Installment Amount",
     "Due Amount", "Partial Payment", "Paid Date / History", "1Bill ID", "Installment Note", "Recovery Officer",
-    "Order Ref", "Arrears", "SmartPay Consumer No.", "Status"
+    "Order Ref", "Arrears", "SmartPay Consumer No.", "Status", "Aging (days)", "Due Installments"
   ];
 
   const exportPDF = (rowsToExport: any[], filename: string) => {
@@ -473,33 +458,34 @@ function InstallmentsViewContent() {
     XLSX.writeFile(workbook, `${filename}.xlsx`);
   };
 
-  const handleExportSelected = (type: 'pdf' | 'excel') => {
-    const selectedData = filteredInstallments.filter(inst => selectedRows.includes(getRowKey(inst)));
-    if (selectedData.length === 0) {
-      toast.error("Please select at least one row to export");
-      return;
-    }
-    const currentMonthLabel = MONTHS_LIST.find(m => m.value === selectedMonth)?.label || "Month";
-    const filename = `Installments_${currentMonthLabel}_${selectedYear}_Selected`;
-    
-    if (type === 'pdf') exportPDF(selectedData, filename);
-    else exportExcel(selectedData, filename);
-    
-    toast.success(`Successfully exported ${selectedData.length} records`);
-  };
-
-  const handleExportAll = (type: 'pdf' | 'excel') => {
-    if (filteredInstallments.length === 0) {
-      toast.error("No records found in the current view to export");
-      return;
-    }
-    const currentMonthLabel = MONTHS_LIST.find(m => m.value === selectedMonth)?.label || "Month";
-    const filename = `Installments_${currentMonthLabel}_${selectedYear}_All`;
-    
-    if (type === 'pdf') exportPDF(filteredInstallments, filename);
-    else exportExcel(filteredInstallments, filename);
-    
-    toast.success(`Successfully exported all ${filteredInstallments.length} records`);
+  const handleExportAll = async (type: 'pdf' | 'excel') => {
+    setExporting(true);
+    try {
+      const rows: any[] = [];
+      let exportPage = 1, totalPages = 1;
+      do {
+        const params = new URLSearchParams({
+          page: String(exportPage), limit: '1000', search: debouncedSearch,
+          category, view_rules: 'current', month: String(selectedMonth), year: String(selectedYear),
+          aging_min: agingMin, aging_max: agingMax, ...advFilters, status: colFilters.status,
+        });
+        const response = await fetch(`${API_BASE}/api/outlet/installments/due-list?${params}`, { headers: getAuthHeaders() });
+        const result = await response.json();
+        if (!response.ok || !result.success) throw new Error(result.message || 'Export failed');
+        rows.push(...result.data.installments);
+        totalPages = result.data.pagination.totalPages;
+        exportPage++;
+      } while (exportPage <= totalPages);
+      const matching = rows.filter(row => Object.entries(colFilters).every(([key, value]) =>
+        !value || key === 'status' || String(row[key] || '').toLowerCase().includes(value.toLowerCase())));
+      if (!matching.length) { toast.error('No matching accounts to export'); return; }
+      const filename = `Installments_${selectedYear}_${selectedMonth}_${category}`;
+      if (type === 'pdf') exportPDF(matching, filename);
+      else exportExcel(matching, filename);
+      toast.success(`Exported ${matching.length} accounts`);
+    } catch (error) {
+      toast.error(getErrorMessage(error, 'Export failed'));
+    } finally { setExporting(false); }
   };
 
   // Open Notes Modal
@@ -573,48 +559,6 @@ function InstallmentsViewContent() {
           </p>
         </div>
 
-        {/* Month Year Selector Controls */}
-        <div className="flex items-center gap-2.5 bg-white dark:bg-boxdark p-2 rounded-2xl shadow-sm border border-gray-100 dark:border-strokedark">
-          <Calendar className="h-4.5 w-4.5 text-gray-400 ml-1.5" />
-          <select
-            value={selectedMonth}
-            onChange={handleMonthChange}
-            className="bg-transparent border-0 text-xs font-black uppercase text-gray-500 dark:text-white focus:ring-0 cursor-pointer py-1"
-          >
-            {MONTHS_LIST.map(m => (
-              <option key={m.value} value={m.value} className="bg-white dark:bg-boxdark text-slate-800 dark:text-white">
-                {m.label}
-              </option>
-            ))}
-          </select>
-          <span className="text-gray-200 dark:text-slate-700">|</span>
-          <select
-            value={selectedYear}
-            onChange={handleYearChange}
-            className="bg-transparent border-0 text-xs font-black uppercase text-gray-500 dark:text-white focus:ring-0 cursor-pointer py-1 mr-1.5"
-          >
-            {YEARS_LIST.map(y => (
-              <option key={y} value={y} className="bg-white dark:bg-boxdark text-slate-800 dark:text-white">
-                {y}
-              </option>
-            ))}
-          </select>
-          <span className="text-gray-200 dark:text-slate-700">|</span>
-          <select
-            value={category}
-            onChange={handleCategoryChange}
-            className="bg-transparent border-0 text-xs font-black uppercase text-[#E31E24] focus:ring-0 cursor-pointer py-1"
-          >
-            <option value="all">All Accounts</option>
-            <option value="impacted">Impacted Accounts (All Overdue)</option>
-            <option value="regular">Regular Accounts</option>
-            <option value="fresh">Fresh Accounts</option>
-            <option value="overdue">Overdue Accounts</option>
-            <option value="blacklist">Blacklist Accounts</option>
-            <option value="defaulter">Defaulter Accounts</option>
-            <option value="ptp">PTP Accounts</option>
-          </select>
-        </div>
       </div>
 
       {/* STATISTICS CARDS SECTION */}
@@ -645,20 +589,6 @@ function InstallmentsViewContent() {
             </div>
           </div>
           <div className="absolute bottom-0 left-0 h-1 w-full bg-emerald-500/20" />
-        </div>
-
-        <div className="relative overflow-hidden rounded-2xl border border-gray-100 bg-white p-6 shadow-xl shadow-gray-100/50 dark:bg-boxdark dark:border-strokedark">
-          <div className="flex justify-between items-start">
-            <div>
-              <p className="text-[9px] font-black uppercase tracking-widest text-gray-400">Down Payment Collected</p>
-              <h3 className="mt-2 text-xl font-black text-slate-800 dark:text-white">Rs. {displayedMonthsCollectedAdvance.toLocaleString()}</h3>
-              <p className="mt-1 text-[9px] text-gray-400">Advance/down payment only</p>
-            </div>
-            <div className="rounded-xl bg-purple-50 p-2.5 text-purple-600 dark:bg-purple-500/10 dark:text-purple-400">
-              <Receipt className="h-5 w-5" />
-            </div>
-          </div>
-          <div className="absolute bottom-0 left-0 h-1 w-full bg-purple-500/20" />
         </div>
 
         <div className="relative overflow-hidden rounded-2xl border border-gray-100 bg-white p-6 shadow-xl shadow-gray-100/50 dark:bg-boxdark dark:border-strokedark">
@@ -729,6 +659,38 @@ function InstallmentsViewContent() {
 
       </div>
 
+      <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-7" aria-label="Account categories">
+        {ACCOUNT_CATEGORIES.map(([id, label, detail]) => (
+          <button key={id} type="button" aria-pressed={category === id}
+            onClick={() => { setCategory(id); setPage(1); setSelectedRows([]); }}
+            className={`rounded-2xl border p-4 text-left transition-colors ${category === id ? 'border-[#E31E24] bg-red-50 text-[#E31E24] dark:bg-red-950/20' : 'border-gray-100 bg-white text-slate-700 dark:bg-boxdark dark:text-white dark:border-strokedark'}`}>
+            <span className="block text-xs font-bold">{label}</span>
+            <span className="my-2 block text-2xl font-black">{categoryCounts[id]?.customers ?? 0}</span>
+            <span className="block text-[10px] leading-relaxed">{detail}</span>
+          </button>
+        ))}
+      </div>
+      <div className="mb-5 flex flex-wrap items-end gap-3 rounded-2xl bg-white p-4 dark:bg-boxdark">
+        <label className="text-xs font-bold">Installment aging
+          <select value={agingPreset} onChange={e => {
+            const value = e.target.value; setAgingPreset(value); setPage(1); setSelectedRows([]);
+            const ranges: Record<string, [string, string]> = { all: ['', ''], due10: ['-10', '-1'], due20: ['-20', '-1'], due30: ['-30', '-1'], upcoming10: ['0', '10'], upcoming20: ['0', '20'], upcoming30: ['0', '30'], custom: ['', ''] };
+            const [min, max] = ranges[value]; setAgingMin(min); setAgingMax(max);
+          }} className="ml-3 rounded-lg border border-gray-200 bg-transparent p-2 dark:border-strokedark">
+            <option value="all">All aging</option>
+            <option value="due10">Overdue 1-10 days</option><option value="due20">Overdue 1-20 days</option><option value="due30">Overdue 1-30 days</option>
+            <option value="upcoming10">Due in 0-10 days</option><option value="upcoming20">Due in 0-20 days</option><option value="upcoming30">Due in 0-30 days</option>
+            <option value="custom">Custom days</option>
+          </select>
+        </label>
+        {agingPreset === 'custom' && <>
+          <label className="text-xs">From days<input type="number" value={agingMin} onChange={e => { setAgingMin(e.target.value); setPage(1); setSelectedRows([]); }} className="ml-2 w-24 rounded-lg border bg-transparent p-2" placeholder="-20" /></label>
+          <label className="text-xs">To days<input type="number" value={agingMax} onChange={e => { setAgingMax(e.target.value); setPage(1); setSelectedRows([]); }} className="ml-2 w-24 rounded-lg border bg-transparent p-2" placeholder="10" /></label>
+          {agingMin !== '' && agingMax !== '' && Number(agingMin) > Number(agingMax) && <span role="alert" className="text-xs text-red-600">From must be less than or equal to To.</span>}
+        </>}
+        <p className="w-full text-xs text-gray-400">Aging uses the oldest unpaid installment: + days until due, - days overdue, 0 due today. Categories can overlap.</p>
+      </div>
+
       {/* FILTER TABS & CONTROL ACTIONS */}
       <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between bg-white dark:bg-boxdark px-4 py-2.5 rounded-3xl shadow-sm border border-gray-100 dark:border-strokedark">
 
@@ -783,32 +745,15 @@ function InstallmentsViewContent() {
 
           <div className="flex gap-1.5 items-center">
             <button
-              onClick={() => handleExportSelected('pdf')}
-              disabled={selectedRows.length === 0}
-              className="flex items-center gap-1.5 rounded-l-2xl border border-gray-100 dark:border-strokedark bg-white dark:bg-boxdark hover:bg-gray-50 px-3 py-2.5 text-[10px] font-black uppercase tracking-wider text-gray-600 dark:text-white disabled:opacity-40 transition-all cursor-pointer"
-              title="Export Selected to PDF"
-            >
-              <FileDown className="h-4 w-4 text-[#E31E24]" /> PDF ({selectedRows.length})
-            </button>
-            <button
-              onClick={() => handleExportSelected('excel')}
-              disabled={selectedRows.length === 0}
-              className="flex items-center gap-1.5 rounded-r-2xl border border-l-0 border-gray-100 dark:border-strokedark bg-white dark:bg-boxdark hover:bg-gray-50 px-3 py-2.5 text-[10px] font-black uppercase tracking-wider text-gray-600 dark:text-white disabled:opacity-40 transition-all cursor-pointer"
-              title="Export Selected to Excel"
-            >
-              <FileSpreadsheet className="h-4 w-4 text-emerald-600" /> Excel ({selectedRows.length})
-            </button>
-          </div>
-
-          <div className="flex gap-1.5 items-center">
-            <button
               onClick={() => handleExportAll('pdf')}
+              disabled={exporting || loading}
               className="flex items-center gap-1.5 rounded-l-2xl bg-[#E31E24] hover:bg-[#c7161c] px-3 py-2.5 text-[10px] font-black uppercase tracking-wider text-white shadow-sm hover:shadow-md transition-all cursor-pointer border-r border-[#c7161c]"
             >
               <FileDown className="h-4 w-4" /> All PDF
             </button>
             <button
               onClick={() => handleExportAll('excel')}
+              disabled={exporting || loading}
               className="flex items-center gap-1.5 rounded-r-2xl bg-[#E31E24] hover:bg-[#c7161c] px-3 py-2.5 text-[10px] font-black uppercase tracking-wider text-white shadow-sm hover:shadow-md transition-all cursor-pointer"
             >
               <FileSpreadsheet className="h-4 w-4" /> All Excel
@@ -1138,7 +1083,12 @@ function InstallmentsViewContent() {
                       </td>
                       <td className="px-3 py-3.5 text-center font-black text-gray-300">{(page - 1) * limit + index + 1}</td>
                       <td className="px-4 py-3.5 font-medium">{inst.area}</td>
-                      <td className="px-4 py-3.5 font-bold text-gray-700 dark:text-slate-300">{dueDateStr}</td>
+                      <td className="px-4 py-3.5 font-bold text-gray-700 dark:text-slate-300">{dueDateStr}
+                        <div className={`mt-1 text-xs ${inst.agingDays < 0 ? 'text-red-600' : 'text-emerald-600'}`}>
+                          {inst.agingDays === null ? 'Paid' : inst.agingDays === 0 ? 'Due today' : `${inst.agingDays > 0 ? '+' : ''}${inst.agingDays} days`}
+                        </div>
+                        <div className="mt-1 text-[10px] text-gray-400">{inst.dueInstallmentCount} due installments</div>
+                      </td>
                       <td className="px-4 py-3.5 font-semibold text-gray-600">{purchaseDateStr}</td>
                       <td className="px-4 py-3.5 font-black text-slate-800 dark:text-slate-200">{inst.customer_name}</td>
                       <td className="px-4 py-3.5 font-semibold text-gray-700">{inst.whatsapp_number}</td>
