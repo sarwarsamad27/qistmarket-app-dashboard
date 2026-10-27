@@ -40,11 +40,11 @@ interface ScoringConfig {
     points_per_completed_order: number;
   };
   recovery: {
-    points_per_collected_visit: number;
-    points_deducted_per_returned_order: number;
-    points_deducted_per_cancelled_order: number;
-    points_deducted_per_expired_order: number;
-    points_per_completed_order: number;
+    points_per_visit: number;
+    points_per_1000_defaulter_recovered: number;
+    points_per_1000_blacklist_recovered: number;
+    points_deducted_per_ptp_broken: number;
+    points_deducted_per_unvisited_account: number;
   };
   verification: {
     points_per_completed_verification: number;
@@ -728,67 +728,72 @@ export default function ScoringConfigModal({ isOpen, onClose, onSaved }: Scoring
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="rounded-xl border border-gray-100 dark:border-gray-800 p-4 bg-gray-50/50 dark:bg-meta-4/20">
                   <label className="text-xs font-bold text-gray-700 dark:text-gray-200 block mb-1">
-                    Points Per Collected Visit (+)
+                    Points Per Visit (+)
                   </label>
                   <input
                     type="number"
-                    value={config.recovery.points_per_collected_visit}
-                    onChange={(e) => updateVal("recovery", "points_per_collected_visit", e.target.valueAsNumber)}
+                    value={config.recovery.points_per_visit}
+                    onChange={(e) => updateVal("recovery", "points_per_visit", e.target.valueAsNumber)}
                     className="w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-boxdark px-3 py-2 text-sm font-semibold focus:outline-none focus:border-primary"
                     onFocus={(e) => { const t = e.target; setTimeout(() => t.select(), 0); }}
                   />
+                  <p className="mt-1 text-[11px] text-gray-400">One per account per day — repeat check-ins on the same day count once.</p>
                 </div>
 
                 <div className="rounded-xl border border-gray-100 dark:border-gray-800 p-4 bg-gray-50/50 dark:bg-meta-4/20">
                   <label className="text-xs font-bold text-gray-700 dark:text-gray-200 block mb-1">
-                    Points Per Completed Order (+)
+                    Defaulter Dues Recovered (+ per Rs. 1,000)
                   </label>
                   <input
                     type="number"
-                    value={config.recovery.points_per_completed_order ?? 5}
-                    onChange={(e) => updateVal("recovery", "points_per_completed_order", e.target.valueAsNumber)}
+                    value={config.recovery.points_per_1000_defaulter_recovered}
+                    onChange={(e) => updateVal("recovery", "points_per_1000_defaulter_recovered", e.target.valueAsNumber)}
                     className="w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-boxdark px-3 py-2 text-sm font-semibold focus:outline-none focus:border-primary"
                     onFocus={(e) => { const t = e.target; setTimeout(() => t.select(), 0); }}
                   />
+                  <p className="mt-1 text-[11px] text-gray-400">Amount collected from an account that was in Defaulter grade on the visit day.</p>
+                </div>
+
+                <div className="rounded-xl border border-gray-100 dark:border-gray-800 p-4 bg-gray-50/50 dark:bg-meta-4/20">
+                  <label className="text-xs font-bold text-gray-700 dark:text-gray-200 block mb-1">
+                    Blacklisted Amount Recovered (+ per Rs. 1,000)
+                  </label>
+                  <input
+                    type="number"
+                    value={config.recovery.points_per_1000_blacklist_recovered}
+                    onChange={(e) => updateVal("recovery", "points_per_1000_blacklist_recovered", e.target.valueAsNumber)}
+                    className="w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-boxdark px-3 py-2 text-sm font-semibold focus:outline-none focus:border-primary"
+                    onFocus={(e) => { const t = e.target; setTimeout(() => t.select(), 0); }}
+                  />
+                  <p className="mt-1 text-[11px] text-gray-400">Amount collected from a blacklisted account.</p>
                 </div>
 
                 <div className="rounded-xl border border-rose-100 dark:border-rose-900/30 p-4 bg-rose-50/30 dark:bg-rose-900/10">
                   <label className="text-xs font-bold text-rose-700 dark:text-rose-400 block mb-1">
-                    Points Deducted Per Returned Order (-)
+                    Points Deducted Per PTP Broken (-)
                   </label>
                   <input
                     type="number"
-                    value={config.recovery.points_deducted_per_returned_order}
-                    onChange={(e) => updateVal("recovery", "points_deducted_per_returned_order", e.target.valueAsNumber)}
+                    value={config.recovery.points_deducted_per_ptp_broken}
+                    onChange={(e) => updateVal("recovery", "points_deducted_per_ptp_broken", e.target.valueAsNumber)}
                     className="w-full rounded-lg border border-rose-200 dark:border-rose-800 bg-white dark:bg-boxdark px-3 py-2 text-sm font-semibold focus:outline-none focus:border-rose-500"
                     onFocus={(e) => { const t = e.target; setTimeout(() => t.select(), 0); }}
                   />
+                  <p className="mt-1 text-[11px] text-gray-400">Promised date passed with no payment and no renewed promise.</p>
                 </div>
 
                 <div className="rounded-xl border border-rose-100 dark:border-rose-900/30 p-4 bg-rose-50/30 dark:bg-rose-900/10">
                   <label className="text-xs font-bold text-rose-700 dark:text-rose-400 block mb-1">
-                    Points Deducted Per Cancelled Order (-)
+                    Assigned Profile Not Visited (-)
                   </label>
                   <input
                     type="number"
-                    value={config.recovery.points_deducted_per_cancelled_order}
-                    onChange={(e) => updateVal("recovery", "points_deducted_per_cancelled_order", e.target.valueAsNumber)}
+                    value={config.recovery.points_deducted_per_unvisited_account}
+                    onChange={(e) => updateVal("recovery", "points_deducted_per_unvisited_account", e.target.valueAsNumber)}
                     className="w-full rounded-lg border border-rose-200 dark:border-rose-800 bg-white dark:bg-boxdark px-3 py-2 text-sm font-semibold focus:outline-none focus:border-rose-500"
                     onFocus={(e) => { const t = e.target; setTimeout(() => t.select(), 0); }}
                   />
-                </div>
-
-                <div className="rounded-xl border border-rose-100 dark:border-rose-900/30 p-4 bg-rose-50/30 dark:bg-rose-900/10">
-                  <label className="text-xs font-bold text-rose-700 dark:text-rose-400 block mb-1">
-                    Points Deducted Per Expired Order (-)
-                  </label>
-                  <input
-                    type="number"
-                    value={config.recovery.points_deducted_per_expired_order ?? 3}
-                    onChange={(e) => updateVal("recovery", "points_deducted_per_expired_order", e.target.valueAsNumber)}
-                    className="w-full rounded-lg border border-rose-200 dark:border-rose-800 bg-white dark:bg-boxdark px-3 py-2 text-sm font-semibold focus:outline-none focus:border-rose-500"
-                    onFocus={(e) => { const t = e.target; setTimeout(() => t.select(), 0); }}
-                  />
+                  <p className="mt-1 text-[11px] text-gray-400">Per assigned account with overdue dues that got no visit this period.</p>
                 </div>
               </div>
             )}

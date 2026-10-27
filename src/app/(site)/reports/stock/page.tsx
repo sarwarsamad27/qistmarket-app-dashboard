@@ -1,10 +1,10 @@
 'use client'
 
-import { useEffect, useState, useMemo, Fragment } from 'react'
+import { useEffect, useState, useMemo, Fragment, type ReactNode } from 'react'
 import Cookies from 'js-cookie'
 import Breadcrumb from '@/components/Breadcrumbs/Breadcrumb'
 import Loader from '@/components/common/Loader'
-import { Package, DollarSign, CheckCircle2, ShoppingCart, ChevronDown, ChevronRight } from 'lucide-react'
+import { Package, DollarSign, CheckCircle2, ShoppingCart, ChevronDown, ChevronRight, Search, X, Loader2 } from 'lucide-react'
 import OutletSelector from '@/components/common/OutletSelector'
 import DateRangeFilter, { type DateRange } from '@/components/Accounts/DateRangeFilter'
 
@@ -30,6 +30,46 @@ interface StockItem {
   valuation: number
   units: StockUnit[]
 }
+
+interface ImeiDetail {
+  id: number
+  imei_serial: string
+  product_name: string
+  model: string
+  variant: string | null
+  category: string | null
+  color_variant: string | null
+  is_used: boolean
+  status: string
+  current_outlet: { name: string; code: string | null; address: string | null } | null
+  added_to_stock_at: string
+  purchase_price: number
+  installment_price: number
+  sale_price: number | null
+  purchase: {
+    vendor_name: string
+    vendor_phone: string | null
+    invoice_number: string
+    purchase_date: string
+    unit_price: number
+    payment_status: string
+    outlet_name: string | null
+  } | null
+  sale: {
+    type: 'Cash Sale' | 'Installment'
+    date: string
+    price: number
+    customer_name: string | null
+    customer_phone: string | null
+    sold_by: string | null
+    order_ref: string | null
+    order_status: string | null
+  } | null
+  transfers: { id: number; from: string; to: string; status: string; date: string }[]
+}
+
+const fmtDate = (d?: string | null) =>
+  d ? new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'
 
 export default function GlobalStockSummaryPage() {
   const [loading, setLoading] = useState(true)
@@ -64,6 +104,45 @@ export default function GlobalStockSummaryPage() {
     setExpanded(new Set())
     fetchStock(outletId, range)
   }, [outletId, range.from, range.to, token])
+
+  const [imeiQuery, setImeiQuery] = useState('')
+  const [imeiLoading, setImeiLoading] = useState(false)
+  const [imeiError, setImeiError] = useState('')
+  const [imeiResults, setImeiResults] = useState<ImeiDetail[] | null>(null)
+
+  const searchImei = async (value: string) => {
+    const q = value.trim()
+    setImeiQuery(q)
+    if (q.length < 4) {
+      setImeiError('Enter at least 4 digits of the IMEI.')
+      setImeiResults(null)
+      return
+    }
+    if (!token) return
+    setImeiLoading(true)
+    setImeiError('')
+    try {
+      const qs = new URLSearchParams({ imei: q, outletId })
+      const res = await fetch(`${BACKEND_URL}/api/outlet-reports/imei-lookup?${qs}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      const json = await res.json()
+      if (json.success) setImeiResults(json.data)
+      else { setImeiError(json.message || 'Search failed.'); setImeiResults(null) }
+    } catch (err) {
+      console.error('IMEI lookup failed:', err)
+      setImeiError('Search failed. Please try again.')
+      setImeiResults(null)
+    } finally {
+      setImeiLoading(false)
+    }
+  }
+
+  const clearImei = () => {
+    setImeiQuery('')
+    setImeiResults(null)
+    setImeiError('')
+  }
 
   const toggleExpand = (key: string) => {
     setExpanded(prev => {
@@ -103,6 +182,50 @@ export default function GlobalStockSummaryPage() {
         </div>
       </div>
       <p className="-mt-4 mb-6 text-xs text-gray-400">Dates filter the units sold in that period. Available stock and valuation are always as of today.</p>
+
+      <form
+        onSubmit={e => { e.preventDefault(); searchImei(imeiQuery) }}
+        className="mb-6 flex flex-wrap items-center gap-3"
+      >
+        <div className="relative w-full max-w-xl">
+          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+          <input
+            value={imeiQuery}
+            onChange={e => setImeiQuery(e.target.value)}
+            placeholder="Search by IMEI / Serial number…"
+            className="w-full rounded-lg border border-stroke bg-white py-2.5 pl-9 pr-9 font-mono text-sm outline-none focus:border-primary dark:border-dark-3 dark:bg-gray-dark dark:text-white"
+          />
+          {imeiQuery && (
+            <button type="button" onClick={clearImei} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-red-500" title="Clear">
+              <X size={16} />
+            </button>
+          )}
+        </div>
+        <button
+          type="submit"
+          disabled={imeiLoading}
+          className="flex items-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-white hover:bg-opacity-90 disabled:opacity-60"
+        >
+          {imeiLoading ? <Loader2 size={16} className="animate-spin" /> : <Search size={16} />}
+          Search IMEI
+        </button>
+      </form>
+
+      {imeiError && <p className="-mt-3 mb-6 text-sm text-red-500">{imeiError}</p>}
+
+      {imeiResults && (
+        <div className="mb-8 space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-bold text-dark dark:text-white">
+              {imeiResults.length === 0
+                ? `No unit found for "${imeiQuery}"`
+                : `${imeiResults.length} unit${imeiResults.length === 1 ? '' : 's'} found for "${imeiQuery}"`}
+            </h3>
+            <button onClick={clearImei} className="text-xs font-semibold text-red-500 hover:underline">Close</button>
+          </div>
+          {imeiResults.map(d => <ImeiDetailCard key={d.id} d={d} />)}
+        </div>
+      )}
 
       <div className="mb-8 grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
         <MiniStat label="Global Stock" value={totals.total} icon={Package} color="blue" />
@@ -171,9 +294,18 @@ export default function GlobalStockSummaryPage() {
                             <td className="px-4 py-3 text-center text-[10px] font-mono text-gray-400">#{uIdx + 1}</td>
                             <td />
                             <td className="px-6 py-3">
-                              <span className="rounded border border-gray-200 bg-gray-100 px-2 py-0.5 font-mono dark:border-dark-3 dark:bg-dark-3">
-                                {u.imei_serial || '— (no IMEI)'}
-                              </span>
+                              {u.imei_serial ? (
+                                <button
+                                  type="button"
+                                  onClick={() => { searchImei(u.imei_serial!); window.scrollTo({ top: 0, behavior: 'smooth' }) }}
+                                  title="View full details"
+                                  className="rounded border border-gray-200 bg-gray-100 px-2 py-0.5 font-mono text-primary hover:underline dark:border-dark-3 dark:bg-dark-3"
+                                >
+                                  {u.imei_serial}
+                                </button>
+                              ) : (
+                                <span className="rounded border border-gray-200 bg-gray-100 px-2 py-0.5 font-mono dark:border-dark-3 dark:bg-dark-3">— (no IMEI)</span>
+                              )}
                               <span className="ml-2 text-gray-500">{u.outlet_name}</span>
                               {u.color_variant && <span className="ml-2 text-gray-400">· {u.color_variant}</span>}
                             </td>
@@ -196,6 +328,114 @@ export default function GlobalStockSummaryPage() {
         </div>
       )}
     </>
+  )
+}
+
+function ImeiDetailCard({ d }: { d: ImeiDetail }) {
+  const inStock = d.status === 'In Stock'
+  const statusClass = inStock
+    ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/20'
+    : d.status === 'Sold'
+      ? 'bg-blue-50 text-blue-600 dark:bg-blue-900/20'
+      : 'bg-orange-50 text-orange-600 dark:bg-orange-900/20'
+
+  return (
+    <div className="rounded-[10px] border border-stroke bg-white p-5 shadow-1 dark:border-dark-3 dark:bg-gray-dark">
+      <div className="mb-4 flex flex-wrap items-start justify-between gap-3 border-b border-stroke pb-4 dark:border-dark-3">
+        <div>
+          <p className="text-base font-bold text-dark dark:text-white">{d.product_name}</p>
+          <p className="mt-1 font-mono text-sm text-gray-500">IMEI: {d.imei_serial}</p>
+        </div>
+        <div className="text-right">
+          <span className={`rounded-full px-3 py-1 text-xs font-bold ${statusClass}`}>
+            {inStock ? 'Available (Not used)' : d.status}
+          </span>
+          <p className="mt-2 text-xs text-gray-500">
+            {inStock ? 'Currently at' : 'Last outlet'}: <span className="font-semibold text-dark dark:text-white">{d.current_outlet?.name || '—'}</span>
+          </p>
+        </div>
+      </div>
+
+      <div className="grid gap-5 md:grid-cols-3">
+        <DetailSection title="Product">
+          <DetailRow label="Model" value={d.model} />
+          <DetailRow label="Variant" value={d.variant} />
+          <DetailRow label="Color" value={d.color_variant} />
+          <DetailRow label="Category" value={d.category} />
+          <DetailRow label="Condition" value={d.is_used ? 'Used' : 'New'} />
+          <DetailRow label="Outlet" value={d.current_outlet ? `${d.current_outlet.name}${d.current_outlet.code ? ` (${d.current_outlet.code})` : ''}` : null} />
+          <DetailRow label="Added to stock" value={fmtDate(d.added_to_stock_at)} />
+        </DetailSection>
+
+        <DetailSection title="Purchase">
+          {d.purchase ? (
+            <>
+              <DetailRow label="Vendor" value={d.purchase.vendor_name} />
+              <DetailRow label="Vendor phone" value={d.purchase.vendor_phone} />
+              <DetailRow label="Purchase date" value={fmtDate(d.purchase.purchase_date)} />
+              <DetailRow label="Invoice #" value={d.purchase.invoice_number} />
+              <DetailRow label="Purchase price" value={`Rs. ${d.purchase.unit_price.toLocaleString()}`} />
+              <DetailRow label="Payment" value={d.purchase.payment_status} />
+              <DetailRow label="Bought by" value={d.purchase.outlet_name} />
+            </>
+          ) : (
+            <>
+              <DetailRow label="Purchase price" value={`Rs. ${d.purchase_price.toLocaleString()}`} />
+              <DetailRow label="Added on" value={fmtDate(d.added_to_stock_at)} />
+              <p className="mt-2 text-xs text-gray-400">No vendor purchase invoice found for this IMEI (added manually or imported).</p>
+            </>
+          )}
+        </DetailSection>
+
+        <DetailSection title="Sale">
+          {d.sale ? (
+            <>
+              <DetailRow label="Sold as" value={d.sale.type} />
+              <DetailRow label="Sale date" value={fmtDate(d.sale.date)} />
+              <DetailRow label="Customer" value={d.sale.customer_name} />
+              <DetailRow label="Phone" value={d.sale.customer_phone} />
+              <DetailRow label="Amount" value={`Rs. ${d.sale.price.toLocaleString()}`} />
+              {d.sale.order_ref && <DetailRow label="Order" value={`${d.sale.order_ref}${d.sale.order_status ? ` · ${d.sale.order_status}` : ''}`} />}
+              {d.sale.sold_by && <DetailRow label="Sold by" value={d.sale.sold_by} />}
+            </>
+          ) : (
+            <p className="text-xs text-gray-400">{inStock ? 'Not sold yet — unit is available in stock.' : 'No sale record found.'}</p>
+          )}
+        </DetailSection>
+      </div>
+
+      {d.transfers.length > 0 && (
+        <div className="mt-5 border-t border-stroke pt-4 dark:border-dark-3">
+          <p className="mb-2 text-[11px] font-bold uppercase tracking-wider text-gray-400">Movement history</p>
+          <ul className="space-y-1 text-xs text-gray-600 dark:text-gray-300">
+            {d.transfers.map(t => (
+              <li key={t.id}>
+                <span className="text-gray-400">{fmtDate(t.date)}</span> · {t.from} → {t.to}
+                <span className="ml-2 rounded bg-gray-100 px-1.5 py-0.5 text-[10px] uppercase dark:bg-dark-3">{t.status}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function DetailSection({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <div>
+      <p className="mb-2 text-[11px] font-bold uppercase tracking-wider text-gray-400">{title}</p>
+      <div className="space-y-1.5">{children}</div>
+    </div>
+  )
+}
+
+function DetailRow({ label, value }: { label: string; value: string | null | undefined }) {
+  return (
+    <div className="flex justify-between gap-3 text-sm">
+      <span className="text-gray-500">{label}</span>
+      <span className="text-right font-semibold text-dark dark:text-white">{value || '—'}</span>
+    </div>
   )
 }
 
