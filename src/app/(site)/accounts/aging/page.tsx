@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import Cookies from "js-cookie";
 import dynamic from "next/dynamic";
 import type { ApexOptions } from "apexcharts";
-import { Clock, AlertTriangle } from "lucide-react";
+import { Clock, AlertTriangle, Search, ChevronDown, ChevronRight } from "lucide-react";
 import Breadcrumb from "@/components/Breadcrumbs/Breadcrumb";
 import PageHeader from "@/components/Accounts/PageHeader";
 import EmptyState from "@/components/Accounts/EmptyState";
@@ -56,6 +56,21 @@ interface AgingBucketItem {
   total: number;
 }
 
+// One row per order: every overdue installment of the order summed, so the Outstanding
+// column matches the order ledger's total due (installment rows are shown on expand).
+interface AgingOrder {
+  order_id: number;
+  order_ref: string;
+  customer_name: string;
+  outlet_name: string;
+  officer_name: string;
+  installments: AgingItem[];
+  outstanding: number;
+  oldestDue: string;
+  daysOverdue: number;
+  bucket: string;
+}
+
 interface AgingData {
   buckets: Record<string, number>;
   total: number;
@@ -90,6 +105,52 @@ export default function InstallmentAgingPage() {
   const [viewMode, setViewMode] = useState<"outlet" | "officer">("outlet");
   const [hideUnassigned, setHideUnassigned] = useState(false);
   const [range, setRange] = useState<DateRange>({ from: "", to: "" });
+  const [search, setSearch] = useState("");
+  const [expanded, setExpanded] = useState<Set<number>>(new Set());
+
+  const orders = useMemo<AgingOrder[]>(() => {
+    const map = new Map<number, AgingOrder>();
+    // items arrive sorted by days overdue desc, so the first row of each order is its oldest
+    for (const item of data?.items || []) {
+      let o = map.get(item.order_id);
+      if (!o) {
+        o = {
+          order_id: item.order_id,
+          order_ref: item.order_ref,
+          customer_name: item.customer_name,
+          outlet_name: item.outlet_name,
+          officer_name: item.officer_name,
+          installments: [],
+          outstanding: 0,
+          oldestDue: item.dueDate,
+          daysOverdue: item.daysOverdue,
+          bucket: item.bucket,
+        };
+        map.set(item.order_id, o);
+      }
+      o.installments.push(item);
+      o.outstanding += item.outstanding;
+    }
+    for (const o of map.values()) o.installments.sort((a, b) => a.month - b.month);
+    return Array.from(map.values());
+  }, [data]);
+
+  const filteredOrders = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return orders;
+    return orders.filter((o) =>
+      [o.order_ref, o.customer_name, o.outlet_name, o.officer_name, PKR(o.outstanding), String(o.outstanding)]
+        .some((v) => (v || "").toLowerCase().includes(q))
+    );
+  }, [orders, search]);
+
+  const toggleExpanded = (id: number) =>
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
 
   useEffect(() => {
     const token = Cookies.get("auth_token");
@@ -241,33 +302,84 @@ export default function InstallmentAgingPage() {
         <TableSkeleton />
       ) : data && data.items.length > 0 ? (
         <div className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm dark:border-white/10 dark:bg-boxdark">
-          <div className="max-h-[500px] overflow-y-auto overflow-x-auto">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 p-4 dark:border-white/10">
+            <div className="relative w-full sm:max-w-sm">
+              <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-gray-400" />
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search order ref, customer, outlet, officer..."
+                className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2 pl-9 pr-3 text-sm text-dark outline-none transition focus:border-[#ff3d3d] focus:bg-white dark:border-white/10 dark:bg-dark-3 dark:text-white"
+              />
+            </div>
+            <p className="text-xs font-semibold text-gray-500">
+              {filteredOrders.length} order{filteredOrders.length === 1 ? "" : "s"} · {PKR(filteredOrders.reduce((s, o) => s + o.outstanding, 0))} outstanding
+            </p>
+          </div>
+          <div className="max-h-[600px] overflow-y-auto overflow-x-auto">
             <table className="w-full text-left text-sm">
-              <thead className="sticky top-0 bg-gray-50 text-[11px] uppercase tracking-wide text-gray-500 dark:bg-dark-2 dark:text-gray-400">
+              <thead className="sticky top-0 z-10 bg-gray-50 text-[11px] uppercase tracking-wide text-gray-500 dark:bg-dark-2 dark:text-gray-400">
                 <tr>
-                  <th className="px-4 py-3 font-bold">S.No</th><th className="px-4 py-3 font-bold">Order Ref</th>
+                  <th className="px-4 py-3 font-bold">S.No</th>
+                  <th className="px-4 py-3 font-bold">Order Ref</th>
                   <th className="px-4 py-3 font-bold">Customer</th>
                   <th className="px-4 py-3 font-bold">Outlet</th>
                   <th className="px-4 py-3 font-bold">Officer</th>
-                  <th className="px-4 py-3 font-bold">Due Date</th>
+                  <th className="px-4 py-3 text-center font-bold">Overdue Inst.</th>
+                  <th className="px-4 py-3 font-bold">Oldest Due</th>
                   <th className="px-4 py-3 text-right font-bold">Days Overdue</th>
                   <th className="px-4 py-3 text-right font-bold">Outstanding</th>
                 </tr>
               </thead>
               <tbody>
-                {data.items.slice(0, 300).map((item, i) => (
-                  <tr key={`${item.order_id}-${item.month}-${i}`} className="border-t border-slate-50 transition hover:bg-slate-50/70 dark:border-white/5 dark:hover:bg-white/5"><td className="px-4 py-3.5 font-semibold text-gray-500 tabular-nums">{i + 1}</td>
-                    <td className="px-4 py-3.5 font-semibold text-dark dark:text-white">{item.order_ref}</td>
-                    <td className="px-4 py-3.5 text-gray-600 dark:text-gray-300">{item.customer_name}</td>
-                    <td className="px-4 py-3.5 text-gray-600 dark:text-gray-300">{item.outlet_name}</td>
-                    <td className="px-4 py-3.5 text-gray-600 dark:text-gray-300">{item.officer_name}</td>
-                    <td className="px-4 py-3.5 text-gray-500">{new Date(item.dueDate).toLocaleDateString()}</td>
-                    <td className="px-4 py-3.5 text-right tabular-nums font-semibold" style={{ color: BUCKET_COLORS[item.bucket] }}>
-                      {item.daysOverdue > 0 ? item.daysOverdue : 0}
-                    </td>
-                    <td className="px-4 py-3.5 text-right tabular-nums font-bold text-dark dark:text-white">{PKR(item.outstanding)}</td>
+                {filteredOrders.length === 0 ? (
+                  <tr>
+                    <td colSpan={9} className="px-4 py-10 text-center text-sm text-gray-400">No orders match &ldquo;{search}&rdquo;</td>
                   </tr>
-                ))}
+                ) : (
+                  filteredOrders.map((o, i) => {
+                    const open = expanded.has(o.order_id);
+                    return (
+                      <Fragment key={o.order_id}>
+                        <tr
+                          onClick={() => toggleExpanded(o.order_id)}
+                          className="cursor-pointer border-t border-slate-50 transition hover:bg-slate-50/70 dark:border-white/5 dark:hover:bg-white/5"
+                        >
+                          <td className="px-4 py-3.5 font-semibold text-gray-500 tabular-nums">{i + 1}</td>
+                          <td className="px-4 py-3.5 font-semibold text-dark dark:text-white">
+                            <span className="inline-flex items-center gap-1.5">
+                              {open ? <ChevronDown className="size-3.5 text-gray-400" /> : <ChevronRight className="size-3.5 text-gray-400" />}
+                              {o.order_ref}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3.5 text-gray-600 dark:text-gray-300">{o.customer_name}</td>
+                          <td className="px-4 py-3.5 text-gray-600 dark:text-gray-300">{o.outlet_name}</td>
+                          <td className="px-4 py-3.5 text-gray-600 dark:text-gray-300">{o.officer_name}</td>
+                          <td className="px-4 py-3.5 text-center tabular-nums text-gray-600 dark:text-gray-300">{o.installments.length}</td>
+                          <td className="px-4 py-3.5 text-gray-500">{new Date(o.oldestDue).toLocaleDateString()}</td>
+                          <td className="px-4 py-3.5 text-right tabular-nums font-semibold" style={{ color: BUCKET_COLORS[o.bucket] }}>
+                            {o.daysOverdue > 0 ? o.daysOverdue : 0}
+                          </td>
+                          <td className="px-4 py-3.5 text-right tabular-nums font-bold text-dark dark:text-white">{PKR(o.outstanding)}</td>
+                        </tr>
+                        {open &&
+                          o.installments.map((it) => (
+                            <tr key={`${o.order_id}-${it.month}`} className="bg-slate-50/60 text-xs dark:bg-white/5">
+                              <td />
+                              <td colSpan={4} className="px-4 py-2 pl-10 text-gray-500">Month {it.month}</td>
+                              <td />
+                              <td className="px-4 py-2 text-gray-500">{new Date(it.dueDate).toLocaleDateString()}</td>
+                              <td className="px-4 py-2 text-right tabular-nums font-semibold" style={{ color: BUCKET_COLORS[it.bucket] }}>
+                                {it.daysOverdue}
+                              </td>
+                              <td className="px-4 py-2 text-right tabular-nums text-gray-600 dark:text-gray-300">{PKR(it.outstanding)}</td>
+                            </tr>
+                          ))}
+                      </Fragment>
+                    );
+                  })
+                )}
               </tbody>
             </table>
           </div>
