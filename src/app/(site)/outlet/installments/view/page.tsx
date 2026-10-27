@@ -85,6 +85,15 @@ function InstallmentsViewContent() {
   const [agingPreset, setAgingPreset] = useState('all');
   const [agingMin, setAgingMin] = useState('');
   const [agingMax, setAgingMax] = useState('');
+  const [customAgingType, setCustomAgingType] = useState<'overdue' | 'upcoming'>('overdue');
+  // Custom inputs are positive day counts; the API uses negative days for overdue.
+  const customDayFloor = customAgingType === 'overdue' ? 1 : 0;
+  const customFrom = String(Math.max(customDayFloor, Number(agingMin) || 0));
+  const customTo = agingMax === '' ? '' : String(Math.max(customDayFloor, Number(agingMax) || 0));
+  const queryAgingMin = agingPreset !== 'custom' ? agingMin
+    : customAgingType === 'overdue' ? (customTo === '' ? '' : String(-Number(customTo))) : customFrom;
+  const queryAgingMax = agingPreset !== 'custom' ? agingMax
+    : customAgingType === 'overdue' ? String(-Number(customFrom)) : customTo;
   const [exporting, setExporting] = useState(false);
   const [page, setPage] = useState(1);
   const [limit] = useState(25);
@@ -242,8 +251,8 @@ function InstallmentsViewContent() {
         search: debouncedSearch,
         category,
         view_rules: 'current',
-        aging_min: agingMin,
-        aging_max: agingMax,
+        aging_min: queryAgingMin,
+        aging_max: queryAgingMax,
         month: selectedMonth.toString(),
         year: selectedYear.toString(),
         ...(advFilters.item && { item: advFilters.item }),
@@ -292,7 +301,7 @@ function InstallmentsViewContent() {
     } finally {
       if (seq === fetchSeq.current) setLoading(false);
     }
-  }, [page, limit, debouncedSearch, category, selectedMonth, selectedYear, advFilters, colFilters.status, agingMin, agingMax]);
+  }, [page, limit, debouncedSearch, category, selectedMonth, selectedYear, advFilters, colFilters.status, queryAgingMin, queryAgingMax]);
 
   useEffect(() => {
     fetchInstallments();
@@ -467,7 +476,7 @@ function InstallmentsViewContent() {
         const params = new URLSearchParams({
           page: String(exportPage), limit: '1000', search: debouncedSearch,
           category, view_rules: 'current', month: String(selectedMonth), year: String(selectedYear),
-          aging_min: agingMin, aging_max: agingMax, ...advFilters, status: colFilters.status,
+          aging_min: queryAgingMin, aging_max: queryAgingMax, ...advFilters, status: colFilters.status,
         });
         const response = await fetch(`${API_BASE}/api/outlet/installments/due-list?${params}`, { headers: getAuthHeaders() });
         const result = await response.json();
@@ -684,8 +693,14 @@ function InstallmentsViewContent() {
           </select>
         </label>
         {agingPreset === 'custom' && <>
-          <label className="text-xs">From days<input type="number" value={agingMin} onChange={e => { setAgingMin(e.target.value); setPage(1); setSelectedRows([]); }} className="ml-2 w-24 rounded-lg border bg-transparent p-2" placeholder="-20" /></label>
-          <label className="text-xs">To days<input type="number" value={agingMax} onChange={e => { setAgingMax(e.target.value); setPage(1); setSelectedRows([]); }} className="ml-2 w-24 rounded-lg border bg-transparent p-2" placeholder="10" /></label>
+          <label className="text-xs">Type
+            <select value={customAgingType} onChange={e => { setCustomAgingType(e.target.value as 'overdue' | 'upcoming'); setPage(1); setSelectedRows([]); }} className="ml-2 rounded-lg border bg-transparent p-2">
+              <option value="overdue">Overdue</option>
+              <option value="upcoming">Due in</option>
+            </select>
+          </label>
+          <label className="text-xs">From days<input type="number" min={customDayFloor} step="1" value={agingMin} onChange={e => { setAgingMin(e.target.value === '' ? '' : String(Math.max(customDayFloor, Math.floor(Number(e.target.value))))); setPage(1); setSelectedRows([]); }} className="ml-2 w-24 rounded-lg border bg-transparent p-2" placeholder={String(customDayFloor)} /></label>
+          <label className="text-xs">To days<input type="number" min={customDayFloor} step="1" value={agingMax} onChange={e => { setAgingMax(e.target.value === '' ? '' : String(Math.max(customDayFloor, Math.floor(Number(e.target.value))))); setPage(1); setSelectedRows([]); }} className="ml-2 w-24 rounded-lg border bg-transparent p-2" placeholder="Any" /></label>
           {agingMin !== '' && agingMax !== '' && Number(agingMin) > Number(agingMax) && <span role="alert" className="text-xs text-red-600">From must be less than or equal to To.</span>}
         </>}
         <p className="w-full text-xs text-gray-400">Aging uses the oldest unpaid installment: + days until due, - days overdue, 0 due today. Categories can overlap.</p>
