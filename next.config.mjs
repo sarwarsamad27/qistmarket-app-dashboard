@@ -25,6 +25,12 @@ const nextConfig = {
     remotePatterns: [
       {
         protocol: "https",
+        hostname: "app.qistmarket.pk",
+        port: "",
+        pathname: "/uploads/**",
+      },
+      {
+        protocol: "https",
         hostname: "cdn.sanity.io",
         port: ""
       },

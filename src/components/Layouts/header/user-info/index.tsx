@@ -17,6 +17,7 @@ import { useAuth } from "../../../../../contexts/AuthContext";
 
 export function UserInfo() {
   const [isOpen, setIsOpen] = useState(false);
+  const [failedImage, setFailedImage] = useState<string | null>(null);
   const router = useRouter();
   const { user, loading } = useAuth();
 
@@ -25,6 +26,9 @@ export function UserInfo() {
     email: user?.email || "johnson@nextadmin.com",
     img: user?.image || "/images/user/user-03.png",
   };
+  const avatarSrc = failedImage === USER.img
+    ? "/images/user/user-03.png"
+    : USER.img;
 
   const handleLogout = () => {
     Cookies.remove("auth_token");
@@ -38,7 +42,8 @@ export function UserInfo() {
 
         <figure className="flex items-center gap-3">
           {loading ? <span className="size-12 animate-pulse rounded-full bg-gray-2" /> : <Image
-            src={USER.img}
+            src={avatarSrc}
+            onError={() => setFailedImage(USER.img)}
             className="size-12 rounded-full object-cover"
             alt={`Avatar of ${USER.name}`}
             role="presentation"
@@ -68,7 +73,8 @@ export function UserInfo() {
 
         <figure className="flex items-center gap-2.5 px-5 py-3.5">
           {loading ? <span className="size-12 animate-pulse rounded-full bg-gray-2" /> : <Image
-            src={USER.img}
+            src={avatarSrc}
+            onError={() => setFailedImage(USER.img)}
             className="size-12 rounded-full object-cover"
             alt={`Avatar for ${USER.name}`}
             role="presentation"
