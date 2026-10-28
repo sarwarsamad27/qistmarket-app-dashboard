@@ -87,6 +87,19 @@ interface InstallmentsViewProps {
   adminMode?: boolean;
 }
 
+function SummaryValue({ loading, ready, value, currency = false }: { loading: boolean; ready: boolean; value: number; currency?: boolean }) {
+  if (loading) {
+    return (
+      <span role="status" className="inline-flex items-center gap-2 text-sm font-medium text-gray-400">
+        <Loader2 aria-hidden="true" className="h-4 w-4 animate-spin" />
+        Loading...
+      </span>
+    );
+  }
+  if (!ready) return <span aria-label="Data unavailable">—</span>;
+  return <>{currency ? 'Rs. ' : ''}{value.toLocaleString()}</>;
+}
+
 function InstallmentsViewContent({ adminMode = false }: InstallmentsViewProps) {
   const searchParams = useSearchParams();
   const [outletId, setOutletId] = useState("all");
@@ -176,6 +189,7 @@ function InstallmentsViewContent({ adminMode = false }: InstallmentsViewProps) {
   });
   const [pagination, setPagination] = useState({ total: 0, totalPages: 1 });
   const [loading, setLoading] = useState(true);
+  const [summaryReady, setSummaryReady] = useState(false);
 
   // Selection states
   const [selectedRows, setSelectedRows] = useState<string[]>([]); // Array of orderRef_dueDate keys
@@ -301,6 +315,7 @@ function InstallmentsViewContent({ adminMode = false }: InstallmentsViewProps) {
   const fetchInstallments = useCallback(async () => {
     const seq = ++fetchSeq.current;
     setLoading(true);
+    setSummaryReady(false);
     try {
       const queryParams = new URLSearchParams({
         page: page.toString(),
@@ -353,6 +368,7 @@ function InstallmentsViewContent({ adminMode = false }: InstallmentsViewProps) {
           total: resData.data.pagination.total,
           totalPages: resData.data.pagination.totalPages
         });
+        setSummaryReady(true);
       } else {
         toast.error(resData.message || "Failed to load installments");
       }
@@ -666,7 +682,7 @@ function InstallmentsViewContent({ adminMode = false }: InstallmentsViewProps) {
           <div className="flex justify-between items-start">
             <div>
               <p className="text-[9px] font-black uppercase tracking-widest text-gray-400">Months Due</p>
-              <h3 className="mt-2 text-xl font-black text-slate-800 dark:text-white">Rs. {displayedMonthsDue.toLocaleString()}</h3>
+              <h3 className="mt-2 text-xl font-black text-slate-800 dark:text-white"><SummaryValue loading={loading} ready={summaryReady} value={displayedMonthsDue} currency /></h3>
             </div>
             <div className="rounded-xl bg-[#E31E24]/5 p-2.5 text-[#E31E24]">
               <Calendar className="h-5 w-5" />
@@ -679,7 +695,7 @@ function InstallmentsViewContent({ adminMode = false }: InstallmentsViewProps) {
           <div className="flex justify-between items-start">
             <div>
               <p className="text-[9px] font-black uppercase tracking-widest text-gray-400">Months Collected</p>
-              <h3 className="mt-2 text-xl font-black text-slate-800 dark:text-white">Rs. {displayedMonthsCollected.toLocaleString()}</h3>
+              <h3 className="mt-2 text-xl font-black text-slate-800 dark:text-white"><SummaryValue loading={loading} ready={summaryReady} value={displayedMonthsCollected} currency /></h3>
               <p className="mt-1 text-[9px] text-gray-400">Installments only, no down payment</p>
             </div>
             <div className="rounded-xl bg-emerald-50 p-2.5 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400">
@@ -693,7 +709,7 @@ function InstallmentsViewContent({ adminMode = false }: InstallmentsViewProps) {
           <div className="flex justify-between items-start">
             <div>
               <p className="text-[9px] font-black uppercase tracking-widest text-gray-400">Total Collected (This Month)</p>
-              <h3 className="mt-2 text-xl font-black text-slate-800 dark:text-white">Rs. {displayedMonthsCollectedTotal.toLocaleString()}</h3>
+              <h3 className="mt-2 text-xl font-black text-slate-800 dark:text-white"><SummaryValue loading={loading} ready={summaryReady} value={displayedMonthsCollectedTotal} currency /></h3>
               <p className="mt-1 text-[9px] text-gray-400">Down payment + installments</p>
             </div>
             <div className="rounded-xl bg-teal-50 p-2.5 text-teal-600 dark:bg-teal-500/10 dark:text-teal-400">
@@ -707,7 +723,7 @@ function InstallmentsViewContent({ adminMode = false }: InstallmentsViewProps) {
           <div className="flex justify-between items-start">
             <div>
               <p className="text-[9px] font-black uppercase tracking-widest text-gray-400">Months Remaining</p>
-              <h3 className="mt-2 text-xl font-black text-slate-800 dark:text-white">Rs. {displayedMonthsRemaining.toLocaleString()}</h3>
+              <h3 className="mt-2 text-xl font-black text-slate-800 dark:text-white"><SummaryValue loading={loading} ready={summaryReady} value={displayedMonthsRemaining} currency /></h3>
             </div>
             <div className="rounded-xl bg-[#E31E24]/5 p-2.5 text-[#E31E24]">
               <Clock className="h-5 w-5" />
@@ -720,7 +736,7 @@ function InstallmentsViewContent({ adminMode = false }: InstallmentsViewProps) {
           <div className="flex justify-between items-start">
             <div>
               <p className="text-[9px] font-black uppercase tracking-widest text-gray-400">Total System Paid</p>
-              <h3 className="mt-2 text-xl font-black text-slate-800 dark:text-white">Rs. {displayedSystemPaid.toLocaleString()}</h3>
+              <h3 className="mt-2 text-xl font-black text-slate-800 dark:text-white"><SummaryValue loading={loading} ready={summaryReady} value={displayedSystemPaid} currency /></h3>
             </div>
             <div className="rounded-xl bg-purple-50 p-2.5 text-purple-600 dark:bg-purple-500/10 dark:text-purple-400">
               <TrendingUp className="h-5 w-5" />
@@ -733,7 +749,7 @@ function InstallmentsViewContent({ adminMode = false }: InstallmentsViewProps) {
           <div className="flex justify-between items-start">
             <div>
               <p className="text-[9px] font-black uppercase tracking-widest text-gray-400">System Outstanding</p>
-              <h3 className="mt-2 text-xl font-black text-slate-800 dark:text-white">Rs. {displayedSystemOutstanding.toLocaleString()}</h3>
+              <h3 className="mt-2 text-xl font-black text-slate-800 dark:text-white"><SummaryValue loading={loading} ready={summaryReady} value={displayedSystemOutstanding} currency /></h3>
             </div>
             <div className="rounded-xl bg-slate-100 p-2.5 text-slate-600 dark:bg-meta-4 dark:text-slate-300">
               <Database className="h-5 w-5" />
@@ -746,7 +762,7 @@ function InstallmentsViewContent({ adminMode = false }: InstallmentsViewProps) {
           <div className="flex justify-between items-start">
             <div>
               <p className="text-[9px] font-black uppercase tracking-widest text-gray-400">Customer Count</p>
-              <h3 className="mt-2 text-xl font-black text-slate-800 dark:text-white">{displayedCustomerCount}</h3>
+              <h3 className="mt-2 text-xl font-black text-slate-800 dark:text-white"><SummaryValue loading={loading} ready={summaryReady} value={displayedCustomerCount} /></h3>
             </div>
             <div className="rounded-xl bg-teal-50 p-2.5 text-teal-600 dark:bg-meta-4 dark:text-teal-300">
               <Database className="h-5 w-5" />
@@ -763,7 +779,7 @@ function InstallmentsViewContent({ adminMode = false }: InstallmentsViewProps) {
             onClick={() => { setCategory(id); setPage(1); setSelectedRows([]); }}
             className={`rounded-2xl border p-4 text-left transition-colors ${category === id ? 'border-[#E31E24] bg-red-50 text-[#E31E24] dark:bg-red-950/20' : 'border-gray-100 bg-white text-slate-700 dark:bg-boxdark dark:text-white dark:border-strokedark'}`}>
             <span className="block text-xs font-bold">{label}</span>
-            <span className="my-2 block text-2xl font-black">{categoryCounts[id]?.customers ?? 0}</span>
+            <span className="my-2 block text-2xl font-black"><SummaryValue loading={loading} ready={summaryReady} value={categoryCounts[id]?.customers ?? 0} /></span>
             <span className="block text-[10px] leading-relaxed">{detail}</span>
           </button>
         ))}
