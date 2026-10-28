@@ -8,7 +8,7 @@ import type { Metadata } from "next";
 import NextTopLoader from "nextjs-toploader";
 import type { PropsWithChildren } from "react";
 import { Providers } from "./providers";
-import { Toaster } from 'react-hot-toast';
+import { DashboardToaster } from "@/components/common/DashboardToaster";
 
 export const metadata: Metadata = {
   title: "Qist Market Management System",
@@ -23,7 +23,7 @@ export default function RootLayout({ children }: PropsWithChildren) {
           <Providers>
           <NextTopLoader color="#ff3d3d" showSpinner={false} />
           {children}
-          <Toaster />
+          <DashboardToaster />
           </Providers>
       </body>
     </html>
