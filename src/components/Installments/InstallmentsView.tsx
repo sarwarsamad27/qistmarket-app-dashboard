@@ -171,6 +171,11 @@ function InstallmentsViewContent({ adminMode = false }: InstallmentsViewProps) {
     imei_serial: "",
     status: ""
   });
+  const updateColumnFilter = (key: keyof typeof colFilters, value: string) => {
+    setColFilters(prev => ({ ...prev, [key]: value }));
+    setPage(1);
+    setSelectedRows([]);
+  };
 
   // Data states
   const [installments, setInstallments] = useState<any[]>([]);
@@ -338,6 +343,15 @@ function InstallmentsViewContent({ adminMode = false }: InstallmentsViewProps) {
         ...(advFilters.min_balance && { min_balance: advFilters.min_balance }),
         ...(advFilters.max_balance && { max_balance: advFilters.max_balance }),
         ...(colFilters.status && { status: colFilters.status }),
+        ...(colFilters.order_ref && { order_ref: colFilters.order_ref }),
+        ...(colFilters.customer_name && { customer_name: colFilters.customer_name }),
+        ...(colFilters.whatsapp_number && { whatsapp_number: colFilters.whatsapp_number }),
+        ...(colFilters.alternate_number && { alternate_number: colFilters.alternate_number }),
+        ...(colFilters.area && { area: colFilters.area }),
+        ...(colFilters.grantor1Name && { grantor1_name: colFilters.grantor1Name }),
+        ...(colFilters.grantor2Name && { grantor2_name: colFilters.grantor2Name }),
+        ...(colFilters.product_name && { product_name: colFilters.product_name }),
+        ...(colFilters.imei_serial && { imei_serial: colFilters.imei_serial }),
         ...serverFilterParams
       });
 
@@ -378,68 +392,26 @@ function InstallmentsViewContent({ adminMode = false }: InstallmentsViewProps) {
     } finally {
       if (seq === fetchSeq.current) setLoading(false);
     }
-  }, [page, limit, debouncedSearch, category, selectedMonth, selectedYear, advFilters, colFilters.status, queryAgingMin, queryAgingMax, adminMode, outletId, methodFilter, serverFilterParams]);
+  }, [page, limit, debouncedSearch, category, selectedMonth, selectedYear, advFilters, colFilters, queryAgingMin, queryAgingMax, adminMode, outletId, methodFilter, serverFilterParams]);
 
   useEffect(() => {
     fetchInstallments();
   }, [fetchInstallments]);
 
-  // Filter local rows using column-level advanced filters
-  const filteredInstallments = installments.filter(inst => {
-    return (
-      (colFilters.order_ref === "" || inst.order_ref?.toLowerCase().includes(colFilters.order_ref.toLowerCase())) &&
-      (colFilters.customer_name === "" || inst.customer_name?.toLowerCase().includes(colFilters.customer_name.toLowerCase())) &&
-      (colFilters.whatsapp_number === "" || inst.whatsapp_number?.toLowerCase().includes(colFilters.whatsapp_number.toLowerCase())) &&
-      (colFilters.alternate_number === "" || inst.alternate_number?.toLowerCase().includes(colFilters.alternate_number.toLowerCase())) &&
-      (colFilters.area === "" || inst.area?.toLowerCase().includes(colFilters.area.toLowerCase())) &&
-      (colFilters.grantor1Name === "" || inst.grantor1Name?.toLowerCase().includes(colFilters.grantor1Name.toLowerCase())) &&
-      (colFilters.grantor2Name === "" || inst.grantor2Name?.toLowerCase().includes(colFilters.grantor2Name.toLowerCase())) &&
-      (colFilters.product_name === "" || inst.product_name?.toLowerCase().includes(colFilters.product_name.toLowerCase())) &&
-      (colFilters.imei_serial === "" || inst.imei_serial?.toLowerCase().includes(colFilters.imei_serial.toLowerCase()))
-      // Status is not re-checked here — it's now a server-side filter (see
-      // fetchInstallments), so `installments` already only contains rows
-      // matching the selected status.
-    );
-  });
-
-  // Excludes `status` deliberately: that filter is now sent to the server
-  // and already reflected in `stats.*` (computed over every matching row,
-  // not just this page), so treating it like the other still-local column
-  // filters would wrongly swap those totals for a page-local sum again —
-  // which is exactly the Customer-Count-doesn't-add-up bug this fixes.
-  const hasColFilters = Object.entries(colFilters).some(([key, v]) => key !== "status" && v !== "");
-
-  const displayedMonthsDue = hasColFilters
-    ? filteredInstallments.reduce((sum, i) => sum + (i.monthlyAmount || 0), 0)
-    : stats.monthsDue;
-
-  const displayedMonthsCollected = hasColFilters
-    ? filteredInstallments.reduce((sum, i) => sum + (i.installmentCollectedInTargetMonth ?? i.partialPayment ?? 0), 0)
-    : stats.monthsCollected;
-
-  const displayedMonthsCollectedAdvance = hasColFilters
-    ? filteredInstallments.reduce((sum, i) => sum + (i.advanceCollectedInTargetMonth || 0), 0)
-    : stats.monthsCollectedAdvance;
+  // All filters are applied server-side before pagination and aggregation.
+  const filteredInstallments = installments;
+  const displayedMonthsDue = stats.monthsDue;
+  const displayedMonthsCollected = stats.monthsCollected;
+  const displayedMonthsCollectedAdvance = stats.monthsCollectedAdvance;
 
   const displayedMonthsCollectedTotal = displayedMonthsCollected + displayedMonthsCollectedAdvance;
 
   // Unpaid balance of the selected month's installments — not due minus
   // collected, since collected also counts arrears/prepaid months and went negative.
-  const displayedMonthsRemaining = hasColFilters
-    ? filteredInstallments.reduce((sum, i) => sum + (i.monthRemainingAmount || 0), 0)
-    : (stats.monthsRemainingAmount || 0);
-
-  const displayedSystemPaid = hasColFilters
-    ? filteredInstallments.reduce((sum, i) => sum + (i.orderPaidTotal || 0), 0)
-    : stats.overallSystemPaid;
-
-  const displayedSystemOutstanding = hasColFilters
-    ? filteredInstallments.reduce((sum, i) => sum + (i.remainingAmount || 0), 0)
-    : stats.overallSystemRemaining;
-
-  const displayedCustomerCount = hasColFilters
-    ? filteredInstallments.length
-    : stats.customerCount;
+  const displayedMonthsRemaining = stats.monthsRemainingAmount || 0;
+  const displayedSystemPaid = stats.overallSystemPaid;
+  const displayedSystemOutstanding = stats.overallSystemRemaining;
+  const displayedCustomerCount = stats.customerCount;
 
   // Handle Multi-Checkbox Selection
   const getRowKey = (inst: any) => `${inst.order_ref}_${inst.dueDate}`;
@@ -556,6 +528,15 @@ function InstallmentsViewContent({ adminMode = false }: InstallmentsViewProps) {
           page: String(exportPage), limit: '1000', search: debouncedSearch,
           category, view_rules: 'current', month: String(selectedMonth), year: String(selectedYear),
           aging_min: queryAgingMin, aging_max: queryAgingMax, ...advFilters, status: colFilters.status,
+          ...(colFilters.order_ref && { order_ref: colFilters.order_ref }),
+          ...(colFilters.customer_name && { customer_name: colFilters.customer_name }),
+          ...(colFilters.whatsapp_number && { whatsapp_number: colFilters.whatsapp_number }),
+          ...(colFilters.alternate_number && { alternate_number: colFilters.alternate_number }),
+          ...(colFilters.area && { area: colFilters.area }),
+          ...(colFilters.grantor1Name && { grantor1_name: colFilters.grantor1Name }),
+          ...(colFilters.grantor2Name && { grantor2_name: colFilters.grantor2Name }),
+          ...(colFilters.product_name && { product_name: colFilters.product_name }),
+          ...(colFilters.imei_serial && { imei_serial: colFilters.imei_serial }),
           ...(adminMode && outletId !== "all" && { outlet_id: outletId }),
           ...(adminMode && methodFilter && { method: methodFilter }),
           ...serverFilterParams,
@@ -567,8 +548,7 @@ function InstallmentsViewContent({ adminMode = false }: InstallmentsViewProps) {
         totalPages = result.data.pagination.totalPages;
         exportPage++;
       } while (exportPage <= totalPages);
-      const matching = rows.filter(row => Object.entries(colFilters).every(([key, value]) =>
-        !value || key === 'status' || String(row[key] || '').toLowerCase().includes(value.toLowerCase())));
+      const matching = rows;
       if (!matching.length) { toast.error('No matching accounts to export'); return; }
       const filename = `Installments_${selectedYear}_${selectedMonth}_${category}`;
       if (type === 'pdf') exportPDF(matching, filename);
@@ -1107,7 +1087,7 @@ function InstallmentsViewContent({ adminMode = false }: InstallmentsViewProps) {
                   <input
                     type="text"
                     value={colFilters.order_ref}
-                    onChange={(e) => setColFilters(prev => ({ ...prev, order_ref: e.target.value }))}
+                    onChange={(e) => updateColumnFilter("order_ref", e.target.value)}
                     placeholder="Filter Ref"
                     className="w-full rounded bg-white dark:bg-boxdark border-gray-150 dark:border-strokedark px-2 py-1 text-xs outline-none focus:border-[#E31E24]"
                   />
@@ -1120,7 +1100,7 @@ function InstallmentsViewContent({ adminMode = false }: InstallmentsViewProps) {
                   <input
                     type="text"
                     value={colFilters.area}
-                    onChange={(e) => setColFilters(prev => ({ ...prev, area: e.target.value }))}
+                    onChange={(e) => updateColumnFilter("area", e.target.value)}
                     placeholder="Filter Area"
                     className="w-full rounded bg-white dark:bg-boxdark border-gray-150 dark:border-strokedark px-2 py-1 text-xs outline-none focus:border-[#E31E24]"
                   />
@@ -1132,7 +1112,7 @@ function InstallmentsViewContent({ adminMode = false }: InstallmentsViewProps) {
                   <input
                     type="text"
                     value={colFilters.customer_name}
-                    onChange={(e) => setColFilters(prev => ({ ...prev, customer_name: e.target.value }))}
+                    onChange={(e) => updateColumnFilter("customer_name", e.target.value)}
                     placeholder="Filter Customer"
                     className="w-full rounded bg-white dark:bg-boxdark border-gray-150 dark:border-strokedark px-2 py-1 text-xs outline-none focus:border-[#E31E24]"
                   />
@@ -1141,7 +1121,7 @@ function InstallmentsViewContent({ adminMode = false }: InstallmentsViewProps) {
                   <input
                     type="text"
                     value={colFilters.whatsapp_number}
-                    onChange={(e) => setColFilters(prev => ({ ...prev, whatsapp_number: e.target.value }))}
+                    onChange={(e) => updateColumnFilter("whatsapp_number", e.target.value)}
                     placeholder="Filter WhatsApp"
                     className="w-full rounded bg-white dark:bg-boxdark border-gray-150 dark:border-strokedark px-2 py-1 text-xs outline-none focus:border-[#E31E24]"
                   />
@@ -1150,7 +1130,7 @@ function InstallmentsViewContent({ adminMode = false }: InstallmentsViewProps) {
                   <input
                     type="text"
                     value={colFilters.alternate_number}
-                    onChange={(e) => setColFilters(prev => ({ ...prev, alternate_number: e.target.value }))}
+                    onChange={(e) => updateColumnFilter("alternate_number", e.target.value)}
                     placeholder="Filter Alternate"
                     className="w-full rounded bg-white dark:bg-boxdark border-gray-150 dark:border-strokedark px-2 py-1 text-xs outline-none focus:border-[#E31E24]"
                   />
@@ -1159,7 +1139,7 @@ function InstallmentsViewContent({ adminMode = false }: InstallmentsViewProps) {
                   <input
                     type="text"
                     value={colFilters.grantor1Name}
-                    onChange={(e) => setColFilters(prev => ({ ...prev, grantor1Name: e.target.value }))}
+                    onChange={(e) => updateColumnFilter("grantor1Name", e.target.value)}
                     placeholder="Filter G1 Name"
                     className="w-full rounded bg-white dark:bg-boxdark border-gray-150 dark:border-strokedark px-2 py-1 text-xs outline-none focus:border-[#E31E24]"
                   />
@@ -1169,7 +1149,7 @@ function InstallmentsViewContent({ adminMode = false }: InstallmentsViewProps) {
                   <input
                     type="text"
                     value={colFilters.grantor2Name}
-                    onChange={(e) => setColFilters(prev => ({ ...prev, grantor2Name: e.target.value }))}
+                    onChange={(e) => updateColumnFilter("grantor2Name", e.target.value)}
                     placeholder="Filter G2 Name"
                     className="w-full rounded bg-white dark:bg-boxdark border-gray-150 dark:border-strokedark px-2 py-1 text-xs outline-none focus:border-[#E31E24]"
                   />
@@ -1179,7 +1159,7 @@ function InstallmentsViewContent({ adminMode = false }: InstallmentsViewProps) {
                   <input
                     type="text"
                     value={colFilters.product_name}
-                    onChange={(e) => setColFilters(prev => ({ ...prev, product_name: e.target.value }))}
+                    onChange={(e) => updateColumnFilter("product_name", e.target.value)}
                     placeholder="Filter Item"
                     className="w-full rounded bg-white dark:bg-boxdark border-gray-150 dark:border-strokedark px-2 py-1 text-xs outline-none focus:border-[#E31E24]"
                   />
@@ -1188,7 +1168,7 @@ function InstallmentsViewContent({ adminMode = false }: InstallmentsViewProps) {
                   <input
                     type="text"
                     value={colFilters.imei_serial}
-                    onChange={(e) => setColFilters(prev => ({ ...prev, imei_serial: e.target.value }))}
+                    onChange={(e) => updateColumnFilter("imei_serial", e.target.value)}
                     placeholder="Filter IMEI"
                     className="w-full rounded bg-white dark:bg-boxdark border-gray-150 dark:border-strokedark px-2 py-1 text-xs outline-none focus:border-[#E31E24]"
                   />
@@ -1206,10 +1186,7 @@ function InstallmentsViewContent({ adminMode = false }: InstallmentsViewProps) {
                 <td className="px-2 py-2">
                   <select
                     value={colFilters.status}
-                    onChange={(e) => {
-                      setColFilters(prev => ({ ...prev, status: e.target.value }));
-                      setPage(1);
-                    }}
+                    onChange={(e) => updateColumnFilter("status", e.target.value)}
                     className="w-full rounded bg-white dark:bg-boxdark border-gray-150 dark:border-strokedark px-2 py-1 text-xs outline-none focus:border-[#E31E24]"
                   >
                     <option value="">All</option>
