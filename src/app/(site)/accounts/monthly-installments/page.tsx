@@ -25,7 +25,7 @@ const authHeaders = () => ({ Authorization: `Bearer ${Cookies.get("auth_token")}
 const day = (d?: string | null) => pktDay(d);
 
 interface MonthRow { month: string; label: string; due: number; paidOfDue: number; unpaidOfDue: number; recovered: number; target: number; isProjected?: boolean; recoveryPercentage: number; paidOfDuePercentage: number; targetPercentage: number | null }
-interface ScheduleRow { order_id: number; order_ref: string; customer_name: string; whatsapp_number: string; outlet_name: string; month_number: number; due_date: string; amount: number; paid: number; remaining: number; status: "paid" | "partial" | "unpaid" | "overdue"; paid_at: string | null }
+interface ScheduleRow { order_id: number; order_ref: string; customer_name: string; whatsapp_number: string; order_whatsapp_number?: string | null; alternate_phone?: string | null; outlet_name: string; month_number: number; due_date: string; amount: number; paid: number; remaining: number; status: "paid" | "partial" | "unpaid" | "overdue"; paid_at: string | null }
 interface Detail {
   month: string; label: string;
   summary: {
@@ -100,7 +100,15 @@ export default function MonthlyInstallmentsPage() {
 
   const schedule = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return (detail?.schedule || []).filter((r) => (!statusFilter || r.status === statusFilter) && (!q || `${r.order_ref} ${r.customer_name} ${r.whatsapp_number} ${r.outlet_name}`.toLowerCase().includes(q)));
+    // Phone match ignores spaces/dashes and a +92 / 92 prefix, against every number on the order.
+    const toLocal = (s: string) => { const d = (s || "").replace(/\D/g, ""); return d.startsWith("92") ? "0" + d.slice(2) : d; };
+    const qDigits = toLocal(q);
+    return (detail?.schedule || []).filter((r) => {
+      if (statusFilter && r.status !== statusFilter) return false;
+      if (!q) return true;
+      if (`${r.order_ref} ${r.customer_name} ${r.whatsapp_number} ${r.order_whatsapp_number || ""} ${r.alternate_phone || ""} ${r.outlet_name}`.toLowerCase().includes(q)) return true;
+      return qDigits.length >= 4 && [r.whatsapp_number, r.order_whatsapp_number, r.alternate_phone].some((p) => p && toLocal(p).includes(qDigits));
+    });
   }, [detail, statusFilter, search]);
 
   // Categorical slots 1–2 for due vs collected, a neutral dashed line for the target.

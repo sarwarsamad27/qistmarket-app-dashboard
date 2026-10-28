@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, Suspense, useCallback, useRef } from "react";
+import { useEffect, useState, Suspense, useCallback, useMemo, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Cookies from "js-cookie";
@@ -23,9 +23,14 @@ import {
   Maximize2,
   Minimize2,
   Receipt,
-  Wallet
+  Wallet,
+  ArrowUp,
+  ArrowDown,
+  ArrowUpDown
 } from "lucide-react";
 import SmartPayQrModal from "@/components/Installments/SmartPayQrModal";
+import InstallmentNotesHistory from "@/components/Installments/InstallmentNotesHistory";
+import DateRangeFilter, { type DateRange } from "@/components/Accounts/DateRangeFilter";
 import OutletSelector from "@/components/common/OutletSelector";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
@@ -67,6 +72,10 @@ const receivedVia = (inst: any): string[] =>
       .filter((h: any) => Number(h.amount) > 0 && !h.auto_applied && h.method !== "Overpayment carried forward")
       .map((h: any) => methodLabel(h.method))
   ));
+// Row status as shown to users — stored "pending" reads "Unpaid".
+const statusLabel = (s?: string) => s === "paid" ? "Paid" : s === "partial" ? "Partial" : "Unpaid";
+const agingLabel = (days: number | null | undefined) =>
+  days === null || days === undefined ? "Paid" : days === 0 ? "Due today" : `${days > 0 ? "+" : ""}${days} days`;
 const METHOD_TONE = (m: string) =>
   /QR/.test(m) ? "bg-purple-50 text-purple-700 border-purple-200"
     : /1Link/.test(m) ? "bg-blue-50 text-blue-700 border-blue-200"
@@ -111,6 +120,12 @@ function InstallmentsViewContent({ adminMode = false }: InstallmentsViewProps) {
     min_balance: "",
     max_balance: ""
   });
+  // Verification officer + From–To date (on installment due date or date of purchase)
+  const [voFilter, setVoFilter] = useState("");
+  const [verificationOfficers, setVerificationOfficers] = useState<{ key: string; name: string }[]>([]);
+  const [dateRange, setDateRange] = useState<DateRange>({ from: "", to: "" });
+  const [dateField, setDateField] = useState<'due' | 'purchase'>('due');
+  const [agingSort, setAgingSort] = useState<'' | 'aging_asc' | 'aging_desc'>('');
   const selectedMonth = Number(pktDate(new Date()).slice(5, 7));
   const selectedYear = Number(pktDate(new Date()).slice(0, 4));
   const [categoryCounts, setCategoryCounts] = useState<Record<string, { customers: number }>>({});
@@ -167,9 +182,10 @@ function InstallmentsViewContent({ adminMode = false }: InstallmentsViewProps) {
 
   // Notes Modal state
   const [noteModalOpen, setNoteModalOpen] = useState(false);
-  const [activeOrderForNote, setActiveOrderForNote] = useState<{ id: number; ref: string; customer: string; currentNote: string; monthNumber: number } | null>(null);
+  const [activeOrderForNote, setActiveOrderForNote] = useState<{ id: number; ref: string; customer: string; monthNumber: number } | null>(null);
   const [noteText, setNoteText] = useState("");
   const [savingNote, setSavingNote] = useState(false);
+  const [noteHistoryKey, setNoteHistoryKey] = useState(0);
 
   // QR Modal state
   const [qrModalOpen, setQrModalOpen] = useState(false);
@@ -272,6 +288,15 @@ function InstallmentsViewContent({ adminMode = false }: InstallmentsViewProps) {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isFullView]);
 
+  // Verification officer, From–To date and aging sort — same params for the grid and exports.
+  const serverFilterParams = useMemo<Record<string, string>>(() => ({
+    ...(voFilter && { vo: voFilter }),
+    ...(dateRange.from && { start_date: dateRange.from }),
+    ...(dateRange.to && { end_date: dateRange.to }),
+    ...((dateRange.from || dateRange.to) && { date_field: dateField }),
+    ...(agingSort && { sort: agingSort }),
+  }), [voFilter, dateRange, dateField, agingSort]);
+
   // Fetch installments data from backend
   const fetchInstallments = useCallback(async () => {
     const seq = ++fetchSeq.current;
@@ -297,7 +322,8 @@ function InstallmentsViewContent({ adminMode = false }: InstallmentsViewProps) {
         ...(advFilters.max_amount && { max_amount: advFilters.max_amount }),
         ...(advFilters.min_balance && { min_balance: advFilters.min_balance }),
         ...(advFilters.max_balance && { max_balance: advFilters.max_balance }),
-        ...(colFilters.status && { status: colFilters.status })
+        ...(colFilters.status && { status: colFilters.status }),
+        ...serverFilterParams
       });
 
       const res = await fetch(`${API_BASE}/api/outlet/installments/due-list?${queryParams.toString()}`, {
@@ -309,6 +335,7 @@ function InstallmentsViewContent({ adminMode = false }: InstallmentsViewProps) {
       if (resData.success) {
         setInstallments(resData.data.installments || []);
         setCategoryCounts(resData.data.categories_summary || {});
+        setVerificationOfficers(resData.data.verification_officers || []);
         setStats(resData.data.stats || {
           totalDueThisMonth: 0,
           totalPaidThisMonth: 0,
@@ -335,7 +362,7 @@ function InstallmentsViewContent({ adminMode = false }: InstallmentsViewProps) {
     } finally {
       if (seq === fetchSeq.current) setLoading(false);
     }
-  }, [page, limit, debouncedSearch, category, selectedMonth, selectedYear, advFilters, colFilters.status, queryAgingMin, queryAgingMax, adminMode, outletId, methodFilter]);
+  }, [page, limit, debouncedSearch, category, selectedMonth, selectedYear, advFilters, colFilters.status, queryAgingMin, queryAgingMax, adminMode, outletId, methodFilter, serverFilterParams]);
 
   useEffect(() => {
     fetchInstallments();
@@ -446,12 +473,13 @@ function InstallmentsViewContent({ adminMode = false }: InstallmentsViewProps) {
         row.partialPayment || "-",
         paymentHistoryStr,
         row.consumer_number || '',
-        row.note || '',
+        row.note ? `${row.note}${row.note_by ? ` (by ${row.note_by})` : ''}` : '',
         row.recovery_officer?.name || '',
+        row.verification_officer?.name || '',
         row.order_ref || '',
         row.arrearsAmount || 0,
         row.smartpay_consumer_number || '',
-        row.status || '',
+        statusLabel(row.status),
         row.agingDays ?? '',
         row.dueInstallmentCount ?? 0
       ];
@@ -462,7 +490,7 @@ function InstallmentsViewContent({ adminMode = false }: InstallmentsViewProps) {
     "S No.", ...(adminMode ? ["Outlet", "Received Via"] : []), "Area", "Installment Due Date", "Date of Purchase", "Customer Name", "Contact No.", "Alternate No.",
     "G1. Name", "G1. No.", "G2. Name", "G2. Number", "Item", "Device Serial No.", "Installment Amount",
     "Due Amount", "Partial Payment", "Paid Date / History", "1Bill ID", "Installment Note", "Recovery Officer",
-    "Order Ref", "Arrears", "SmartPay Consumer No.", "Status", "Aging (days)", "Due Installments"
+    "Verification Officer", "Order Ref", "Arrears", "SmartPay Consumer No.", "Status", "Aging (days)", "Due Installments"
   ];
 
   const exportPDF = (rowsToExport: any[], filename: string) => {
@@ -514,6 +542,7 @@ function InstallmentsViewContent({ adminMode = false }: InstallmentsViewProps) {
           aging_min: queryAgingMin, aging_max: queryAgingMax, ...advFilters, status: colFilters.status,
           ...(adminMode && outletId !== "all" && { outlet_id: outletId }),
           ...(adminMode && methodFilter && { method: methodFilter }),
+          ...serverFilterParams,
         });
         const response = await fetch(`${API_BASE}/api/outlet/installments/due-list?${params}`, { headers: getAuthHeaders() });
         const result = await response.json();
@@ -540,16 +569,19 @@ function InstallmentsViewContent({ adminMode = false }: InstallmentsViewProps) {
       id: inst.order_id,
       ref: inst.order_ref,
       customer: inst.customer_name,
-      currentNote: inst.note || "",
       monthNumber: inst.monthNumber
     });
-    setNoteText(inst.note || "");
+    setNoteText("");
     setNoteModalOpen(true);
   };
 
-  // Submit Note Save to specific month number
+  // Adds a new note (old notes are kept as history, never overwritten)
   const handleSaveNote = async () => {
     if (!activeOrderForNote) return;
+    if (!noteText.trim()) {
+      toast.error("Write a note first");
+      return;
+    }
     setSavingNote(true);
 
     try {
@@ -564,16 +596,14 @@ function InstallmentsViewContent({ adminMode = false }: InstallmentsViewProps) {
 
       const data = await res.json();
       if (data.success) {
-        toast.success("Installment note successfully saved");
-        setNoteModalOpen(false);
-        // Instant local update for this specific monthly row
+        toast.success("Note added");
+        setNoteText("");
+        setNoteHistoryKey(k => k + 1);
+        // Newest note shows on the account's row right away
         setInstallments(prev =>
-          prev.map(inst => {
-            if (inst.order_id === activeOrderForNote.id && inst.monthNumber === activeOrderForNote.monthNumber) {
-              return { ...inst, note: noteText };
-            }
-            return inst;
-          })
+          prev.map(inst => inst.order_id === activeOrderForNote.id
+            ? { ...inst, note: data.data.note, note_by: data.data.user_name, note_at: data.data.created_at, note_count: (inst.note_count || 0) + 1 }
+            : inst)
         );
       } else {
         toast.error(data.message || "Failed to save note");
@@ -900,6 +930,41 @@ function InstallmentsViewContent({ adminMode = false }: InstallmentsViewProps) {
                 className="w-full rounded-xl border border-gray-100 bg-gray-50 px-3 py-2 text-xs outline-none focus:border-[#E31E24] dark:border-strokedark dark:bg-meta-4 dark:text-white"
               />
             </div>
+            <div>
+              <label className="mb-1.5 block text-[10px] font-black uppercase tracking-widest text-gray-400">Verification Officer</label>
+              <select
+                value={voFilter}
+                onChange={(e) => { setVoFilter(e.target.value); setPage(1); setSelectedRows([]); }}
+                className="w-full rounded-xl border border-gray-100 bg-gray-50 px-3 py-2 text-xs outline-none focus:border-[#E31E24] dark:border-strokedark dark:bg-meta-4 dark:text-white"
+              >
+                <option value="">All officers</option>
+                {verificationOfficers.map((o) => (
+                  <option key={o.key} value={o.key}>{o.name}</option>
+                ))}
+              </select>
+            </div>
+            <div className="col-span-1 sm:col-span-2 md:col-span-4 lg:col-span-6">
+              <label className="mb-1.5 block text-[10px] font-black uppercase tracking-widest text-gray-400">Date Range (From – To)</label>
+              <div className="flex flex-wrap items-center gap-3">
+                <select
+                  value={dateField}
+                  onChange={(e) => { setDateField(e.target.value as 'due' | 'purchase'); setPage(1); setSelectedRows([]); }}
+                  className="rounded-xl border border-gray-100 bg-gray-50 px-3 py-2 text-xs outline-none focus:border-[#E31E24] dark:border-strokedark dark:bg-meta-4 dark:text-white"
+                  aria-label="Date to filter on"
+                >
+                  <option value="due">Installment due date</option>
+                  <option value="purchase">Date of purchase</option>
+                </select>
+                <DateRangeFilter
+                  value={dateRange}
+                  onChange={(r) => { setDateRange(r); setPage(1); setSelectedRows([]); }}
+                  presets={false}
+                />
+              </div>
+              {(dateRange.from || dateRange.to) && dateField === 'due' && (
+                <p className="mt-1.5 text-[10px] text-gray-400">Shows accounts with an installment due in this range (instead of this month&apos;s). The collected cards stay this month&apos;s figures.</p>
+              )}
+            </div>
             <div className="col-span-2 grid grid-cols-2 gap-2">
               <div>
                 <label className="mb-1.5 block text-[10px] font-black uppercase tracking-widest text-gray-400">Min Amount</label>
@@ -946,7 +1011,7 @@ function InstallmentsViewContent({ adminMode = false }: InstallmentsViewProps) {
             </div>
             <div className="col-span-4 flex items-end justify-end">
               <button
-                onClick={() => { setAdvFilters({ item: "", ptp: "", lock_status: "", ro_id: "", min_amount: "", max_amount: "", min_balance: "", max_balance: "" }); setPage(1); }}
+                onClick={() => { setAdvFilters({ item: "", ptp: "", lock_status: "", ro_id: "", min_amount: "", max_amount: "", min_balance: "", max_balance: "" }); setVoFilter(""); setDateRange({ from: "", to: "" }); setPage(1); }}
                 className="text-[10px] font-black uppercase tracking-widest text-gray-400 hover:text-[#E31E24] transition-all"
               >
                 Clear Filters
@@ -974,13 +1039,24 @@ function InstallmentsViewContent({ adminMode = false }: InstallmentsViewProps) {
                   />
                 </th>
                 <th className="px-3 py-4 text-[10px] font-black text-gray-400 uppercase text-center w-12">S No.</th>
+                <th className="px-4 py-4 text-[10px] font-black text-gray-400 uppercase min-w-[130px]">Order Ref</th>
                 {adminMode && <>
-                  <th className="px-4 py-4 text-[10px] font-black text-gray-400 uppercase min-w-[130px]">Order Ref</th>
                   <th className="px-4 py-4 text-[10px] font-black text-gray-400 uppercase min-w-[130px]">Outlet</th>
                   <th className="px-4 py-4 text-[10px] font-black text-gray-400 uppercase min-w-[160px]">Received Via</th>
                 </>}
                 <th className="px-4 py-4 text-[10px] font-black text-gray-400 uppercase min-w-[140px]">Area</th>
                 <th className="px-4 py-4 text-[10px] font-black text-gray-400 uppercase min-w-[120px]">Installment Due Date</th>
+                <th className="px-4 py-4 text-[10px] font-black text-gray-400 uppercase min-w-[110px]" aria-sort={agingSort === 'aging_asc' ? 'ascending' : agingSort === 'aging_desc' ? 'descending' : 'none'}>
+                  <button
+                    type="button"
+                    onClick={() => { setAgingSort(s => s === 'aging_asc' ? 'aging_desc' : s === 'aging_desc' ? '' : 'aging_asc'); setPage(1); }}
+                    className={`inline-flex items-center gap-1 uppercase hover:text-[#E31E24] ${agingSort ? 'text-[#E31E24]' : ''}`}
+                    title="Sort by aging: ascending → descending → off"
+                  >
+                    Aging
+                    {agingSort === 'aging_asc' ? <ArrowUp className="h-3.5 w-3.5" /> : agingSort === 'aging_desc' ? <ArrowDown className="h-3.5 w-3.5" /> : <ArrowUpDown className="h-3.5 w-3.5" />}
+                  </button>
+                </th>
                 <th className="px-4 py-4 text-[10px] font-black text-gray-400 uppercase min-w-[120px]">Date of Purchase</th>
                 <th className="px-4 py-4 text-[10px] font-black text-gray-400 uppercase min-w-[160px]">Customer Name</th>
                 <th className="px-4 py-4 text-[10px] font-black text-gray-400 uppercase min-w-[140px]">Contact No.</th>
@@ -998,7 +1074,7 @@ function InstallmentsViewContent({ adminMode = false }: InstallmentsViewProps) {
                 <th className="px-4 py-4 text-[10px] font-black text-gray-400 uppercase min-w-[180px]">1Bill ID & QR</th>
                 <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase min-w-[190px]">Installment Note</th>
                 <th className="px-4 py-4 text-[10px] font-black text-gray-400 uppercase min-w-[170px]">Recovery Officer</th>
-                <th className="px-4 py-4 text-[10px] font-black text-gray-400 uppercase min-w-[120px]">Order Ref</th>
+                <th className="px-4 py-4 text-[10px] font-black text-gray-400 uppercase min-w-[170px]">Verification Officer</th>
                 <th className="px-4 py-4 text-[10px] font-black text-gray-400 uppercase min-w-[110px] text-right">Arrears</th>
                 <th className="px-4 py-4 text-[10px] font-black text-gray-400 uppercase min-w-[180px]">SmartPay Consumer No.</th>
                 <th className="px-4 py-4 text-[10px] font-black text-gray-400 uppercase min-w-[110px] text-center">Status</th>
@@ -1011,16 +1087,16 @@ function InstallmentsViewContent({ adminMode = false }: InstallmentsViewProps) {
                 <td className="px-3 py-2">
                   <div className="flex justify-center"><Filter className="h-3.5 w-3.5 text-gray-300" /></div>
                 </td>
+                <td className="px-2 py-2">
+                  <input
+                    type="text"
+                    value={colFilters.order_ref}
+                    onChange={(e) => setColFilters(prev => ({ ...prev, order_ref: e.target.value }))}
+                    placeholder="Filter Ref"
+                    className="w-full rounded bg-white dark:bg-boxdark border-gray-150 dark:border-strokedark px-2 py-1 text-xs outline-none focus:border-[#E31E24]"
+                  />
+                </td>
                 {adminMode && <>
-                  <td className="px-2 py-2">
-                    <input
-                      type="text"
-                      value={colFilters.order_ref}
-                      onChange={(e) => setColFilters(prev => ({ ...prev, order_ref: e.target.value }))}
-                      placeholder="Filter Ref"
-                      className="w-full rounded bg-white dark:bg-boxdark border-gray-150 dark:border-strokedark px-2 py-1 text-xs outline-none focus:border-[#E31E24]"
-                    />
-                  </td>
                   <td className="px-2 py-2"></td>
                   <td className="px-2 py-2"></td>
                 </>}
@@ -1033,6 +1109,7 @@ function InstallmentsViewContent({ adminMode = false }: InstallmentsViewProps) {
                     className="w-full rounded bg-white dark:bg-boxdark border-gray-150 dark:border-strokedark px-2 py-1 text-xs outline-none focus:border-[#E31E24]"
                   />
                 </td>
+                <td className="px-2 py-2"></td>
                 <td className="px-2 py-2"></td>
                 <td className="px-2 py-2"></td>
                 <td className="px-2 py-2">
@@ -1107,15 +1184,7 @@ function InstallmentsViewContent({ adminMode = false }: InstallmentsViewProps) {
                 <td className="px-2 py-2"></td>
                 <td className="px-2 py-2"></td>
                 <td className="px-2 py-2"></td>
-                <td className="px-2 py-2">
-                  <input
-                    type="text"
-                    value={colFilters.order_ref}
-                    onChange={(e) => setColFilters(prev => ({ ...prev, order_ref: e.target.value }))}
-                    placeholder="Filter Ref"
-                    className="w-full rounded bg-white dark:bg-boxdark border-gray-150 dark:border-strokedark px-2 py-1 text-xs outline-none focus:border-[#E31E24]"
-                  />
-                </td>
+                <td className="px-2 py-2"></td>
                 <td className="px-2 py-2"></td>
                 <td className="px-2 py-2"></td>
                 <td className="px-2 py-2">
@@ -1130,7 +1199,8 @@ function InstallmentsViewContent({ adminMode = false }: InstallmentsViewProps) {
                     <option value="">All</option>
                     <option value="paid">Paid</option>
                     <option value="partial">Partial</option>
-                    <option value="pending">Pending</option>
+                    <option value="unpaid">Unpaid</option>
+                    <option value="unpaid_partial">Unpaid + Partial</option>
                   </select>
                 </td>
                 <td className="px-2 py-2"></td>
@@ -1141,7 +1211,7 @@ function InstallmentsViewContent({ adminMode = false }: InstallmentsViewProps) {
             <tbody className="divide-y divide-gray-100 dark:divide-strokedark text-[13px]">
               {loading ? (
                 <tr>
-                  <td colSpan={adminMode ? 29 : 26} className="py-20 text-center">
+                  <td colSpan={adminMode ? 30 : 28} className="py-20 text-center">
                     <div className="flex flex-col items-center justify-center gap-3">
                       <Loader2 className="h-8 w-8 text-[#E31E24] animate-spin" />
                       <span className="text-xs font-black tracking-wider uppercase text-gray-400">Querying installments database...</span>
@@ -1150,7 +1220,7 @@ function InstallmentsViewContent({ adminMode = false }: InstallmentsViewProps) {
                 </tr>
               ) : filteredInstallments.length === 0 ? (
                 <tr>
-                  <td colSpan={adminMode ? 29 : 26} className="py-16 text-center text-gray-400">
+                  <td colSpan={adminMode ? 30 : 28} className="py-16 text-center text-gray-400">
                     <div className="flex flex-col items-center justify-center gap-2">
                       <AlertCircle className="h-8 w-8 text-gray-300" />
                       <span className="text-xs font-black uppercase tracking-wider">No installments found for the selected month and filters</span>
@@ -1174,10 +1244,12 @@ function InstallmentsViewContent({ adminMode = false }: InstallmentsViewProps) {
                         />
                       </td>
                       <td className="px-3 py-3.5 text-center font-black text-gray-300">{(page - 1) * limit + index + 1}</td>
+                      <td className="px-4 py-3.5 font-bold text-slate-800 dark:text-white">
+                        {adminMode
+                          ? <Link href={`/orders/${inst.order_id}`} className="text-[#E31E24] hover:underline">{inst.order_ref}</Link>
+                          : inst.order_ref}
+                      </td>
                       {adminMode && <>
-                        <td className="px-4 py-3.5 font-bold">
-                          <Link href={`/orders/${inst.order_id}`} className="text-[#E31E24] hover:underline">{inst.order_ref}</Link>
-                        </td>
                         <td className="px-4 py-3.5 font-semibold text-gray-700 dark:text-slate-300">{inst.outlet_name}</td>
                         <td className="px-4 py-3.5">
                           {receivedVia(inst).length ? (
@@ -1193,10 +1265,12 @@ function InstallmentsViewContent({ adminMode = false }: InstallmentsViewProps) {
                       </>}
                       <td className="px-4 py-3.5 font-medium">{inst.area}</td>
                       <td className="px-4 py-3.5 font-bold text-gray-700 dark:text-slate-300">{dueDateStr}
-                        <div className={`mt-1 text-xs ${inst.agingDays < 0 ? 'text-red-600' : 'text-emerald-600'}`}>
-                          {inst.agingDays === null ? 'Paid' : inst.agingDays === 0 ? 'Due today' : `${inst.agingDays > 0 ? '+' : ''}${inst.agingDays} days`}
-                        </div>
                         <div className="mt-1 text-[10px] text-gray-400">{inst.dueInstallmentCount} due installments</div>
+                      </td>
+                      <td className="px-4 py-3.5">
+                        <span className={`whitespace-nowrap font-black ${inst.agingDays === null ? 'text-gray-400' : inst.agingDays < 0 ? 'text-red-600' : 'text-emerald-600'}`}>
+                          {agingLabel(inst.agingDays)}
+                        </span>
                       </td>
                       <td className="px-4 py-3.5 font-semibold text-gray-600">{purchaseDateStr}</td>
                       <td className="px-4 py-3.5 font-black text-slate-800 dark:text-slate-200">{inst.customer_name}</td>
@@ -1276,14 +1350,25 @@ function InstallmentsViewContent({ adminMode = false }: InstallmentsViewProps) {
                           </button>
                         )}
                       </td>
-                      <td className="px-6 py-3.5 max-w-[200px] truncate">
+                      <td className="px-6 py-3.5 max-w-[220px]">
                         {inst.note ? (
-                          <span
+                          <button
+                            type="button"
                             onClick={() => openNoteDialog(inst)}
-                            className="cursor-pointer text-slate-800 dark:text-slate-300 hover:text-[#E31E24] hover:underline italic font-black"
+                            className="block w-full text-left"
+                            title="View note history / add a note"
                           >
-                            {inst.note}
-                          </span>
+                            <span className="block truncate text-slate-800 dark:text-slate-300 hover:text-[#E31E24] hover:underline italic font-black">
+                              {inst.note}
+                            </span>
+                            <span className="mt-0.5 block truncate text-[10px] text-gray-400">
+                              {inst.note_by ? `by ${inst.note_by}` : 'Earlier note'}
+                              {inst.note_at ? ` · ${formatExactDate(inst.note_at, 'DD MMM, hh:mm A')}` : ''}
+                            </span>
+                            {(inst.note_count || 0) > 1 && (
+                              <span className="text-[10px] font-black uppercase tracking-wider text-[#E31E24]">({inst.note_count} notes)</span>
+                            )}
+                          </button>
                         ) : (
                           <button
                             onClick={() => openNoteDialog(inst)}
@@ -1303,10 +1388,10 @@ function InstallmentsViewContent({ adminMode = false }: InstallmentsViewProps) {
                           <span className="text-gray-400 italic text-xs">Unassigned</span>
                         )}
                       </td>
-                      <td className="px-4 py-3.5 font-bold text-slate-800 dark:text-white">
-                        {adminMode
-                          ? <Link href={`/orders/${inst.order_id}`} className="text-[#E31E24] hover:underline">{inst.order_ref}</Link>
-                          : inst.order_ref}
+                      <td className="px-4 py-3.5">
+                        {inst.verification_officer
+                          ? <span className="font-bold text-slate-800 dark:text-slate-200">{inst.verification_officer.name}</span>
+                          : <span className="text-gray-400 italic text-xs">Not recorded</span>}
                       </td>
                       <td className="px-4 py-3.5 text-right font-black text-amber-600 dark:text-amber-400">
                         {inst.arrearsAmount ? `Rs. ${inst.arrearsAmount.toLocaleString()}` : "-"}
@@ -1329,7 +1414,7 @@ function InstallmentsViewContent({ adminMode = false }: InstallmentsViewProps) {
                                 : "bg-red-50 text-[#E31E24] border border-red-200"
                             }`}
                         >
-                          {inst.status === "paid" ? "Paid" : inst.status === "partial" ? "Partial" : "Pending"}
+                          {statusLabel(inst.status)}
                         </span>
                       </td>
                       <td className="px-4 py-3.5 text-center">
@@ -1337,7 +1422,7 @@ function InstallmentsViewContent({ adminMode = false }: InstallmentsViewProps) {
                           <button
                             onClick={() => openNoteDialog(inst)}
                             className="rounded-lg p-1.5 text-gray-400 hover:text-[#E31E24] hover:bg-gray-100 dark:hover:bg-meta-4 transition-all cursor-pointer"
-                            title="Update Monthly Note"
+                            title="Notes (add / history)"
                           >
                             <Edit3 className="h-4.5 w-4.5" />
                           </button>
@@ -1435,18 +1520,18 @@ function InstallmentsViewContent({ adminMode = false }: InstallmentsViewProps) {
 
       </div>
 
-      {/* NOTE EDITING MODAL / DIALOG */}
+      {/* NOTES MODAL — add a note; every earlier note stays in the history below */}
       {noteModalOpen && activeOrderForNote && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-          <div className="relative w-full max-w-lg rounded-3xl bg-white dark:bg-boxdark p-6 shadow-2xl border border-gray-100 dark:border-strokedark transform animate-fade-in transition-all">
+          <div className="relative flex max-h-[90vh] w-full max-w-lg flex-col rounded-3xl bg-white dark:bg-boxdark p-6 shadow-2xl border border-gray-100 dark:border-strokedark transform animate-fade-in transition-all">
 
             <div className="flex items-center justify-between border-b border-gray-100 dark:border-strokedark pb-4 mb-4">
               <div>
                 <h3 className="text-base font-black text-slate-800 dark:text-white flex items-center gap-1.5">
-                  <Edit3 className="h-4.5 w-4.5 text-[#E31E24]" /> Month {activeOrderForNote.monthNumber} Installment Note
+                  <Edit3 className="h-4.5 w-4.5 text-[#E31E24]" /> Installment Notes
                 </h3>
                 <p className="text-[10px] text-gray-400 mt-0.5">
-                  Update specific monthly ledger context for Order {activeOrderForNote.ref}
+                  {activeOrderForNote.customer} &bull; Order {activeOrderForNote.ref} &bull; Month {activeOrderForNote.monthNumber}
                 </p>
               </div>
 
@@ -1458,51 +1543,45 @@ function InstallmentsViewContent({ adminMode = false }: InstallmentsViewProps) {
               </button>
             </div>
 
-            <div className="mb-5">
+            <div className="mb-4">
               <label className="block text-[9px] font-black uppercase tracking-widest text-gray-400 mb-1.5">
-                Customer Context
+                Add New Note
               </label>
-              <div className="rounded-xl bg-gray-50 dark:bg-meta-4 p-3 text-xs font-black text-gray-600 dark:text-slate-300">
-                Customer Name: <span className="font-bold text-[#E31E24]">{activeOrderForNote.customer}</span>
+              <textarea
+                rows={3}
+                value={noteText}
+                onChange={(e) => setNoteText(e.target.value)}
+                placeholder="Contact details, promised payment, or anything about this account..."
+                className="w-full rounded-2xl border-gray-100 bg-gray-50/50 p-4 text-xs outline-none focus:border-[#E31E24] focus:bg-white dark:border-strokedark dark:bg-meta-4 dark:text-white"
+              />
+              <div className="mt-2 flex items-center justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setNoteModalOpen(false)}
+                  className="rounded-2xl border border-gray-100 dark:border-strokedark bg-white dark:bg-boxdark hover:bg-gray-50 px-5 py-2.5 text-[10px] font-black uppercase tracking-wider text-gray-500 transition-all cursor-pointer"
+                >
+                  Close
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveNote}
+                  disabled={savingNote || !noteText.trim()}
+                  className="flex items-center gap-1.5 rounded-2xl bg-[#E31E24] hover:bg-[#c7161c] px-5 py-2.5 text-[10px] font-black uppercase tracking-wider text-white shadow-sm hover:shadow-md transition-all cursor-pointer disabled:opacity-50"
+                >
+                  {savingNote ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" /> Saving...
+                    </>
+                  ) : (
+                    "Add Note"
+                  )}
+                </button>
               </div>
             </div>
 
-            <div className="mb-6">
-              <label className="block text-[9px] font-black uppercase tracking-widest text-gray-400 mb-1.5">
-                Monthly Installment Note
-              </label>
-              <textarea
-                rows={4}
-                value={noteText}
-                onChange={(e) => setNoteText(e.target.value)}
-                placeholder="Log monthly contact details, promised payments, or other notes specific to this month..."
-                className="w-full rounded-2xl border-gray-100 bg-gray-50/50 p-4 text-xs outline-none focus:border-[#E31E24] focus:bg-white dark:border-strokedark dark:bg-meta-4 dark:text-white"
-              />
-            </div>
-
-            <div className="flex items-center justify-end gap-3 border-t border-gray-100 dark:border-strokedark pt-4">
-              <button
-                type="button"
-                onClick={() => setNoteModalOpen(false)}
-                className="rounded-2xl border border-gray-100 dark:border-strokedark bg-white dark:bg-boxdark hover:bg-gray-50 px-5 py-2.5 text-[10px] font-black uppercase tracking-wider text-gray-500 transition-all cursor-pointer"
-              >
-                Cancel
-              </button>
-
-              <button
-                type="button"
-                onClick={handleSaveNote}
-                disabled={savingNote}
-                className="flex items-center gap-1.5 rounded-2xl bg-[#E31E24] hover:bg-[#c7161c] px-5 py-2.5 text-[10px] font-black uppercase tracking-wider text-white shadow-sm hover:shadow-md transition-all cursor-pointer disabled:opacity-50"
-              >
-                {savingNote ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin" /> Saving...
-                  </>
-                ) : (
-                  "Save Changes"
-                )}
-              </button>
+            <div className="min-h-0 flex-1 overflow-y-auto border-t border-gray-100 dark:border-strokedark pt-4">
+              <p className="mb-2 text-[9px] font-black uppercase tracking-widest text-gray-400">Note History</p>
+              <InstallmentNotesHistory orderId={activeOrderForNote.id} refreshKey={noteHistoryKey} />
             </div>
 
           </div>

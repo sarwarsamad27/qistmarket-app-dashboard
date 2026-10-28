@@ -18,6 +18,7 @@ import { describeExpiry, expiredFromLabel, formatExpiryDuration } from "@/lib/or
 import LinkedAccountsBadge from '@/components/common/LinkedAccountsBadge';
 import EditTimelineDatesModal from '@/components/Orders/EditTimelineDatesModal';
 import MissingGrantorForm from '@/components/Orders/MissingGrantorForm';
+import InstallmentNotesHistory from '@/components/Installments/InstallmentNotesHistory';
 import { Ban, AlertTriangle } from 'lucide-react';
 import { apiErrorMessage, getErrorMessage, extractBodyMessage } from "@/lib/apiErrors";
 
@@ -1906,6 +1907,9 @@ export default function OrderDetailsPage() {
                 </div>
                 )}
             </div>
+
+            {/* Installment note history (added from Installment View) — shown once the account has notes */}
+            <InstallmentNotesHistory orderId={order.id} title="Installment Notes" hideWhenEmpty card />
 
             {/* Order Status History Card (Spans full width) */}
             {order.statusHistories && order.statusHistories.length > 0 && (

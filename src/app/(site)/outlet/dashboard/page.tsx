@@ -257,6 +257,7 @@ export default function OutletDashboardPage() {
   const previousCustomersTotal = stats?.graphData?.customers?.previous?.reduce((a: number, b: number) => a + b, 0) || 0;
 
   // Month-wise Collection Rate calculations
+  const periodLabel = filterType === "today" ? "Today" : filterType === "month" ? "Month" : "Period";
   const monthDue = stats?.installments?.monthDue ?? stats?.installments?.totalInstallmentDue ?? 0;
   const monthPaid = stats?.installments?.monthPaid ?? stats?.installments?.totalInstallmentPaid ?? 0;
   const monthRemaining = stats?.installments?.monthRemaining ?? stats?.installments?.totalRemaining ?? 0;
@@ -604,8 +605,8 @@ export default function OutletDashboardPage() {
           <div className="col-span-12 lg:col-span-4 rounded-3xl border border-gray-100 bg-white p-6 shadow-xl shadow-gray-200/40 flex flex-col justify-between">
             <div>
               <h3 className="text-sm font-black text-gray-800 uppercase tracking-tight">Collection Rate</h3>
-              <p className="text-[9px] font-bold text-gray-400 mt-0.5 mb-3 uppercase tracking-widest">Installment Returns (Month-Wise)</p>
-              {monthDue > 0 ? (
+              <p className="text-[9px] font-bold text-gray-400 mt-0.5 mb-3 uppercase tracking-widest">Installment Returns ({periodLabel}-Wise)</p>
+              {monthPaid + monthRemaining > 0 ? (
                 <Chart options={collectionDonutOptions} series={[monthPaid, monthRemaining]} type="donut" height={190} />
               ) : (
                 <div className="flex h-44 items-center justify-center text-gray-300 font-bold uppercase tracking-widest text-xs">No Due Data</div>
@@ -617,14 +618,14 @@ export default function OutletDashboardPage() {
                 <span className="text-gray-800 whitespace-nowrap shrink-0">{PKR(monthDue)}</span>
               </div>
               <div className="flex items-center justify-between text-[10px] font-black uppercase gap-2">
-                <span className="text-gray-400 whitespace-nowrap shrink-0">Total Month Paid</span>
+                <span className="text-gray-400 whitespace-nowrap shrink-0">Total {periodLabel} Paid</span>
                 <div className="flex items-center gap-1.5 whitespace-nowrap shrink-0">
                   <span className="text-emerald-600">{PKR(monthPaid)}</span>
                   <span className="rounded bg-emerald-50 px-1.5 py-0.5 text-[9px] font-black text-emerald-600">{paidPct}%</span>
                 </div>
               </div>
               <div className="flex items-center justify-between text-[10px] font-black uppercase gap-2">
-                <span className="text-gray-400 whitespace-nowrap shrink-0">Month Remaining</span>
+                <span className="text-gray-400 whitespace-nowrap shrink-0">{periodLabel} Remaining</span>
                 <div className="flex items-center gap-1.5 whitespace-nowrap shrink-0">
                   <span className="text-rose-600">{PKR(monthRemaining)}</span>
                   <span className="rounded bg-rose-50 px-1.5 py-0.5 text-[9px] font-black text-rose-600">{remainingPct}%</span>
@@ -661,7 +662,7 @@ export default function OutletDashboardPage() {
           {/* Installment Summary */}
           <div className="rounded-3xl border border-gray-100 bg-white p-8 shadow-xl shadow-gray-200/40">
             <div className="flex items-center justify-between mb-6">
-              <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest">Installment Recovery</h3>
+              <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest">Installment Recovery · {periodLabel}</h3>
               <button
                 onClick={() => router.push("/outlet/installments/view")}
                 className="flex items-center gap-1 rounded-xl bg-red-50 border border-red-100 px-3.5 py-2 text-[9px] font-black text-[#E31E24] uppercase tracking-wider transition-all hover:bg-[#E31E24] hover:text-white"
@@ -675,7 +676,7 @@ export default function OutletDashboardPage() {
                 { label: "Pending Collections", value: stats.installments.pendingInstallmentCount, bg: "bg-amber-50", text: "text-amber-500", format: "number", href: "/outlet/installments/view?category=all" },
                 { label: "Impacted Customers", value: stats.installments.ordersWithPendingInstallments, bg: "bg-orange-50", text: "text-orange-500", format: "number", href: "/outlet/installments/view?category=impacted" },
                 { label: "Arrears", value: stats.installments.totalArrears, bg: "bg-rose-50", text: "text-rose-500", format: "currency", href: "/outlet/installments/view?category=impacted" },
-                { label: "Cumulative Remaining", value: stats.installments.cumulativeRemaining ?? stats.installments.totalRemaining, bg: "bg-violet-50", text: "text-violet-500", format: "currency", href: "/outlet/installments/view" },
+                { label: `${periodLabel} Remaining`, value: stats.installments.cumulativeRemaining ?? stats.installments.totalRemaining, bg: "bg-violet-50", text: "text-violet-500", format: "currency", href: "/outlet/installments/view" },
               ].map((item) => (
                 <div
                   key={item.label}
@@ -706,7 +707,7 @@ export default function OutletDashboardPage() {
           {/* Cash Register Snapshot */}
           <div className="rounded-3xl border border-gray-100 bg-white p-8 shadow-xl shadow-gray-200/40">
             <div className="flex items-center justify-between mb-6">
-              <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest">Cash Register Snapshot</h3>
+              <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest">Cash Register Snapshot · {periodLabel}</h3>
               <button
                 onClick={() => router.push("/outlet/cash-register")}
                 className="flex items-center gap-1 rounded-xl bg-red-50 border border-red-100 px-3.5 py-2 text-[9px] font-black text-[#E31E24] uppercase tracking-wider transition-all hover:bg-[#E31E24] hover:text-white"
