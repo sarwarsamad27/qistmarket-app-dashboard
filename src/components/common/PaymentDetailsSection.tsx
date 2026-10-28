@@ -95,7 +95,9 @@ type ViaGroup = { method: string; channel: ReceivedVia['channel']; collected_by:
 const groupReceivedVia = (list?: ReceivedVia[]): ViaGroup[] => {
     const groups: ViaGroup[] = [];
     for (const p of (list || []).filter((x) => !x.uncounted)) {
-        const g = groups.find((x) => x.method === p.method && x.date === p.date);
+        const txn = p.txn_id || p.system_txn_id || null;
+        const g = groups.find((x) => x.method === p.method && x.date === p.date &&
+            x.channel === p.channel && x.collected_by === p.collected_by && x.outlet === p.outlet && x.txn === txn);
         if (g) g.amount += p.amount;
         else groups.push({
             method: p.method, channel: p.channel, collected_by: p.collected_by, outlet: p.outlet, date: p.date,
