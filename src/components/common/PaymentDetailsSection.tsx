@@ -88,19 +88,22 @@ const rs = (n: number) => `Rs. ${Math.round(n).toLocaleString()}`;
 // How a month's money came in — same labels as Accounts → Daily Payments
 // (backend: accountsPaymentsController.paymentChannelsByMonth). Payments
 // through the same channel/person/outlet are folded into one line.
-type ReceivedVia = { amount: number; date: string; method: string; channel: 'qr' | '1bill' | 'branch'; collected_by: string | null; outlet: string | null; txn_id?: string | null; system_txn_id?: string | null; payment_id?: number | null; receipt_total?: number; uncounted?: boolean };
+type EntryAudit = { recorded_by?: string | null; recorded_outlet?: string | null; last_edited_by?: string | null };
+type ReceivedVia = EntryAudit & { amount: number; date: string; method: string; channel: 'qr' | '1bill' | 'branch'; collected_by: string | null; outlet: string | null; txn_id?: string | null; system_txn_id?: string | null; payment_id?: number | null; receipt_total?: number; uncounted?: boolean };
 // One line per payment: records of the same payment (same method + paid time, e.g.
 // one QR saved as two records, or a receipt split over months) are folded together.
-type ViaGroup = { method: string; channel: ReceivedVia['channel']; collected_by: string | null; outlet: string | null; date: string; amount: number; total: number; txn: string | null; uncounted: boolean };
+type ViaGroup = EntryAudit & { method: string; channel: ReceivedVia['channel']; collected_by: string | null; outlet: string | null; date: string; amount: number; total: number; txn: string | null; uncounted: boolean };
 const groupReceivedVia = (list?: ReceivedVia[]): ViaGroup[] => {
     const groups: ViaGroup[] = [];
     for (const p of (list || []).filter((x) => !x.uncounted)) {
         const txn = p.txn_id || p.system_txn_id || null;
         const g = groups.find((x) => x.method === p.method && x.date === p.date &&
-            x.channel === p.channel && x.collected_by === p.collected_by && x.outlet === p.outlet && x.txn === txn);
+            x.channel === p.channel && x.collected_by === p.collected_by && x.outlet === p.outlet && x.txn === txn &&
+            x.recorded_by === p.recorded_by && x.recorded_outlet === p.recorded_outlet && x.last_edited_by === p.last_edited_by);
         if (g) g.amount += p.amount;
         else groups.push({
             method: p.method, channel: p.channel, collected_by: p.collected_by, outlet: p.outlet, date: p.date,
+            recorded_by: p.recorded_by, recorded_outlet: p.recorded_outlet, last_edited_by: p.last_edited_by,
             amount: p.amount, total: p.receipt_total ?? p.amount, txn: p.txn_id || p.system_txn_id || null, uncounted: false,
         });
     }
@@ -839,7 +842,9 @@ export const PaymentDetailsSection = ({
                                                                     <td className="px-4 py-2 align-top text-sm font-semibold text-slate-800 dark:text-slate-200">
                                                                         {groups.map((g, i) => (
                                                                             <div key={i} className={cn(line(i), 'whitespace-nowrap')}>
-                                                                                {g.collected_by || (g.channel === 'qr' ? 'SmartPay QR' : g.channel === '1bill' ? '1Bill (1LINK)' : '-')}
+                                                                                {g.collected_by || (g.channel === 'qr' ? 'SmartPay QR' : g.channel === '1bill' ? '1Bill (1LINK)' : 'Receiver not recorded')}
+                                                                                {g.recorded_by && <span className="block text-xs font-normal text-gray-500">Entered by: {g.recorded_by}</span>}
+                                                                                {g.last_edited_by && g.last_edited_by !== g.recorded_by && <span className="block text-xs font-normal text-gray-500">Last edited by: {g.last_edited_by}</span>}
                                                                             </div>
                                                                         ))}
                                                                     </td>
@@ -847,6 +852,7 @@ export const PaymentDetailsSection = ({
                                                                         {groups.map((g, i) => (
                                                                             <div key={i} className={cn(line(i), 'whitespace-nowrap')}>
                                                                                 {g.outlet || (g.channel === 'branch' ? 'Not recorded' : 'Online')}
+                                                                                {g.recorded_outlet && <span className="block text-xs font-normal text-gray-500">Entry outlet: {g.recorded_outlet}</span>}
                                                                             </div>
                                                                         ))}
                                                                     </td>
