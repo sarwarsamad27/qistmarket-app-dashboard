@@ -4,43 +4,33 @@ import { useRef } from "react";
 import { Toaster, ToastBar, toast, type Toast } from "react-hot-toast";
 
 function SwipeableToast({ item }: { item: Toast }) {
-  const pointerStart = useRef<{ x: number; y: number } | null>(null);
-
-  const dismissIfSwiped = (x: number, y: number) => {
-    const start = pointerStart.current;
-    pointerStart.current = null;
-    if (!start) return;
-
-    const deltaX = x - start.x;
-    const deltaY = y - start.y;
-    if (Math.abs(deltaX) > 30 && Math.abs(deltaX) > Math.abs(deltaY)) {
-      toast.dismiss(item.id);
-    }
-  };
+  const pointerStart = useRef<{ x: number; y: number; dismissed: boolean } | null>(null);
 
   return (
     <div
-      style={{ touchAction: "pan-y" }}
+      style={{ touchAction: "none", cursor: "grab", userSelect: "none" }}
       onPointerDown={(event) => {
-        pointerStart.current = { x: event.clientX, y: event.clientY };
+        pointerStart.current = { x: event.clientX, y: event.clientY, dismissed: false };
+        event.currentTarget.setPointerCapture(event.pointerId);
       }}
-      onPointerUp={(event) => {
-        dismissIfSwiped(event.clientX, event.clientY);
+      onPointerMove={(event) => {
+        const start = pointerStart.current;
+        if (!start || start.dismissed) return;
+
+        const deltaX = event.clientX - start.x;
+        const deltaY = event.clientY - start.y;
+        if (Math.abs(deltaX) >= 24 && Math.abs(deltaX) > Math.abs(deltaY)) {
+          start.dismissed = true;
+          toast.remove(item.id);
+        }
       }}
-      onPointerCancel={() => {
+      onPointerUp={() => {
         pointerStart.current = null;
       }}
-      onTouchStart={(event) => {
-        const touch = event.changedTouches[0];
-        pointerStart.current = { x: touch.clientX, y: touch.clientY };
-      }}
-      onTouchEnd={(event) => {
-        const touch = event.changedTouches[0];
-        dismissIfSwiped(touch.clientX, touch.clientY);
-      }}
-      onTouchCancel={() => {
+      onLostPointerCapture={() => {
         pointerStart.current = null;
       }}
+      onDragStart={(event) => event.preventDefault()}
     >
       <ToastBar toast={item} />
     </div>
