@@ -45,6 +45,7 @@ export default function AdminInventoryPage() {
   const [warehouseSummary, setWarehouseSummary] = useState<WarehouseSummaryItem[]>([]);
   const [warehouseCount, setWarehouseCount] = useState(0);
   const [warehouseLoading, setWarehouseLoading] = useState(true);
+  const [warehouseError, setWarehouseError] = useState<string | null>(null);
 
   const [transfers, setTransfers] = useState<Transfer[]>([]);
   const [transfersLoading, setTransfersLoading] = useState(false);
@@ -75,14 +76,19 @@ export default function AdminInventoryPage() {
 
   useEffect(() => {
     fetch(`${BACKEND_URL}/api/accounts/stock/warehouse`, { headers: authHeaders() })
-      .then((r) => r.json())
-      .then((json) => {
-        if (json.success) {
-          setWarehouseSummary(json.data.summary || []);
-          setWarehouseCount((json.data.warehouses || []).length);
-        }
+      .then(async (r) => {
+        const json = await r.json();
+        if (!r.ok || !json.success) throw new Error(json.message || "Failed to load warehouse stock.");
+        return json;
       })
-      .catch((err) => console.error("Failed to load warehouse summary:", err))
+      .then((json) => {
+        setWarehouseSummary(json.data.summary || []);
+        setWarehouseCount((json.data.warehouses || []).length);
+      })
+      .catch((err) => {
+        console.error("Failed to load warehouse summary:", err);
+        setWarehouseError(err instanceof Error ? err.message : "Failed to load warehouse stock.");
+      })
       .finally(() => setWarehouseLoading(false));
   }, []);
 
@@ -201,8 +207,20 @@ export default function AdminInventoryPage() {
       </div>
 
       {tab === "warehouse" && (
-        warehouseLoading ? <TableSkeleton /> : warehouseSummary.length === 0 ? (
-          <div className="rounded-2xl border border-slate-100 bg-white shadow-sm dark:border-white/10 dark:bg-boxdark"><EmptyState icon={Warehouse} title="No warehouse-tagged outlets yet" description="Tag an outlet's type as 'warehouse' to see central stock here." /></div>
+        warehouseLoading ? <TableSkeleton /> : warehouseError ? (
+          <div role="alert" className="rounded-2xl border border-red-200 bg-red-50 p-5 text-sm text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-300">
+            Could not load warehouse stock: {warehouseError}
+          </div>
+        ) : warehouseSummary.length === 0 ? (
+          <div className="rounded-2xl border border-slate-100 bg-white shadow-sm dark:border-white/10 dark:bg-boxdark">
+            <EmptyState
+              icon={Warehouse}
+              title={warehouseCount === 0 ? "No warehouse-tagged outlets yet" : "No stock recorded in warehouse"}
+              description={warehouseCount === 0
+                ? "Tag an outlet's type as 'warehouse' to see central stock here."
+                : "A warehouse is set up, but no inventory items are recorded under it. Check whether stock was received into this warehouse or assigned to an outlet."}
+            />
+          </div>
         ) : (
           <div className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm dark:border-white/10 dark:bg-boxdark">
             <table className="w-full text-left text-sm">
