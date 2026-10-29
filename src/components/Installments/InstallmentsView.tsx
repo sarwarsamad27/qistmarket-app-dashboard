@@ -154,7 +154,7 @@ function InstallmentsViewContent({ adminMode = false }: InstallmentsViewProps) {
     : customAgingType === 'overdue' ? String(-Number(customFrom)) : customTo;
   const [exporting, setExporting] = useState(false);
   const [page, setPage] = useState(1);
-  const [limit] = useState(25);
+  const [limit, setLimit] = useState<number | "all">(50);
 
   // Column-level advanced filters
   const [colFilters, setColFilters] = useState({
@@ -334,7 +334,7 @@ function InstallmentsViewContent({ adminMode = false }: InstallmentsViewProps) {
     try {
       const queryParams = new URLSearchParams({
         page: page.toString(),
-        limit: limit.toString(),
+        limit: String(limit),
         search: debouncedSearch,
         category,
         view_rules: 'current',
@@ -1276,7 +1276,7 @@ function InstallmentsViewContent({ adminMode = false }: InstallmentsViewProps) {
                           className="h-4.5 w-4.5 rounded border-gray-300 text-[#E31E24] focus:ring-[#E31E24] dark:border-strokedark cursor-pointer"
                         />
                       </td>
-                      <td className="px-3 py-3.5 text-center font-black text-gray-300">{(displayedPage - 1) * limit + index + 1}</td>
+                      <td className="px-3 py-3.5 text-center font-black text-gray-300">{(limit === "all" ? 0 : (displayedPage - 1) * limit) + index + 1}</td>
                       {adminMode && <>
                         <td className="px-4 py-3.5 font-semibold text-gray-700 dark:text-slate-300">{inst.outlet_name}</td>
                       </>}
@@ -1503,15 +1503,36 @@ function InstallmentsViewContent({ adminMode = false }: InstallmentsViewProps) {
         </div>
 
         {/* PAGINATION PANEL CONTROLS */}
-        {summaryReady && filteredInstallments.length > 0 && (
-          <div className="flex items-center justify-between border-t border-gray-100 dark:border-strokedark px-6 py-4 bg-gray-50/20 text-xs">
-            <span className="text-[11px] font-black uppercase tracking-widest text-gray-400">
-              Showing <span className="text-gray-600">{(displayedPage - 1) * limit + 1}</span> to{" "}
-              <span className="text-gray-600">{Math.min(displayedPage * limit, pagination.total)}</span> of{" "}
-              <span className="text-gray-600">{pagination.total}</span> entries
-            </span>
+        {summaryReady && (
+          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-gray-100 bg-gray-50/20 px-6 py-4 text-xs dark:border-strokedark">
+            <div className="flex flex-wrap items-center gap-4">
+              <span className="text-[11px] font-black uppercase tracking-widest text-gray-400">
+                Showing <span className="text-gray-600">{pagination.total === 0 ? 0 : limit === "all" ? 1 : (displayedPage - 1) * limit + 1}</span> to{" "}
+                <span className="text-gray-600">{limit === "all" ? pagination.total : Math.min(displayedPage * limit, pagination.total)}</span> of{" "}
+                <span className="text-gray-600">{pagination.total}</span> entries
+              </span>
+              <label className="flex items-center gap-2 font-semibold text-gray-500 dark:text-gray-400">
+                Show
+                <select
+                  aria-label="Number of installment entries to show"
+                  value={limit}
+                  onChange={(event) => {
+                    const value = event.target.value;
+                    setLimit(value === "all" ? "all" : Number(value));
+                    setPage(1);
+                    setSelectedRows([]);
+                  }}
+                  className="rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-xs font-bold text-gray-700 outline-none focus:border-[#E31E24] dark:border-strokedark dark:bg-boxdark dark:text-white"
+                >
+                  <option value={50}>50</option>
+                  <option value={100}>100</option>
+                  <option value="all">All</option>
+                </select>
+                entries
+              </label>
+            </div>
 
-            <div className="flex items-center gap-1.5">
+            {limit !== "all" && pagination.total > 0 && <div className="flex items-center gap-1.5">
               <button
                 onClick={() => setPage(prev => Math.max(1, prev - 1))}
                 disabled={loading || page === 1}
@@ -1550,7 +1571,7 @@ function InstallmentsViewContent({ adminMode = false }: InstallmentsViewProps) {
               >
                 Next
               </button>
-            </div>
+            </div>}
           </div>
         )}
 
