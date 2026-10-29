@@ -476,7 +476,7 @@ function InstallmentsViewContent({ adminMode = false }: InstallmentsViewProps) {
         idx + 1,
         ...(adminMode ? [row.outlet_name || '', receivedVia(row).join(', ')] : []),
         row.area || '',
-        row.dueDate ? new Date(row.dueDate).toLocaleDateString("en-PK") : '',
+        row.dueDate ? pktDate(row.dueDate).slice(8, 10) : '',
         row.purchaseDate ? formatExactDate(row.purchaseDate, 'DD MMM YYYY, hh:mm A') : '',
         row.customer_name || '',
         row.whatsapp_number || '',
@@ -506,7 +506,7 @@ function InstallmentsViewContent({ adminMode = false }: InstallmentsViewProps) {
   };
 
   const getExportHeaders = () => [
-    "S No.", ...(adminMode ? ["Outlet", "Received Via"] : []), "Area", "Installment Due Date", "Date of Purchase", "Customer Name", "Contact No.", "Alternate No.",
+    "S No.", ...(adminMode ? ["Outlet", "Received Via"] : []), "Area", "Installment Due Day", "Date of Purchase", "Customer Name", "Contact No.", "Alternate No.",
     "G1. Name", "G1. No.", "G2. Name", "G2. Number", "Item", "Device Serial No.", "Installment Amount",
     "Due Amount", "Partial Payment", "Paid Date / History", "1Bill ID", "Installment Note", "Recovery Officer",
     "Verification Officer", "Order Ref", "Arrears", "SmartPay Consumer No.", "Status", "Aging (days)", "Due Installments"
@@ -1081,7 +1081,7 @@ function InstallmentsViewContent({ adminMode = false }: InstallmentsViewProps) {
                   <th className="px-4 py-4 text-[10px] font-black text-gray-400 uppercase min-w-[130px]">Outlet</th>
                 </>}
                 <th className="px-4 py-4 text-[10px] font-black text-gray-400 uppercase min-w-[140px]">Area</th>
-                <th className="px-4 py-4 text-[10px] font-black text-gray-400 uppercase min-w-[120px]">Installment Due Date</th>
+                <th className="px-4 py-4 text-[10px] font-black text-gray-400 uppercase min-w-[120px]">Installment Due Day</th>
                 <th className="px-4 py-4 text-[10px] font-black text-gray-400 uppercase min-w-[110px]" aria-sort={agingSort === 'aging_asc' ? 'ascending' : agingSort === 'aging_desc' ? 'descending' : 'none'}>
                   <button
                     type="button"
@@ -1264,7 +1264,7 @@ function InstallmentsViewContent({ adminMode = false }: InstallmentsViewProps) {
                 filteredInstallments.map((inst, index) => {
                   const isChecked = selectedRows.includes(getRowKey(inst));
                   const purchaseDateStr = inst.purchaseDate ? formatExactDate(inst.purchaseDate, 'DD MMM YYYY, hh:mm A') : "N/A";
-                  const dueDateStr = inst.dueDate ? new Date(inst.dueDate).toLocaleDateString("en-PK") : "N/A";
+                  const dueDay = inst.dueDate ? pktDate(inst.dueDate).slice(8, 10) || "N/A" : "N/A";
 
                   return (
                     <tr key={index} className="hover:bg-gray-50/50 transition-colors border-b border-gray-50 dark:border-strokedark">
@@ -1281,8 +1281,7 @@ function InstallmentsViewContent({ adminMode = false }: InstallmentsViewProps) {
                         <td className="px-4 py-3.5 font-semibold text-gray-700 dark:text-slate-300">{inst.outlet_name}</td>
                       </>}
                       <td className="px-4 py-3.5 font-medium">{inst.area}</td>
-                      <td className="px-4 py-3.5 font-bold text-gray-700 dark:text-slate-300">{dueDateStr}
-                        <div className="mt-1 text-[10px] text-gray-400">{inst.dueInstallmentCount} due installments</div>
+                      <td className="px-4 py-3.5 font-bold text-gray-700 dark:text-slate-300">{dueDay}
                       </td>
                       <td className="px-4 py-3.5">
                         <span className={`whitespace-nowrap font-black ${inst.agingDays === null ? 'text-gray-400' : inst.agingDays < 0 ? 'text-red-600' : 'text-emerald-600'}`}>
