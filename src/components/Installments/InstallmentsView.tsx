@@ -1309,7 +1309,7 @@ function InstallmentsViewContent({ adminMode = false }: InstallmentsViewProps) {
                               Rs. {(inst.payableAmount ?? 0).toLocaleString()}
                             </span>
                             <p className="text-[10px] text-amber-600 font-bold mt-0.5">
-                              (This month Rs. {(inst.currentDueAmount ?? 0).toLocaleString()} + Rs. {inst.arrearsAmount.toLocaleString()} arr.)
+                              (Latest overdue Rs. {(inst.currentDueAmount ?? 0).toLocaleString()} + Rs. {inst.arrearsAmount.toLocaleString()} arr.)
                             </p>
                           </div>
                         ) : (inst.payableAmount ?? 0) > 0 ? (
