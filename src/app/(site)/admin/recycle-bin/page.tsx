@@ -52,7 +52,7 @@ type Links = { blocking: LinkItem[]; removed: LinkItem[]; unlinked: LinkItem[] }
 
 type Tab = 'orders' | 'outlets' | 'users';
 
-const ENDPOINTS: Record<Tab, { list: string; restore: string; remove: string; bodyKey: string; links?: (id: number) => string }> = {
+const ENDPOINTS: Record<Tab, { list: string; restore: string; remove?: string; bodyKey: string; links?: (id: number) => string }> = {
   orders: {
     list: '/api/admin-panel/orders/recycle-bin',
     restore: '/api/admin-panel/orders/recycle-bin/restore',
@@ -69,7 +69,6 @@ const ENDPOINTS: Record<Tab, { list: string; restore: string; remove: string; bo
   users: {
     list: '/api/users-recycle-bin',
     restore: '/api/users-recycle-bin/restore',
-    remove: '/api/users-recycle-bin/permanent-delete',
     bodyKey: 'userIds',
     links: (id) => `/api/users-recycle-bin/${id}/links`,
   },
@@ -225,10 +224,12 @@ export default function RecycleBinPage() {
 
   const deletePermanently = async (ids: number[], confirmMessage: string) => {
     if (ids.length === 0) return;
+    const removeEndpoint = ENDPOINTS[tab].remove;
+    if (!removeEndpoint) return;
     if (!confirm(confirmMessage)) return;
     setBusy(true);
     try {
-      const res = await fetch(`${BACKEND_URL}${ENDPOINTS[tab].remove}`, {
+      const res = await fetch(`${BACKEND_URL}${removeEndpoint}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...authHeaders() },
         body: JSON.stringify({ [ENDPOINTS[tab].bodyKey]: ids }),
@@ -278,9 +279,9 @@ export default function RecycleBinPage() {
       ? `Permanently delete ${selectedCount} order(s)? This will remove them and all associated records (verification, ledger, deliveries, payments, etc.) for good. This action CANNOT be undone.`
       : tab === 'outlets'
         ? `Permanently delete ${selectedCount} outlet(s)? This deletes the outlet together with its inventory, cash, expenses, vendors and bank accounts. Its staff accounts and orders are kept (unlinked from the outlet). This action CANNOT be undone.`
-        : `Permanently delete ${selectedCount} user account(s)? Only accounts nothing else uses are removed — the rest stay in the Recycle Bin and you'll see what still uses them. This action CANNOT be undone.`;
+        : '';
 
-  const actions = (id: number, label: string, confirmMessage: string) => (
+  const actions = (id: number, label: string, confirmMessage: string, allowPermanentDelete = true) => (
     <div className="flex items-center gap-3 whitespace-nowrap">
       <button
         disabled={busy}
@@ -298,13 +299,13 @@ export default function RecycleBinPage() {
           <Search className="w-3.5 h-3.5" /> Where used
         </button>
       )}
-      <button
+      {allowPermanentDelete && ENDPOINTS[tab].remove && <button
         disabled={busy}
         onClick={() => deletePermanently([id], confirmMessage)}
         className="inline-flex items-center gap-1 text-red-600 font-semibold hover:underline disabled:opacity-50"
       >
         <Trash2 className="w-3.5 h-3.5" /> Delete Permanently
-      </button>
+      </button>}
     </div>
   );
 
@@ -315,7 +316,10 @@ export default function RecycleBinPage() {
       <input type="checkbox" checked={allFilteredSelected} onChange={toggleAll} aria-label="Select all" />
     </th>
   );
-  const rowClass = (id: number) => (selectedIds.has(id) ? 'bg-blue-50/60 dark:bg-blue-500/5' : undefined);
+  const rowClass = (id: number) => [
+    'opacity-70 grayscale',
+    selectedIds.has(id) ? 'bg-blue-50/60 dark:bg-blue-500/5' : '',
+  ].filter(Boolean).join(' ');
   const selectOne = (id: number, label: string) => (
     <td className="py-2 px-3">
       <input type="checkbox" checked={selectedIds.has(id)} onChange={() => toggleOne(id)} aria-label={`Select ${label}`} />
@@ -343,7 +347,7 @@ export default function RecycleBinPage() {
                 ? 'Orders deleted from the app land here first. Restore to bring one back exactly as it was, or delete permanently to remove it and all its records for good — that step cannot be undone.'
                 : tab === 'outlets'
                   ? 'Outlets deleted from the app land here first. Wherever they still appear they read "(Deleted)". Restore to bring one back exactly as it was, or delete permanently to remove it together with its inventory, cash, expenses and vendors for good (its staff accounts, orders and customer ledgers are kept, unlinked) — that step cannot be undone. "Where used" shows exactly what would block it.'
-                  : 'Staff accounts of any role (CSR, Sub Admin, verification / delivery / recovery officer …) deleted from User Management land here. They can\'t log in or be selected anywhere; every order, payment and report they\'re part of still shows them as "(Deleted)", read only. Restore brings one back as it was. "Where used" shows what still points at an account — only an account nothing uses can be deleted permanently.'}
+                  : 'Staff accounts deleted from User Management stay here as inactive history. They cannot log in or be assigned, and their past orders, payments and reports remain visible with the account marked "(Deleted)". Use "Where used" to inspect the linked history. Restore only if this account should become active again.'}
             </p>
           </div>
           <input
@@ -366,13 +370,13 @@ export default function RecycleBinPage() {
               >
                 <RotateCcw className="w-4 h-4" /> Restore Selected ({selectedCount})
               </button>
-              <button
+              {ENDPOINTS[tab].remove && <button
                 disabled={busy}
                 onClick={() => deletePermanently(Array.from(selectedIds), bulkConfirm)}
                 className="inline-flex items-center gap-1.5 text-red-700 dark:text-red-400 font-semibold hover:underline disabled:opacity-50"
               >
                 <Trash2 className="w-4 h-4" /> Delete Permanently ({selectedCount})
-              </button>
+              </button>}
             </div>
           </div>
         )}
@@ -481,7 +485,7 @@ export default function RecycleBinPage() {
                     <td className={td}>{new Date(u.deleted_at).toLocaleString()}</td>
                     <td className={td}>{u.deleted_by_name || '—'}</td>
                     <td className="py-2 px-3">
-                      {actions(u.id, u.full_name, `Permanently delete ${u.full_name} (@${u.username})? Only possible if nothing else uses this account — otherwise nothing is deleted and you'll see what still uses it. This action CANNOT be undone.`)}
+                      {actions(u.id, u.full_name, '', false)}
                     </td>
                   </tr>
                 ))}
@@ -506,7 +510,7 @@ export default function RecycleBinPage() {
                 {linksView.links.blocking.length === 0 ? (
                   <p className="mb-4 rounded-lg bg-green-50 px-3 py-2 text-sm font-semibold text-green-700 dark:bg-green-500/10 dark:text-green-300">Nothing blocks a permanent delete.</p>
                 ) : null}
-                <LinkGroup title="Blocking the delete — clear or move these first" items={linksView.links.blocking} tone="red" />
+                <LinkGroup title={tab === 'users' ? 'Past records linked to this deleted account' : 'Blocking the delete — clear or move these first'} items={linksView.links.blocking} tone={tab === 'users' ? 'gray' : 'red'} />
                 <LinkGroup title="Deleted together with it" items={linksView.links.removed} tone="gray" />
                 <LinkGroup title="Kept, just unlinked from it" items={linksView.links.unlinked} tone="blue" />
                 {linksView.links.blocking.length > 0 && (
