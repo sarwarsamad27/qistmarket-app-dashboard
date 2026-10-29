@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Cookies from "js-cookie";
+import Link from "next/link";
 import {
   AlertTriangle,
   CalendarClock,
@@ -608,7 +609,12 @@ function DeliveryOrderRows({
     <>
       <tr className="border-t border-slate-50 align-top dark:border-white/5">
         <td className="px-3 py-4">
-          <p className="font-bold text-dark dark:text-white">{order.order_ref}</p>
+          <Link
+            href={`/orders/${order.id}`}
+            className="font-bold text-primary underline-offset-2 hover:underline focus-visible:rounded-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
+          >
+            {order.order_ref}
+          </Link>
           <p className="mt-0.5 font-medium">{order.customer_name}</p>
           <p className="mt-0.5 text-xs text-gray-500">{order.product_name}</p>
           {order.whatsapp_number && <p className="mt-0.5 text-xs text-gray-500">{order.whatsapp_number}</p>}
