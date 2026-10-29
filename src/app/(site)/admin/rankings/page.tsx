@@ -146,31 +146,31 @@ function achievementLabel(row: RankRow): { label: string; className: string } | 
 // lets a CSR sort by achievement / sale amount / score / complaints) so the
 // admin view offers the same multi-criteria view for every department, using
 // whatever metric each department's ranking rows already carry.
-interface Tab { key: string; label: string; value: (r: RankRow) => number }
+interface Tab { key: string; label: string; value: (r: RankRow) => number | null }
 const OFFICER_TABS: Record<string, Tab[]> = {
   csr: [
-    { key: "achievement", label: "By Achievement", value: (r) => r.conversion_rate ?? 0 },
-    { key: "sales", label: "By Sale Amount", value: (r) => r.total_sales ?? 0 },
-    { key: "score", label: "By Score", value: (r) => r.score ?? 0 },
-    { key: "complaints", label: "By Complaints", value: (r) => r.complaints_solved ?? 0 },
+    { key: "achievement", label: "By Achievement", value: (r) => r.conversion_rate ?? (r.unique_customers > 0 ? Math.round(r.delivered_customers / r.unique_customers * 1000) / 10 : 0) },
+    { key: "sales", label: "By Sale Amount", value: (r) => r.total_sales ?? null },
+    { key: "score", label: "By Score", value: (r) => r.score ?? null },
+    { key: "complaints", label: "By Complaints", value: (r) => r.complaints_solved ?? null },
   ],
   verification: [
-    { key: "delivered", label: "By Delivered", value: (r) => r.delivered_count ?? 0 },
-    { key: "achievement", label: "By Achievement %", value: (r) => r.achievement_percent ?? -1 },
-    { key: "score", label: "By Score", value: (r) => r.score ?? 0 },
-    { key: "sales", label: "By Sale Amount", value: (r) => r.sale_amount ?? 0 },
+    { key: "delivered", label: "By Delivered", value: (r) => r.delivered_count ?? null },
+    { key: "achievement", label: "By Achievement %", value: (r) => r.achievement_percent ?? null },
+    { key: "score", label: "By Score", value: (r) => r.score ?? null },
+    { key: "sales", label: "By Sale Amount", value: (r) => r.sale_amount ?? null },
   ],
   delivery: [
-    { key: "achievement", label: "By Achievement", value: (r) => { const t = (r.successful_deliveries || 0) + (r.failed_deliveries || 0); return t ? Math.round(((r.successful_deliveries || 0) / t) * 1000) / 10 : 0; } },
-    { key: "sales", label: "By Sale Amount", value: (r) => r.total_sales ?? 0 },
-    { key: "score", label: "By Score", value: (r) => r.score ?? 0 },
-    { key: "successful", label: "By Successful", value: (r) => r.successful_deliveries ?? 0 },
+    { key: "achievement", label: "By Achievement", value: (r) => { if (r.successful_deliveries === undefined || r.failed_deliveries === undefined) return null; const t = (r.successful_deliveries || 0) + (r.failed_deliveries || 0); return t ? Math.round(((r.successful_deliveries || 0) / t) * 1000) / 10 : 0; } },
+    { key: "sales", label: "By Sale Amount", value: (r) => r.total_sales ?? null },
+    { key: "score", label: "By Score", value: (r) => r.score ?? null },
+    { key: "successful", label: "By Successful", value: (r) => r.successful_deliveries ?? null },
   ],
   recovery: [
-    { key: "achievement", label: "By Achievement", value: (r) => r.recovery_rate ?? 0 },
-    { key: "sales", label: "By Amount Collected", value: (r) => r.amount_collected ?? r.recovery_amount ?? 0 },
-    { key: "score", label: "By Score", value: (r) => r.score ?? 0 },
-    { key: "visits", label: "By Visits", value: (r) => r.visit_count ?? 0 },
+    { key: "achievement", label: "By Achievement", value: (r) => r.recovery_rate ?? null },
+    { key: "sales", label: "By Amount Collected", value: (r) => r.amount_collected ?? r.recovery_amount ?? null },
+    { key: "score", label: "By Score", value: (r) => r.score ?? null },
+    { key: "visits", label: "By Visits", value: (r) => r.visit_count ?? null },
   ],
 };
 
@@ -212,7 +212,21 @@ function OfficerBoardCard({ board, rows, limit, showTrend = true }: { board: (ty
   const [activeTab, setActiveTab] = useState(tabs[0].key);
   const tab = tabs.find((t) => t.key === activeTab) || tabs[0];
 
-  const sorted = [...rows].sort((a, b) => tab.value(b) - tab.value(a));
+  const sorted = [...rows].sort((a, b) => {
+    const av = tab.value(a), bv = tab.value(b);
+    if (av === null) return bv === null ? 0 : 1;
+    if (bv === null) return -1;
+    return bv - av || a.full_name.localeCompare(b.full_name);
+  });
+  const metricLabel = tab.key === "achievement"
+    ? ({ csr: "Achievement (conversion %)", verification: "Target achieved %", delivery: "Delivery success %", recovery: "Recovery success %" }[board.key])
+    : tab.label.replace(/^By /, "");
+  const metricValue = (r: RankRow) => {
+    const value = tab.value(r);
+    if (value === null) return board.key === "verification" && tab.key === "achievement" ? (showTrend ? "No target" : "No lifetime target") : "Not available";
+    return tab.key === "achievement" ? `${value.toLocaleString()}%`
+      : tab.key === "sales" ? `PKR ${value.toLocaleString()}` : value.toLocaleString();
+  };
   const { rows: display, collapsible, expanded, hiddenCount, toggle } = useCollapsibleRows(sorted, limit);
 
   return (
@@ -238,13 +252,14 @@ function OfficerBoardCard({ board, rows, limit, showTrend = true }: { board: (ty
         <>
         <table className="w-full text-left text-sm">
           <thead className="bg-gray-50 text-[11px] uppercase tracking-wide text-gray-500 dark:bg-dark-2 dark:text-gray-400">
-            <tr><th className="px-4 py-2.5 font-bold">#</th><th className="px-4 py-2.5 font-bold">Officer</th><th className="px-4 py-2.5 font-bold">Outlet</th><th className="px-4 py-2.5 text-right font-bold">Score</th>{showTrend && <th className="px-4 py-2.5 text-right font-bold"></th>}</tr>
+            <tr><th className="px-4 py-2.5 font-bold">#</th><th className="px-4 py-2.5 font-bold">Officer</th><>{board.key !== "csr" && <th className="px-4 py-2.5 font-bold">Outlet</th>}</><th className="px-4 py-2.5 text-right font-bold">{metricLabel}</th>{showTrend && activeTab === "score" && <th className="px-4 py-2.5 text-right font-bold"></th>}</tr>
           </thead>
           <tbody>
             {display.map((r, idx) => {
               const rank = idx + 1;
-              const achievement = achievementLabel(r);
+              const achievement = achievementLabel({ ...r, rank });
               const kpiLine = supplementaryKpiLine(board.key, r);
+              const visibleKpi = !showTrend && board.key === "verification" ? `${r.delivered_count ?? 0} delivered - PKR ${(r.sale_amount ?? 0).toLocaleString()} sales` : kpiLine;
               return (
                 <tr key={r.id} className="border-t border-slate-50 dark:border-white/5">
                   <td className={`px-4 py-2.5 font-black ${rank <= 3 ? MEDAL[rank - 1] : "text-gray-400"}`}>{rank}</td>
@@ -255,11 +270,11 @@ function OfficerBoardCard({ board, rows, limit, showTrend = true }: { board: (ty
                       {r.tier && <span className={`inline-block rounded-full px-2 py-0.5 text-[10px] font-bold ${TIER_STYLE[r.tier]}`}>{r.tier}</span>}
                       {achievement && <span className={`inline-block rounded-full px-2 py-0.5 text-[10px] font-bold ${achievement.className}`}>{achievement.label}</span>}
                     </div>
-                    {kpiLine && <p className="mt-1 text-[10px] text-gray-400">{kpiLine}</p>}
+                    {visibleKpi && <p className="mt-1 text-xs text-gray-500">{visibleKpi}</p>}
                   </td>
-                  <td className="px-4 py-2.5 text-gray-600 dark:text-gray-300">{r.outlet_name}</td>
-                  <td className="px-4 py-2.5 text-right tabular-nums font-bold text-dark dark:text-white">{r.score.toLocaleString()}</td>
-                  {showTrend && (
+                  {board.key !== "csr" && <td className="px-4 py-2.5 text-gray-600 dark:text-gray-300">{r.outlet_name || "Not assigned"}</td>}
+                  <td className="px-4 py-2.5 text-right tabular-nums font-bold text-dark dark:text-white">{metricValue(r)}</td>
+                  {showTrend && activeTab === "score" && (
                     <td className="px-4 py-2.5 text-right">
                       {r.trend > 0 ? <TrendingUp className="ml-auto size-4 text-emerald-500" /> : r.trend < 0 ? <TrendingDown className="ml-auto size-4 text-rose-500" /> : <Minus className="ml-auto size-4 text-gray-300" />}
                     </td>
@@ -348,6 +363,7 @@ export default function AdminRankingsPage() {
   const isSuperAdmin = roleLower === "super admin";
   const isAdminOrSuper = ["super admin", "admin"].includes(roleLower);
 
+  const [periodView, setPeriodView] = useState<"month" | "all">("month");
   const [data, setData] = useState<RankingsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [badges, setBadges] = useState<BadgeRow[]>([]);
@@ -438,7 +454,7 @@ export default function AdminRankingsPage() {
       <PageHeader
         icon={Trophy}
         title="Rankings & Leaderboards"
-        subtitle={data ? `Company-wide performance leaderboard for ${monthLabel}.` : "Company-wide performance leaderboard."}
+        subtitle={periodView === "all" ? "Company-wide all-time performance leaderboard." : data ? `Company-wide performance leaderboard for ${monthLabel}.` : "Company-wide performance leaderboard."}
         actions={
           <div className="flex items-center gap-2">
             {isAdminOrSuper && (
@@ -464,7 +480,14 @@ export default function AdminRankingsPage() {
         onSaved={loadData}
       />
 
-      {loading ? (
+      <div className="mb-4 flex items-center gap-3">
+        <label htmlFor="ranking-period" className="text-sm font-semibold">Ranking period</label>
+        <select id="ranking-period" value={periodView} onChange={e => setPeriodView(e.target.value as "month" | "all")} className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:bg-boxdark">
+          <option value="month">{monthLabel || "This month"}</option>
+          <option value="all">All time</option>
+        </select>
+      </div>
+      {(periodView === "all" ? globalLoading : loading) ? (
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
           <TableSkeleton rows={5} cols={4} />
           <TableSkeleton rows={5} cols={4} />
@@ -474,41 +497,18 @@ export default function AdminRankingsPage() {
       ) : (
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
           {BOARDS.map((board) => (
-            <OfficerBoardCard key={board.key} board={board} rows={data?.[board.key] || []} limit={10} />
+            <OfficerBoardCard key={board.key} board={board} rows={(periodView === "all" ? globalData : data)?.[board.key] || []} limit={10} showTrend={periodView === "month"} />
           ))}
         </div>
       )}
 
       <div className="mt-6">
         <h2 className="mb-3 flex items-center gap-2 text-sm font-bold text-dark dark:text-white"><Store className="size-4 text-blue-500" /> Outlet Ranking Board</h2>
-        <p className="mb-3 text-xs text-gray-400">Computed live from this month's sales, recovery %, and on-time installment performance — not a persisted leaderboard like the officer boards above.</p>
-        {outletLoading ? (
+        <p className="mb-3 text-xs text-gray-400">{periodView === "all" ? "Sales, recovery and on-time performance across all recorded periods." : `Sales, recovery and on-time performance for ${monthLabel}.`}</p>
+        {(periodView === "all" ? globalLoading : outletLoading) ? (
           <TableSkeleton rows={4} cols={5} />
         ) : (
-          <OutletBoardCard rows={outletRankings} limit={10} />
-        )}
-      </div>
-
-      <div className="mt-8">
-        <h2 className="mb-1 flex items-center gap-2 text-sm font-bold text-dark dark:text-white"><Trophy className="size-4 text-amber-500" /> Global Rankings (All-Time)</h2>
-        <p className="mb-3 text-xs text-gray-400">Lifetime totals across every recorded month — every CSR, Verification/Delivery/Recovery officer, and outlet, not just this month's top performers.</p>
-        {globalLoading ? (
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-            <TableSkeleton rows={5} cols={4} />
-            <TableSkeleton rows={5} cols={4} />
-          </div>
-        ) : (
-          <>
-            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-              {BOARDS.map((board) => (
-                <OfficerBoardCard key={board.key} board={board} rows={globalData?.[board.key] || []} limit={10} showTrend={false} />
-              ))}
-            </div>
-            <div className="mt-6">
-              <h3 className="mb-3 flex items-center gap-2 text-sm font-bold text-dark dark:text-white"><Store className="size-4 text-blue-500" /> Outlets — All-Time</h3>
-              <OutletBoardCard rows={globalData?.outlet || []} limit={10} />
-            </div>
-          </>
+          <OutletBoardCard rows={periodView === "all" ? globalData?.outlet || [] : outletRankings} limit={10} />
         )}
       </div>
 
@@ -545,7 +545,7 @@ export default function AdminRankingsPage() {
                   <tr key={b.id} className="border-t border-slate-50 dark:border-white/5"><td className="px-4 py-3.5 text-gray-500 tabular-nums">{idx + 1}</td>
                     <td className="px-4 py-3.5">
                       <p className="font-semibold text-dark dark:text-white">{b.full_name}</p>
-                      <p className="text-xs text-gray-400">{b.outlet_name}</p>
+                      {b.department.toLowerCase() !== "csr" && <p className="text-xs text-gray-400">{b.outlet_name}</p>}
                     </td>
                     <td className="px-4 py-3.5 capitalize text-gray-600 dark:text-gray-300">{b.department}</td>
                     <td className="px-4 py-3.5 font-semibold">{BADGE_LABEL[b.badge_type] || b.badge_type}</td>
