@@ -32,9 +32,6 @@ import SmartPayQrModal from "@/components/Installments/SmartPayQrModal";
 import InstallmentNotesHistory from "@/components/Installments/InstallmentNotesHistory";
 import DateRangeFilter, { type DateRange } from "@/components/Accounts/DateRangeFilter";
 import OutletSelector from "@/components/common/OutletSelector";
-import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
-import * as XLSX from "xlsx";
 import { formatExactDate } from "@/utils/dateUtils";
 import { getErrorMessage } from "@/lib/apiErrors";
 import { pktDate } from '@/utils/pkt'
@@ -46,7 +43,7 @@ const getAuthHeaders = () => {
 };
 
 const ACCOUNT_CATEGORIES = [
-  ['all', 'All Accounts', 'This month: paid and unpaid installments'],
+  ['all', 'All Accounts', 'All outstanding accounts + this month?s paid installments'],
   ['regular', 'Regular Accounts', 'Current installment only; no older arrears'],
   ['fresh', 'Fresh Accounts', 'Due today or upcoming; no overdue installment'],
   ['overdue', 'Overdue Accounts', '2+ unpaid installments due'],
@@ -119,6 +116,7 @@ function InstallmentsViewContent({ adminMode = false }: InstallmentsViewProps) {
     return () => clearTimeout(t);
   }, [search]);
   const fetchSeq = useRef(0);
+  const activeRequest = useRef<AbortController | null>(null);
   const [category, setCategory] = useState<'all' | 'regular' | 'fresh' | 'overdue' | 'blacklist' | 'defaulter' | 'ptp' | 'impacted'>(initialCategory);
   const [showAdvFilters, setShowAdvFilters] = useState(false);
   
@@ -319,6 +317,9 @@ function InstallmentsViewContent({ adminMode = false }: InstallmentsViewProps) {
   // Fetch installments data from backend
   const fetchInstallments = useCallback(async () => {
     const seq = ++fetchSeq.current;
+    activeRequest.current?.abort();
+    const controller = new AbortController();
+    activeRequest.current = controller;
     setLoading(true);
     setSummaryReady(false);
     try {
@@ -356,7 +357,8 @@ function InstallmentsViewContent({ adminMode = false }: InstallmentsViewProps) {
       });
 
       const res = await fetch(`${API_BASE}/api/outlet/installments/due-list?${queryParams.toString()}`, {
-        headers: getAuthHeaders()
+        headers: getAuthHeaders(),
+        signal: controller.signal
       });
 
       const resData = await res.json();
@@ -387,6 +389,7 @@ function InstallmentsViewContent({ adminMode = false }: InstallmentsViewProps) {
         toast.error(resData.message || "Failed to load installments");
       }
     } catch (err) {
+      if (controller.signal.aborted || seq !== fetchSeq.current) return;
       console.error(err);
       toast.error(getErrorMessage(err, "Error connecting to backend"));
     } finally {
@@ -396,6 +399,10 @@ function InstallmentsViewContent({ adminMode = false }: InstallmentsViewProps) {
 
   useEffect(() => {
     fetchInstallments();
+    return () => {
+      activeRequest.current?.abort();
+      fetchSeq.current++;
+    };
   }, [fetchInstallments]);
 
   // All filters are applied server-side before pagination and aggregation.
@@ -481,7 +488,8 @@ function InstallmentsViewContent({ adminMode = false }: InstallmentsViewProps) {
     "Verification Officer", "Order Ref", "Arrears", "SmartPay Consumer No.", "Status", "Aging (days)", "Due Installments"
   ];
 
-  const exportPDF = (rowsToExport: any[], filename: string) => {
+  const exportPDF = async (rowsToExport: any[], filename: string) => {
+    const [{ default: jsPDF }, { default: autoTable }] = await Promise.all([import("jspdf"), import("jspdf-autotable")]);
     const doc = new jsPDF({ orientation: "landscape", unit: "pt", format: "a4" });
     const headers = getExportHeaders();
     const data = getExportData(rowsToExport);
@@ -505,7 +513,8 @@ function InstallmentsViewContent({ adminMode = false }: InstallmentsViewProps) {
     doc.save(`${filename}.pdf`);
   };
 
-  const exportExcel = (rowsToExport: any[], filename: string) => {
+  const exportExcel = async (rowsToExport: any[], filename: string) => {
+    const XLSX = await import("xlsx");
     const headers = getExportHeaders();
     const data = getExportData(rowsToExport);
     
@@ -551,8 +560,8 @@ function InstallmentsViewContent({ adminMode = false }: InstallmentsViewProps) {
       const matching = rows;
       if (!matching.length) { toast.error('No matching accounts to export'); return; }
       const filename = `Installments_${selectedYear}_${selectedMonth}_${category}`;
-      if (type === 'pdf') exportPDF(matching, filename);
-      else exportExcel(matching, filename);
+      if (type === 'pdf') await exportPDF(matching, filename);
+      else await exportExcel(matching, filename);
       toast.success(`Exported ${matching.length} accounts`);
     } catch (error) {
       toast.error(getErrorMessage(error, 'Export failed'));
