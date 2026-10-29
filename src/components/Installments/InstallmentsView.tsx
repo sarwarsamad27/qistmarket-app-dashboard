@@ -43,7 +43,7 @@ const getAuthHeaders = () => {
 };
 
 const ACCOUNT_CATEGORIES = [
-  ['all', 'All Accounts', 'All outstanding accounts + this month?s paid installments'],
+  ['all', 'All Accounts', 'All outstanding accounts + paid installments this month'],
   ['regular', 'Regular Accounts', 'Current installment only; no older arrears'],
   ['fresh', 'Fresh Accounts', 'Due today or upcoming; no overdue installment'],
   ['overdue', 'Overdue Accounts', '2+ unpaid installments due'],
@@ -85,7 +85,7 @@ interface InstallmentsViewProps {
 }
 
 function SummaryValue({ loading, ready, value, currency = false }: { loading: boolean; ready: boolean; value: number; currency?: boolean }) {
-  if (loading) {
+  if (loading && !ready) {
     return (
       <span role="status" className="inline-flex items-center gap-2 text-sm font-medium text-gray-400">
         <Loader2 aria-hidden="true" className="h-4 w-4 animate-spin" />
@@ -193,6 +193,14 @@ function InstallmentsViewContent({ adminMode = false }: InstallmentsViewProps) {
   const [pagination, setPagination] = useState({ total: 0, totalPages: 1 });
   const [loading, setLoading] = useState(true);
   const [summaryReady, setSummaryReady] = useState(false);
+  const [loadError, setLoadError] = useState(false);
+  const resultCache = useRef(new Map<string, { data: any; savedAt: number }>());
+  const [displayedPage, setDisplayedPage] = useState(1);
+  const [debouncedColFilters, setDebouncedColFilters] = useState(colFilters);
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedColFilters(colFilters), 350);
+    return () => clearTimeout(timer);
+  }, [colFilters]);
 
   // Selection states
   const [selectedRows, setSelectedRows] = useState<string[]>([]); // Array of orderRef_dueDate keys
@@ -315,13 +323,14 @@ function InstallmentsViewContent({ adminMode = false }: InstallmentsViewProps) {
   }), [voFilter, dateRange, dateField, agingSort]);
 
   // Fetch installments data from backend
-  const fetchInstallments = useCallback(async () => {
+  const fetchInstallments = useCallback(async (forceRefresh = true) => {
     const seq = ++fetchSeq.current;
     activeRequest.current?.abort();
     const controller = new AbortController();
     activeRequest.current = controller;
     setLoading(true);
-    setSummaryReady(false);
+    setLoadError(false);
+    if (forceRefresh) resultCache.current.clear();
     try {
       const queryParams = new URLSearchParams({
         page: page.toString(),
@@ -343,31 +352,24 @@ function InstallmentsViewContent({ adminMode = false }: InstallmentsViewProps) {
         ...(advFilters.max_amount && { max_amount: advFilters.max_amount }),
         ...(advFilters.min_balance && { min_balance: advFilters.min_balance }),
         ...(advFilters.max_balance && { max_balance: advFilters.max_balance }),
-        ...(colFilters.status && { status: colFilters.status }),
-        ...(colFilters.order_ref && { order_ref: colFilters.order_ref }),
-        ...(colFilters.customer_name && { customer_name: colFilters.customer_name }),
-        ...(colFilters.whatsapp_number && { whatsapp_number: colFilters.whatsapp_number }),
-        ...(colFilters.alternate_number && { alternate_number: colFilters.alternate_number }),
-        ...(colFilters.area && { area: colFilters.area }),
-        ...(colFilters.grantor1Name && { grantor1_name: colFilters.grantor1Name }),
-        ...(colFilters.grantor2Name && { grantor2_name: colFilters.grantor2Name }),
-        ...(colFilters.product_name && { product_name: colFilters.product_name }),
-        ...(colFilters.imei_serial && { imei_serial: colFilters.imei_serial }),
+        ...(debouncedColFilters.status && { status: debouncedColFilters.status }),
+        ...(debouncedColFilters.order_ref && { order_ref: debouncedColFilters.order_ref }),
+        ...(debouncedColFilters.customer_name && { customer_name: debouncedColFilters.customer_name }),
+        ...(debouncedColFilters.whatsapp_number && { whatsapp_number: debouncedColFilters.whatsapp_number }),
+        ...(debouncedColFilters.alternate_number && { alternate_number: debouncedColFilters.alternate_number }),
+        ...(debouncedColFilters.area && { area: debouncedColFilters.area }),
+        ...(debouncedColFilters.grantor1Name && { grantor1_name: debouncedColFilters.grantor1Name }),
+        ...(debouncedColFilters.grantor2Name && { grantor2_name: debouncedColFilters.grantor2Name }),
+        ...(debouncedColFilters.product_name && { product_name: debouncedColFilters.product_name }),
+        ...(debouncedColFilters.imei_serial && { imei_serial: debouncedColFilters.imei_serial }),
         ...serverFilterParams
       });
 
-      const res = await fetch(`${API_BASE}/api/outlet/installments/due-list?${queryParams.toString()}`, {
-        headers: getAuthHeaders(),
-        signal: controller.signal
-      });
-
-      const resData = await res.json();
-      if (seq !== fetchSeq.current) return; // a newer search already went out
-      if (resData.success) {
-        setInstallments(resData.data.installments || []);
-        setCategoryCounts(resData.data.categories_summary || {});
-        setVerificationOfficers(resData.data.verification_officers || []);
-        setStats(resData.data.stats || {
+      const applyData = (data: any) => {
+        setInstallments(data.installments || []);
+        setCategoryCounts(data.categories_summary || {});
+        setVerificationOfficers(data.verification_officers || []);
+        setStats(data.stats || {
           totalDueThisMonth: 0,
           totalPaidThisMonth: 0,
           remainingThisMonth: 0,
@@ -381,29 +383,51 @@ function InstallmentsViewContent({ adminMode = false }: InstallmentsViewProps) {
           customerCount: 0
         });
         setPagination({
-          total: resData.data.pagination.total,
-          totalPages: resData.data.pagination.totalPages
+          total: data.pagination.total,
+          totalPages: data.pagination.totalPages
         });
         setSummaryReady(true);
+        setDisplayedPage(Number(data.pagination.page) || page);
+      };
+      const cacheKey = `${Cookies.get("auth_token") || ""}|${adminMode}|${queryParams}`;
+      const cached = resultCache.current.get(cacheKey);
+      // Show the exact previous query immediately, but always validate against the server.
+      if (cached && Date.now() - cached.savedAt < 60_000) applyData(cached.data);
+
+      const res = await fetch(`${API_BASE}/api/outlet/installments/due-list?${queryParams.toString()}`, {
+        headers: getAuthHeaders(),
+        signal: controller.signal
+      });
+
+      const resData = await res.json();
+      if (seq !== fetchSeq.current) return; // a newer search already went out
+      if (res.ok && resData.success) {
+        resultCache.current.set(cacheKey, { data: resData.data, savedAt: Date.now() });
+        if (resultCache.current.size > 20) resultCache.current.delete(resultCache.current.keys().next().value!);
+        applyData(resData.data);
       } else {
+        setLoadError(true);
         toast.error(resData.message || "Failed to load installments");
       }
     } catch (err) {
       if (controller.signal.aborted || seq !== fetchSeq.current) return;
+      setLoadError(true);
       console.error(err);
       toast.error(getErrorMessage(err, "Error connecting to backend"));
     } finally {
       if (seq === fetchSeq.current) setLoading(false);
     }
-  }, [page, limit, debouncedSearch, category, selectedMonth, selectedYear, advFilters, colFilters, queryAgingMin, queryAgingMax, adminMode, outletId, methodFilter, serverFilterParams]);
+  }, [page, limit, debouncedSearch, category, selectedMonth, selectedYear, advFilters, debouncedColFilters, queryAgingMin, queryAgingMax, adminMode, outletId, methodFilter, serverFilterParams]);
 
   useEffect(() => {
-    fetchInstallments();
+    // Do not fetch the old search when typing resets pagination to page one.
+    if (search !== debouncedSearch || colFilters !== debouncedColFilters) return;
+    fetchInstallments(false);
     return () => {
       activeRequest.current?.abort();
       fetchSeq.current++;
     };
-  }, [fetchInstallments]);
+  }, [fetchInstallments, search, debouncedSearch, colFilters, debouncedColFilters]);
 
   // All filters are applied server-side before pagination and aggregation.
   const filteredInstallments = installments;
@@ -467,7 +491,10 @@ function InstallmentsViewContent({ adminMode = false }: InstallmentsViewProps) {
         row.payableAmount || 0,
         row.partialPayment || "-",
         paymentHistoryStr,
-        row.consumer_number || '',
+        [
+          row.consumer_number ? `${row.consumer_number}${row.consumer_number_deleted ? ' (Deleted - view only)' : ''}` : '',
+          row.deleted_consumer_number && !row.consumer_number_deleted ? `Previous: ${row.deleted_consumer_number} (Deleted - view only)` : '',
+        ].filter(Boolean).join(' | '),
         row.note ? `${row.note}${row.note_by ? ` (by ${row.note_by})` : ''}` : '',
         row.recovery_officer?.name || '',
         row.verification_officer?.name || '',
@@ -816,6 +843,7 @@ function InstallmentsViewContent({ adminMode = false }: InstallmentsViewProps) {
               onChange={(e) => {
                 setSearch(e.target.value);
                 setPage(1);
+                setSelectedRows([]);
               }}
               className="w-full rounded-2xl border-gray-100 bg-gray-50/50 py-2 pl-9 pr-4 text-xs outline-none focus:border-[#E31E24] focus:bg-white dark:border-strokedark dark:bg-meta-4 dark:text-white"
             />
@@ -855,14 +883,14 @@ function InstallmentsViewContent({ adminMode = false }: InstallmentsViewProps) {
           <div className="flex gap-1.5 items-center">
             <button
               onClick={() => handleExportAll('pdf')}
-              disabled={exporting || loading}
+              disabled={exporting || loading || loadError}
               className="flex items-center gap-1.5 rounded-l-2xl bg-[#E31E24] hover:bg-[#c7161c] px-3 py-2.5 text-[10px] font-black uppercase tracking-wider text-white shadow-sm hover:shadow-md transition-all cursor-pointer border-r border-[#c7161c]"
             >
               <FileDown className="h-4 w-4" /> All PDF
             </button>
             <button
               onClick={() => handleExportAll('excel')}
-              disabled={exporting || loading}
+              disabled={exporting || loading || loadError}
               className="flex items-center gap-1.5 rounded-r-2xl bg-[#E31E24] hover:bg-[#c7161c] px-3 py-2.5 text-[10px] font-black uppercase tracking-wider text-white shadow-sm hover:shadow-md transition-all cursor-pointer"
             >
               <FileSpreadsheet className="h-4 w-4" /> All Excel
@@ -870,6 +898,7 @@ function InstallmentsViewContent({ adminMode = false }: InstallmentsViewProps) {
           </div>
 
           <button
+            disabled={loading || loadError}
             onClick={() => setBulkReminderModalOpen(true)}
             className="flex items-center gap-1.5 rounded-2xl border border-[#E31E24] bg-white hover:bg-gray-50 px-3 py-2.5 text-[10px] font-black uppercase tracking-wider text-[#E31E24] transition-all cursor-pointer dark:bg-boxdark dark:hover:bg-meta-4"
             title="Bulk Reminders"
@@ -878,7 +907,7 @@ function InstallmentsViewContent({ adminMode = false }: InstallmentsViewProps) {
           </button>
 
           <button
-            onClick={fetchInstallments}
+            onClick={() => fetchInstallments(true)}
             className="flex items-center justify-center p-2.5 rounded-2xl border border-gray-100 dark:border-strokedark bg-white dark:bg-boxdark text-gray-400 hover:text-[#E31E24] hover:bg-gray-50 transition-all cursor-pointer"
             title="Refresh Ledger Grid"
           >
@@ -1026,6 +1055,13 @@ function InstallmentsViewContent({ adminMode = false }: InstallmentsViewProps) {
         </div>
       )}
 
+      {(loading && summaryReady || loadError) && (
+        <div role="status" aria-live="polite" className="flex items-center gap-2 px-4 py-2 text-sm text-gray-500">
+          {loading && <Loader2 className="h-4 w-4 animate-spin" />}
+          {loadError ? (summaryReady ? "Could not update results. Previous results are shown; use refresh to retry." : "Could not load results. Use refresh to retry.")
+            : "Updating results - previous results remain visible until ready."}
+        </div>
+      )}
       {/* EXCEL SHEET HIGH-FIDELITY GRID CONTAINER */}
       <div className="bg-white dark:bg-boxdark rounded-3xl shadow-xl shadow-gray-100/40 border border-gray-100 dark:border-strokedark overflow-hidden">
         <div className="overflow-x-auto">
@@ -1210,8 +1246,8 @@ function InstallmentsViewContent({ adminMode = false }: InstallmentsViewProps) {
             </thead>
 
             {/* Table Body Content (Enlarged from text-xs to text-[13px] for ultimate readability) */}
-            <tbody className="divide-y divide-gray-100 dark:divide-strokedark text-[13px]">
-              {loading ? (
+            <tbody inert={loading || loadError} aria-busy={loading} className="divide-y divide-gray-100 dark:divide-strokedark text-[13px]">
+              {loading && !summaryReady ? (
                 <tr>
                   <td colSpan={adminMode ? 30 : 28} className="py-20 text-center">
                     <div className="flex flex-col items-center justify-center gap-3">
@@ -1225,7 +1261,7 @@ function InstallmentsViewContent({ adminMode = false }: InstallmentsViewProps) {
                   <td colSpan={adminMode ? 30 : 28} className="py-16 text-center text-gray-400">
                     <div className="flex flex-col items-center justify-center gap-2">
                       <AlertCircle className="h-8 w-8 text-gray-300" />
-                      <span className="text-xs font-black uppercase tracking-wider">No installments found for the selected month and filters</span>
+                      <span className="text-xs font-black uppercase tracking-wider">No installments found for the selected filters</span>
                     </div>
                   </td>
                 </tr>
@@ -1245,7 +1281,7 @@ function InstallmentsViewContent({ adminMode = false }: InstallmentsViewProps) {
                           className="h-4.5 w-4.5 rounded border-gray-300 text-[#E31E24] focus:ring-[#E31E24] dark:border-strokedark cursor-pointer"
                         />
                       </td>
-                      <td className="px-3 py-3.5 text-center font-black text-gray-300">{(page - 1) * limit + index + 1}</td>
+                      <td className="px-3 py-3.5 text-center font-black text-gray-300">{(displayedPage - 1) * limit + index + 1}</td>
                       <td className="px-4 py-3.5 font-bold text-slate-800 dark:text-white">
                         {adminMode
                           ? <Link href={`/orders/${inst.order_id}`} className="text-[#E31E24] hover:underline">{inst.order_ref}</Link>
@@ -1330,7 +1366,11 @@ function InstallmentsViewContent({ adminMode = false }: InstallmentsViewProps) {
                       <td className="px-4 py-3.5">
                         {inst.consumer_number ? (
                           <div className="flex flex-col gap-1">
-                            <span className="font-mono font-bold text-sm tracking-widest text-[#E31E24]">{inst.consumer_number}</span>
+                            <span className={`font-mono font-bold text-sm tracking-widest ${inst.consumer_number_deleted ? 'text-gray-400' : 'text-[#E31E24]'}`}>{inst.consumer_number}</span>
+                            {inst.consumer_number_deleted && <span className="text-[9px] font-bold uppercase text-gray-400">Deleted · view only</span>}
+                            {inst.deleted_consumer_number && !inst.consumer_number_deleted && (
+                              <span className="break-all font-mono text-[10px] text-gray-400">Previous: {inst.deleted_consumer_number} · Deleted · view only</span>
+                            )}
                           </div>
                         ) : (
                           <span className="text-gray-400 italic text-xs">Not Generated</span>
@@ -1470,18 +1510,18 @@ function InstallmentsViewContent({ adminMode = false }: InstallmentsViewProps) {
         </div>
 
         {/* PAGINATION PANEL CONTROLS */}
-        {!loading && filteredInstallments.length > 0 && (
+        {summaryReady && filteredInstallments.length > 0 && (
           <div className="flex items-center justify-between border-t border-gray-100 dark:border-strokedark px-6 py-4 bg-gray-50/20 text-xs">
             <span className="text-[11px] font-black uppercase tracking-widest text-gray-400">
-              Showing <span className="text-gray-600">{(page - 1) * limit + 1}</span> to{" "}
-              <span className="text-gray-600">{Math.min(page * limit, pagination.total)}</span> of{" "}
+              Showing <span className="text-gray-600">{(displayedPage - 1) * limit + 1}</span> to{" "}
+              <span className="text-gray-600">{Math.min(displayedPage * limit, pagination.total)}</span> of{" "}
               <span className="text-gray-600">{pagination.total}</span> entries
             </span>
 
             <div className="flex items-center gap-1.5">
               <button
                 onClick={() => setPage(prev => Math.max(1, prev - 1))}
-                disabled={page === 1}
+                disabled={loading || page === 1}
                 className="rounded-xl border border-gray-100 dark:border-strokedark bg-white dark:bg-boxdark hover:bg-gray-50 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-gray-500 disabled:opacity-40 transition-all cursor-pointer"
               >
                 Previous
@@ -1493,6 +1533,7 @@ function InstallmentsViewContent({ adminMode = false }: InstallmentsViewProps) {
                     return (
                       <button
                         key={p}
+                        disabled={loading}
                         onClick={() => setPage(p)}
                         className={`rounded-xl h-8 w-8 text-[10px] font-black uppercase flex items-center justify-center transition-all cursor-pointer ${page === p
                             ? "bg-[#E31E24] text-white"
@@ -1511,7 +1552,7 @@ function InstallmentsViewContent({ adminMode = false }: InstallmentsViewProps) {
 
               <button
                 onClick={() => setPage(prev => Math.min(pagination.totalPages, prev + 1))}
-                disabled={page === pagination.totalPages}
+                disabled={loading || page === pagination.totalPages}
                 className="rounded-xl border border-gray-100 dark:border-strokedark bg-white dark:bg-boxdark hover:bg-gray-50 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-gray-500 disabled:opacity-40 transition-all cursor-pointer"
               >
                 Next

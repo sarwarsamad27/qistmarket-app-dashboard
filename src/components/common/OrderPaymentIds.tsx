@@ -7,18 +7,19 @@ const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:500
 type PaymentIds = {
     hasLedger: boolean;
     oneBillId?: string | null;
+    deletedOneBillId?: string | null;
     smartPayId?: string | null;
     amount?: number;
     qrImage?: string | null;
 };
 
-const CopyRow = ({ label, value }: { label: string; value?: string | null }) => (
-    <div className="flex items-center justify-between gap-3 rounded-lg bg-white p-3 shadow-sm dark:bg-gray-800">
+const CopyRow = ({ label, value, deleted = false }: { label: string; value?: string | null; deleted?: boolean }) => (
+    <div className={`flex items-center justify-between gap-3 rounded-lg p-3 shadow-sm ${deleted ? 'bg-gray-100 dark:bg-gray-900' : 'bg-white dark:bg-gray-800'}`}>
         <div className="min-w-0">
-            <p className="text-xs text-gray-500 dark:text-gray-400">{label}</p>
-            <p className="break-all font-mono text-sm font-bold text-dark dark:text-white">{value || 'Not generated'}</p>
+            <p className={`text-xs ${deleted ? 'text-gray-400' : 'text-gray-500 dark:text-gray-400'}`}>{label}{deleted ? ' · Deleted (view only)' : ''}</p>
+            <p className={`break-all font-mono text-sm font-bold ${deleted ? 'text-gray-400' : 'text-dark dark:text-white'}`}>{value || 'Not generated'}</p>
         </div>
-        {value && (
+        {value && !deleted && (
             <button
                 type="button"
                 onClick={() => { navigator.clipboard?.writeText(value); toast.success(`${label} copied`); }}
@@ -31,10 +32,41 @@ const CopyRow = ({ label, value }: { label: string; value?: string | null }) => 
 );
 
 /** Customer's 1Bill ID, SmartPay ID and a SmartPay QR for the amount payable now. */
-export const OrderPaymentIds = ({ orderId }: { orderId: number }) => {
+export const OrderPaymentIds = ({
+    orderId,
+    ledgerId,
+    canDelete = false,
+    onSaved,
+}: {
+    orderId: number;
+    ledgerId?: number;
+    canDelete?: boolean;
+    onSaved?: () => Promise<void> | void;
+}) => {
     const [data, setData] = useState<PaymentIds | null>(null);
     const [loading, setLoading] = useState(true);
     const [qrLoading, setQrLoading] = useState(false);
+    const [deleting, setDeleting] = useState(false);
+
+    const deleteOneBillId = async () => {
+        if (!ledgerId || !data?.oneBillId || !window.confirm(`Delete 1Bill ID ${data.oneBillId}? It will stop working for payments and remain visible in grey as history.`)) return;
+        setDeleting(true);
+        try {
+            const res = await fetch(`${BACKEND_URL}/api/ledger/${ledgerId}/onebill`, {
+                method: 'DELETE',
+                headers: { Authorization: `******'auth_token')}` },
+            });
+            const json = await res.json();
+            if (!res.ok || !json.success) throw new Error(json.message || 'Failed to delete 1Bill ID');
+            setData((prev) => prev ? { ...prev, oneBillId: null, deletedOneBillId: json.data?.deletedOneBillId || prev.oneBillId } : prev);
+            toast.success(json.message);
+            await onSaved?.();
+        } catch (error) {
+            toast.error(error instanceof Error ? error.message : 'Failed to delete 1Bill ID');
+        } finally {
+            setDeleting(false);
+        }
+    };
 
     useEffect(() => {
         let cancelled = false;
@@ -71,7 +103,18 @@ export const OrderPaymentIds = ({ orderId }: { orderId: number }) => {
     return (
         <div className="mb-4 grid gap-3 rounded-lg border border-stroke bg-white/60 p-3 dark:border-dark-3 dark:bg-dark-2 sm:grid-cols-[1fr_auto]">
             <div className="space-y-2">
-                <CopyRow label="1Bill ID" value={data.oneBillId} />
+                {(data.oneBillId || !data.deletedOneBillId) && <CopyRow label="1Bill ID" value={data.oneBillId} />}
+                {data.deletedOneBillId && <CopyRow label="1Bill ID" value={data.deletedOneBillId} deleted />}
+                {canDelete && data.oneBillId && (
+                    <button
+                        type="button"
+                        onClick={deleteOneBillId}
+                        disabled={deleting}
+                        className="rounded border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-red-900 dark:hover:bg-red-950"
+                    >
+                        {deleting ? 'Deleting…' : 'Delete 1Bill ID'}
+                    </button>
+                )}
                 <CopyRow label="SmartPay Consumer No" value={data.smartPayId} />
                 {!!data.amount && data.amount > 0 && (
                     <p className="text-xs text-gray-500 dark:text-gray-400">

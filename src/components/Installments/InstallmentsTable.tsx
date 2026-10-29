@@ -57,6 +57,8 @@ type OrderInstallment = {
     };
     installmentLedger: InstallmentRow[];
     consumer_number: string | null;
+    consumer_number_deleted?: boolean;
+    deleted_consumer_number?: string | null;
     smartpay_consumer_number: string | null;
     consumer_bill_status: string | null;
     recovery_officer: { id: number; name: string; phone: string } | null;
@@ -396,9 +398,15 @@ export default function InstallmentsTable({ data, onPay, selectedIds = [], onSel
                                                                     1Bill Consumer No.
                                                                 </h4>
                                                                 <div className="bg-white dark:bg-gray-800 rounded-2xl p-4 border border-gray-100 dark:border-gray-700 shadow-sm">
-                                                                    <p className="font-mono font-bold text-lg text-gray-800 dark:text-gray-100 tracking-widest">
+                                                                    <p className={`font-mono font-bold text-lg tracking-widest ${order.consumer_number_deleted ? 'text-gray-400' : 'text-gray-800 dark:text-gray-100'}`}>
                                                                         {order.consumer_number}
                                                                     </p>
+                                                                    {order.consumer_number_deleted && <span className="text-[10px] font-bold uppercase text-gray-400">Deleted · view only</span>}
+                                                                    {order.deleted_consumer_number && !order.consumer_number_deleted && (
+                                                                        <p className="mt-1 break-all font-mono text-xs text-gray-400">
+                                                                            Previous: {order.deleted_consumer_number} <span className="font-sans font-bold uppercase">Deleted · view only</span>
+                                                                        </p>
+                                                                    )}
                                                                 </div>
                                                             </div>
                                                         )}
