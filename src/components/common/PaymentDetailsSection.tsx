@@ -651,15 +651,7 @@ export const PaymentDetailsSection = ({
                     )}
 
                     {/* Keyed on the link so it re-fetches its 1Bill/SmartPay ids after an update. */}
-                    {orderId && ledgerId && !returned && (
-                        <OrderPaymentIds
-                            key={paymentDetails.installment_plan.token}
-                            orderId={orderId}
-                            ledgerId={ledgerId}
-                            canDelete={editable}
-                            onSaved={onSaved}
-                        />
-                    )}
+                    {orderId && ledgerId && !returned && <OrderPaymentIds key={paymentDetails.installment_plan.token} orderId={orderId} />}
 
                     {/* Progress Bar */}
                     {paymentDetails.installment_plan.summary?.total_installments > 0 && (

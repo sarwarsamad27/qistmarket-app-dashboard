@@ -491,10 +491,7 @@ function InstallmentsViewContent({ adminMode = false }: InstallmentsViewProps) {
         row.payableAmount || 0,
         row.partialPayment || "-",
         paymentHistoryStr,
-        [
-          row.consumer_number ? `${row.consumer_number}${row.consumer_number_deleted ? ' (Deleted - view only)' : ''}` : '',
-          row.deleted_consumer_number && !row.consumer_number_deleted ? `Previous: ${row.deleted_consumer_number} (Deleted - view only)` : '',
-        ].filter(Boolean).join(' | '),
+        row.consumer_number || '',
         row.note ? `${row.note}${row.note_by ? ` (by ${row.note_by})` : ''}` : '',
         row.recovery_officer?.name || '',
         row.verification_officer?.name || '',
@@ -1080,10 +1077,8 @@ function InstallmentsViewContent({ adminMode = false }: InstallmentsViewProps) {
                   />
                 </th>
                 <th className="px-3 py-4 text-[10px] font-black text-gray-400 uppercase text-center w-12">S No.</th>
-                <th className="px-4 py-4 text-[10px] font-black text-gray-400 uppercase min-w-[130px]">Order Ref</th>
                 {adminMode && <>
                   <th className="px-4 py-4 text-[10px] font-black text-gray-400 uppercase min-w-[130px]">Outlet</th>
-                  <th className="px-4 py-4 text-[10px] font-black text-gray-400 uppercase min-w-[160px]">Received Via</th>
                 </>}
                 <th className="px-4 py-4 text-[10px] font-black text-gray-400 uppercase min-w-[140px]">Area</th>
                 <th className="px-4 py-4 text-[10px] font-black text-gray-400 uppercase min-w-[120px]">Installment Due Date</th>
@@ -1120,6 +1115,8 @@ function InstallmentsViewContent({ adminMode = false }: InstallmentsViewProps) {
                 <th className="px-4 py-4 text-[10px] font-black text-gray-400 uppercase min-w-[180px]">SmartPay Consumer No.</th>
                 <th className="px-4 py-4 text-[10px] font-black text-gray-400 uppercase min-w-[110px] text-center">Status</th>
                 <th className="px-4 py-4 text-[10px] font-black text-gray-400 uppercase w-16 text-center">Actions</th>
+                <th className="px-4 py-4 text-[10px] font-black text-gray-400 uppercase min-w-[130px]">Order Ref</th>
+                {adminMode && <th className="px-4 py-4 text-[10px] font-black text-gray-400 uppercase min-w-[160px]">Received Via</th>}
               </tr>
 
               {/* ADVANCED COLUMN FILTERS ROW */}
@@ -1128,19 +1125,7 @@ function InstallmentsViewContent({ adminMode = false }: InstallmentsViewProps) {
                 <td className="px-3 py-2">
                   <div className="flex justify-center"><Filter className="h-3.5 w-3.5 text-gray-300" /></div>
                 </td>
-                <td className="px-2 py-2">
-                  <input
-                    type="text"
-                    value={colFilters.order_ref}
-                    onChange={(e) => updateColumnFilter("order_ref", e.target.value)}
-                    placeholder="Filter Ref"
-                    className="w-full rounded bg-white dark:bg-boxdark border-gray-150 dark:border-strokedark px-2 py-1 text-xs outline-none focus:border-[#E31E24]"
-                  />
-                </td>
-                {adminMode && <>
-                  <td className="px-2 py-2"></td>
-                  <td className="px-2 py-2"></td>
-                </>}
+                {adminMode && <td className="px-2 py-2"></td>}
                 <td className="px-2 py-2">
                   <input
                     type="text"
@@ -1242,6 +1227,16 @@ function InstallmentsViewContent({ adminMode = false }: InstallmentsViewProps) {
                   </select>
                 </td>
                 <td className="px-2 py-2"></td>
+                <td className="px-2 py-2">
+                  <input
+                    type="text"
+                    value={colFilters.order_ref}
+                    onChange={(e) => updateColumnFilter("order_ref", e.target.value)}
+                    placeholder="Filter Ref"
+                    className="w-full rounded bg-white dark:bg-boxdark border-gray-150 dark:border-strokedark px-2 py-1 text-xs outline-none focus:border-[#E31E24]"
+                  />
+                </td>
+                {adminMode && <td className="px-2 py-2"></td>}
               </tr>
             </thead>
 
@@ -1282,24 +1277,8 @@ function InstallmentsViewContent({ adminMode = false }: InstallmentsViewProps) {
                         />
                       </td>
                       <td className="px-3 py-3.5 text-center font-black text-gray-300">{(displayedPage - 1) * limit + index + 1}</td>
-                      <td className="px-4 py-3.5 font-bold text-slate-800 dark:text-white">
-                        {adminMode
-                          ? <Link href={`/orders/${inst.order_id}`} className="text-[#E31E24] hover:underline">{inst.order_ref}</Link>
-                          : inst.order_ref}
-                      </td>
                       {adminMode && <>
                         <td className="px-4 py-3.5 font-semibold text-gray-700 dark:text-slate-300">{inst.outlet_name}</td>
-                        <td className="px-4 py-3.5">
-                          {receivedVia(inst).length ? (
-                            <div className="flex flex-wrap gap-1">
-                              {receivedVia(inst).map((m) => (
-                                <span key={m} className={`whitespace-nowrap rounded-md border px-2 py-0.5 text-[10px] font-black ${METHOD_TONE(m)}`}>{m}</span>
-                              ))}
-                            </div>
-                          ) : (
-                            <span className="text-xs italic text-gray-400">Not received yet</span>
-                          )}
-                        </td>
                       </>}
                       <td className="px-4 py-3.5 font-medium">{inst.area}</td>
                       <td className="px-4 py-3.5 font-bold text-gray-700 dark:text-slate-300">{dueDateStr}
@@ -1366,11 +1345,7 @@ function InstallmentsViewContent({ adminMode = false }: InstallmentsViewProps) {
                       <td className="px-4 py-3.5">
                         {inst.consumer_number ? (
                           <div className="flex flex-col gap-1">
-                            <span className={`font-mono font-bold text-sm tracking-widest ${inst.consumer_number_deleted ? 'text-gray-400' : 'text-[#E31E24]'}`}>{inst.consumer_number}</span>
-                            {inst.consumer_number_deleted && <span className="text-[9px] font-bold uppercase text-gray-400">Deleted · view only</span>}
-                            {inst.deleted_consumer_number && !inst.consumer_number_deleted && (
-                              <span className="break-all font-mono text-[10px] text-gray-400">Previous: {inst.deleted_consumer_number} · Deleted · view only</span>
-                            )}
+                            <span className="font-mono font-bold text-sm tracking-widest text-[#E31E24]">{inst.consumer_number}</span>
                           </div>
                         ) : (
                           <span className="text-gray-400 italic text-xs">Not Generated</span>
@@ -1499,6 +1474,24 @@ function InstallmentsViewContent({ adminMode = false }: InstallmentsViewProps) {
                           )}
                         </div>
                       </td>
+                      <td className="px-4 py-3.5 font-bold text-slate-800 dark:text-white">
+                        {adminMode
+                          ? <Link href={`/orders/${inst.order_id}`} className="text-[#E31E24] hover:underline">{inst.order_ref}</Link>
+                          : inst.order_ref}
+                      </td>
+                      {adminMode && (
+                        <td className="px-4 py-3.5">
+                          {receivedVia(inst).length ? (
+                            <div className="flex flex-wrap gap-1">
+                              {receivedVia(inst).map((m) => (
+                                <span key={m} className={`whitespace-nowrap rounded-md border px-2 py-0.5 text-[10px] font-black ${METHOD_TONE(m)}`}>{m}</span>
+                              ))}
+                            </div>
+                          ) : (
+                            <span className="text-xs italic text-gray-400">Not received yet</span>
+                          )}
+                        </td>
+                      )}
                     </tr>
                   );
                 })
