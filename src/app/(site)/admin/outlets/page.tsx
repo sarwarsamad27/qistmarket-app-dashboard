@@ -14,6 +14,13 @@ import {
   Users2,
   X,
   Trash2,
+  Boxes,
+  CalendarCheck,
+  ChartNoAxesCombined,
+  ReceiptText,
+  RotateCcw,
+  MapPin,
+  type LucideIcon,
 } from "lucide-react";
 import Breadcrumb from "@/components/Breadcrumbs/Breadcrumb";
 import PageHeader from "@/components/Accounts/PageHeader";
@@ -67,6 +74,49 @@ interface StaffMember {
   has_employee_record: boolean;
 }
 
+interface OutletManagementSummary {
+  outlet: Outlet & { created_at: string };
+  staff: StaffMember[];
+  performance: {
+    totalOrders: number;
+    delivered: number;
+    deliveredRate: number;
+    statusBreakdown: Record<string, number>;
+  };
+  expenses: {
+    monthToDateTotal: number;
+    monthToDateCount: number;
+    recent: Array<{ id: number; voucher_number: string; total_amount: number; payment_method: string; date: string; status: string }>;
+  };
+  cashInHand: {
+    pendingTotal: number;
+    pendingCount: number;
+    recentPending: Array<{ amount: number; submitted_amount: number; remaining: number; created_at: string; officer: { id: number; full_name: string; username: string }; order: { id: number; order_ref: string } }>;
+  };
+  inventory: {
+    totalRows: number;
+    inStockItems: number;
+    inStockPurchaseValue: number;
+    breakdown: Array<{ status: string; items: number; quantity: number }>;
+    recent: Array<{ id: number; product_name: string; category: string | null; imei_serial: string | null; status: string; quantity: number; purchase_price: number; is_used: boolean }>;
+  };
+  recovery: {
+    assignedOrders: number;
+    statusBreakdown: Record<string, number>;
+    collectedTotal: number;
+    collectedVisitCount: number;
+    recentVisits: Array<{ id: number; visit_time: string; payment_collected: boolean; amount_collected: number | null; customer_feedback: string | null; visit_notes: string | null; officer: { full_name: string; username: string }; order: { id: number; order_ref: string; customer_name: string; status: string } }>;
+  };
+  attendance: {
+    date: string;
+    totalStaff: number;
+    present: number;
+    absent: number;
+    notMarked: number;
+    unlinkedStaff: number;
+  };
+}
+
 export default function AdminOutletsPage() {
   const [outlets, setOutlets] = useState<Outlet[]>([]);
   const [performance, setPerformance] = useState<Record<number, Performance>>(
@@ -91,6 +141,9 @@ export default function AdminOutletsPage() {
   const [staffPanel, setStaffPanel] = useState<Outlet | null>(null);
   const [staff, setStaff] = useState<StaffMember[]>([]);
   const [staffLoading, setStaffLoading] = useState(false);
+  const [detailOutlet, setDetailOutlet] = useState<Outlet | null>(null);
+  const [outletSummary, setOutletSummary] = useState<OutletManagementSummary | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
 
   const load = () => {
     setLoading(true);
@@ -140,6 +193,31 @@ export default function AdminOutletsPage() {
       .catch((err) => console.error("Failed to load outlet staff:", err))
       .finally(() => setStaffLoading(false));
   };
+
+  const openOutletDetails = async (outlet: Outlet) => {
+    setDetailOutlet(outlet);
+    setOutletSummary(null);
+    setDetailLoading(true);
+    try {
+      const response = await fetch(
+        `${BACKEND_URL}/api/admin-panel/outlets/${outlet.id}/management-summary`,
+        { headers: authHeaders() },
+      );
+      const json = await response.json();
+      if (!response.ok || !json.success) {
+        throw new Error(json.message || "Could not load outlet details.");
+      }
+      setOutletSummary(json.data);
+    } catch (error) {
+      console.error("Failed to load outlet management details:", error);
+      toast.error(error instanceof Error ? error.message : "Could not load outlet details.");
+    } finally {
+      setDetailLoading(false);
+    }
+  };
+
+  const formatOutletDate = (value: string) =>
+    new Date(value).toLocaleDateString("en-PK", { dateStyle: "medium", timeZone: "Asia/Karachi" });
 
   const totals = useMemo(() => {
     const list = Object.values(performance);
@@ -502,6 +580,12 @@ export default function AdminOutletsPage() {
                     <td className="px-4 py-3.5 text-right">
                       <div className="flex justify-end gap-3">
                         <button
+                          onClick={() => void openOutletDetails(o)}
+                          className="inline-flex items-center gap-1 text-xs font-bold text-primary hover:underline"
+                        >
+                          <ChartNoAxesCombined className="size-3.5" /> Details
+                        </button>
+                        <button
                           onClick={() => openStaffPanel(o)}
                           className="inline-flex items-center gap-1 text-xs font-bold text-gray-500 hover:underline dark:text-gray-300"
                         >
@@ -526,6 +610,135 @@ export default function AdminOutletsPage() {
               })}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {detailOutlet && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-3 sm:p-5" role="dialog" aria-modal="true" aria-label={`${detailOutlet.name} outlet management details`}>
+          <div className="dark:bg-boxdark max-h-[92vh] w-full max-w-6xl overflow-y-auto rounded-2xl bg-white p-4 shadow-xl sm:p-6">
+            <div className="sticky top-0 z-10 -mx-4 -mt-4 mb-5 flex items-start justify-between gap-4 border-b border-slate-100 bg-white p-4 dark:border-white/10 dark:bg-boxdark sm:-mx-6 sm:-mt-6 sm:p-6">
+              <div>
+                <h2 className="text-lg font-bold text-dark dark:text-white">{detailOutlet.name} — Outlet Management</h2>
+                <p className="text-xs text-gray-500">Profile, staff, expenses, recovery, cash, inventory, performance and attendance.</p>
+              </div>
+              <button onClick={() => setDetailOutlet(null)} aria-label="Close outlet details" className="rounded-lg p-1 text-gray-400 hover:bg-gray-100 dark:hover:bg-white/10">
+                <X className="size-5" />
+              </button>
+            </div>
+
+            {detailLoading ? (
+              <TableSkeleton />
+            ) : outletSummary ? (
+              <div className="space-y-5">
+                <section className="rounded-xl border border-slate-100 bg-slate-50/70 p-4 dark:border-white/10 dark:bg-white/[0.03]">
+                  <h3 className="mb-3 flex items-center gap-2 font-bold text-dark dark:text-white"><Store className="size-4 text-primary" /> Outlet profile</h3>
+                  <div className="grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
+                    <ProfileValue label="Outlet name" value={outletSummary.outlet.name} />
+                    <ProfileValue label="Outlet code" value={outletSummary.outlet.code} />
+                    <ProfileValue label="Type / status" value={`${outletSummary.outlet.type} · ${outletSummary.outlet.status}`} />
+                    <ProfileValue label="Created" value={formatOutletDate(outletSummary.outlet.created_at)} />
+                    <ProfileValue label="Phone" value={outletSummary.outlet.phone || "Not provided"} />
+                    <ProfileValue label="Address" value={outletSummary.outlet.address || "Not provided"} />
+                    <ProfileValue label="Stock delete" value={outletSummary.outlet.allow_stock_delete ? "Allowed" : "Disabled"} />
+                  </div>
+                </section>
+
+                <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                  <SummaryCard icon={Users2} title="Outlet staff" value={outletSummary.staff.length.toLocaleString()} detail={`${outletSummary.staff.filter((person) => person.status === "active").length} active accounts`} />
+                  <SummaryCard icon={ReceiptText} title="Expenses this month" value={PKR(outletSummary.expenses.monthToDateTotal)} detail={`${outletSummary.expenses.monthToDateCount} vouchers`} />
+                  <SummaryCard icon={Wallet} title="Cash in hand" value={PKR(outletSummary.cashInHand.pendingTotal)} detail={`${outletSummary.cashInHand.pendingCount} pending collections`} />
+                  <SummaryCard icon={PackageCheck} title="Orders / delivered" value={`${outletSummary.performance.totalOrders.toLocaleString()} / ${outletSummary.performance.delivered.toLocaleString()}`} detail={`${outletSummary.performance.deliveredRate}% delivered`} />
+                  <SummaryCard icon={RotateCcw} title="Recovery assigned" value={outletSummary.recovery.assignedOrders.toLocaleString()} detail={`${PKR(outletSummary.recovery.collectedTotal)} recorded across ${outletSummary.recovery.collectedVisitCount} collected visits`} />
+                  <SummaryCard icon={Boxes} title="Inventory in stock" value={outletSummary.inventory.inStockItems.toLocaleString()} detail={`Purchase value ${PKR(outletSummary.inventory.inStockPurchaseValue)}`} />
+                  <SummaryCard icon={CalendarCheck} title="Attendance today" value={`${outletSummary.attendance.present}/${outletSummary.attendance.totalStaff}`} detail={`${outletSummary.attendance.absent} absent · ${outletSummary.attendance.notMarked} not marked`} />
+                  <SummaryCard icon={MapPin} title="Staff needing HR link" value={outletSummary.attendance.unlinkedStaff.toLocaleString()} detail={`Attendance date: ${outletSummary.attendance.date}`} />
+                </section>
+
+                <section className="grid gap-4 xl:grid-cols-2">
+                  <DetailTable
+                    title="Outlet staff management"
+                    empty="No staff assigned to this outlet."
+                    headers={["Name / username", "Role", "Account", "Attendance link"]}
+                    rows={outletSummary.staff.map((member) => [
+                      `${member.full_name} (@${member.username})`,
+                      roleLabel(member.role),
+                      `${member.status} · ${member.is_online ? "Online" : "Offline"}`,
+                      member.has_employee_record ? "Linked" : "Not linked",
+                    ])}
+                  />
+                  <DetailTable
+                    title="Outlet expenses — recent vouchers"
+                    empty="No expense vouchers recorded."
+                    headers={["Voucher", "Date", "Method / status", "Amount"]}
+                    rows={outletSummary.expenses.recent.map((voucher) => [
+                      voucher.voucher_number,
+                      formatOutletDate(voucher.date),
+                      `${voucher.payment_method} · ${voucher.status}`,
+                      PKR(voucher.total_amount),
+                    ])}
+                  />
+                  <DetailTable
+                    title="Cash in hand — pending collections"
+                    empty="No pending cash collections."
+                    headers={["Order", "Officer", "Submitted", "Remaining"]}
+                    rows={outletSummary.cashInHand.recentPending.map((cash) => [
+                      cash.order.order_ref,
+                      cash.officer.full_name,
+                      PKR(cash.submitted_amount || 0),
+                      PKR(cash.remaining),
+                    ])}
+                  />
+                  <DetailTable
+                    title="Outlet inventory"
+                    empty="No inventory records."
+                    headers={["Product", "Category / IMEI", "Status", "Qty / unit cost"]}
+                    rows={outletSummary.inventory.recent.map((item) => [
+                      item.product_name,
+                      [item.category, item.imei_serial].filter(Boolean).join(" · ") || "—",
+                      `${item.status}${item.is_used ? " · Used" : ""}`,
+                      `${item.quantity} · ${PKR(item.purchase_price)}`,
+                    ])}
+                  />
+                  <DetailTable
+                    title="Recovery tracking — recent visits"
+                    empty="No recovery visits recorded."
+                    headers={["Order / customer", "Officer", "Visit", "Collected"]}
+                    rows={outletSummary.recovery.recentVisits.map((visit) => [
+                      `${visit.order.order_ref} · ${visit.order.customer_name}`,
+                      visit.officer.full_name,
+                      formatOutletDate(visit.visit_time),
+                      visit.payment_collected ? PKR(visit.amount_collected || 0) : "No collection",
+                    ])}
+                  />
+                  <DetailTable
+                    title="Outlet performance analytics"
+                    empty="No order status data."
+                    headers={["Order status", "Orders"]}
+                    rows={Object.entries(outletSummary.performance.statusBreakdown).map(([status, count]) => [status.replace(/_/g, " "), count.toLocaleString()])}
+                  />
+                  <DetailTable
+                    title={`Attendance monitoring — ${outletSummary.attendance.date}`}
+                    empty="No employees linked to attendance."
+                    headers={["Measure", "Count"]}
+                    rows={[
+                      ["Present", outletSummary.attendance.present],
+                      ["Absent", outletSummary.attendance.absent],
+                      ["Not marked", outletSummary.attendance.notMarked],
+                      ["Not linked to HR", outletSummary.attendance.unlinkedStaff],
+                    ]}
+                  />
+                  <DetailTable
+                    title="Recovery account status"
+                    empty="No recovery-assigned orders."
+                    headers={["Order status", "Assigned accounts"]}
+                    rows={Object.entries(outletSummary.recovery.statusBreakdown).map(([status, count]) => [status.replace(/_/g, " "), count.toLocaleString()])}
+                  />
+                </section>
+              </div>
+            ) : (
+              <p className="py-8 text-center text-sm text-gray-500">Outlet details could not be loaded.</p>
+            )}
+          </div>
         </div>
       )}
 
@@ -608,5 +821,80 @@ function Field({
         className="w-full rounded-xl border border-stroke bg-white px-4 py-2.5 text-sm outline-none transition focus:border-[#ff3d3d] dark:border-dark-3 dark:bg-gray-dark dark:text-white"
       />
     </div>
+  );
+}
+
+function ProfileValue({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">{label}</p>
+      <p className="mt-0.5 break-words font-medium text-dark dark:text-white">{value}</p>
+    </div>
+  );
+}
+
+function SummaryCard({
+  icon: Icon,
+  title,
+  value,
+  detail,
+}: {
+  icon: LucideIcon;
+  title: string;
+  value: string;
+  detail: string;
+}) {
+  return (
+    <div className="rounded-xl border border-slate-100 bg-white p-4 shadow-sm dark:border-white/10 dark:bg-boxdark">
+      <div className="mb-2 flex items-center gap-2 text-xs font-semibold text-gray-500">
+        <Icon className="size-4 text-primary" /> {title}
+      </div>
+      <p className="text-lg font-bold text-dark dark:text-white">{value}</p>
+      <p className="mt-1 text-[11px] text-gray-500">{detail}</p>
+    </div>
+  );
+}
+
+function DetailTable({
+  title,
+  empty,
+  headers,
+  rows,
+}: {
+  title: string;
+  empty: string;
+  headers: string[];
+  rows: Array<Array<string | number>>;
+}) {
+  return (
+    <section className="overflow-hidden rounded-xl border border-slate-100 dark:border-white/10">
+      <h3 className="border-b border-slate-100 bg-slate-50/70 px-4 py-3 text-sm font-bold text-dark dark:border-white/10 dark:bg-white/[0.03] dark:text-white">
+        {title}
+      </h3>
+      {rows.length === 0 ? (
+        <p className="px-4 py-5 text-center text-xs text-gray-500">{empty}</p>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[380px] text-left text-xs">
+            <thead>
+              <tr className="text-[10px] uppercase tracking-wide text-gray-400">
+                {headers.map((header) => <th key={header} className="px-3 py-2 font-semibold">{header}</th>)}
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((row, index) => (
+                <tr key={`${title}-${index}`} className="border-t border-slate-50 dark:border-white/5">
+                  {row.map((value, cellIndex) => (
+                    <td key={`${title}-${index}-${cellIndex}`} className="max-w-[200px] px-3 py-2.5 text-gray-700 dark:text-gray-300">
+                      {value}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </section>
   );
 }
