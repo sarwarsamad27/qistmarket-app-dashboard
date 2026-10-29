@@ -435,9 +435,7 @@ export default function AdminOutletsPage() {
               {filtered.map((o, idx) => {
                 const p = performance[o.id];
                 const a = attendance[o.id];
-                const delivered =
-                  (p?.statusBreakdown?.delivered || 0) +
-                  (p?.statusBreakdown?.completed || 0);
+                const delivered = p?.statusBreakdown?.delivered || 0;
                 return (
                   <tr
                     key={o.id}
