@@ -713,6 +713,12 @@ export const NAV_DATA = [
         items: [],
       },
       {
+        title: "HR Alerts",
+        icon: Icons.BellIcon,
+        url: "/hr/alerts",
+        items: [],
+      },
+      {
         title: "Employees",
         icon: Icons.UsersIcon,
         items: [
@@ -844,7 +850,6 @@ export const NAV_DATA = [
     ],
   },
 ];
-
 
 
 

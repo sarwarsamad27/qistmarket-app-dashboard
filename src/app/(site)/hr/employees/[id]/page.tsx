@@ -20,7 +20,7 @@ interface Employee {
   id: number; employee_id: string; full_name: string; username: string; portal_active: boolean;
   qr_code?: string; department?: string; designation?: string; phone?: string; cnic?: string; email?: string;
   address?: string; emergency_contact?: string; emergency_phone?: string; qualification?: string;
-  experience?: string; date_of_birth?: string; date_of_joining?: string; basic_salary?: number;
+  experience?: string; date_of_birth?: string; date_of_joining?: string; probation_end_date?: string; contract_end_date?: string; basic_salary?: number;
   status?: string; outlet_id?: number | null; user_id?: number | null; device_user_id?: string | null;
   outlet?: { id: number; name: string; code: string };
   timeline_events?: { id: number; title: string; event_type: string; event_date: string; description?: string; document_url?: string | null }[];
@@ -812,6 +812,8 @@ export default function HrEmployeeDetailPage() {
                 ["emergency_phone", "Emergency Phone", "text", employee.emergency_phone],
                 ["date_of_birth", "Date of Birth", "date", employee.date_of_birth?.slice(0, 10)],
                 ["date_of_joining", "Date of Joining", "date", employee.date_of_joining?.slice(0, 10)],
+                ["probation_end_date", "Probation End Date", "date", employee.probation_end_date?.slice(0, 10)],
+                ["contract_end_date", "Contract End Date", "date", employee.contract_end_date?.slice(0, 10)],
                 ["designation", "Designation", "text", employee.designation],
                 ["basic_salary", "Basic Salary (Rs.)", "number", employee.basic_salary],
               ] as [string, string, string, string | number | undefined | null][]).map(([name, label, type, value]) => (

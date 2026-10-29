@@ -6,11 +6,11 @@ import Link from "next/link";
 import {
   Users, UserCheck, Building2, Clock, CalendarCheck, TrendingUp,
   FileText, DollarSign, Star, Fingerprint, Bell, Activity,
-  ArrowRight, UserPlus,
+  ArrowRight, UserPlus, AlertTriangle,
 } from "lucide-react";
 import { ValueSkeleton } from "@/components/ui/LoadingStates";
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
+const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
 
 interface HrStats {
   totalEmployees: number; activeEmployees: number; totalDepartments: number;
@@ -31,14 +31,17 @@ export default function HrDashboard() {
   const { user } = useAuth();
   const [stats, setStats] = useState<HrStats | null>(null);
   const [recentActivity, setRecentActivity] = useState<any[]>([]);
+  const [activeHrAlerts, setActiveHrAlerts] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     Promise.all([
-      fetchWithAuth(`${BACKEND_URL}/api/hr/dashboard-stats`),
-    ]).then(([statsRes]) => {
-      if (statsRes.success) setStats(statsRes.stats);
-    }).catch(console.error).finally(() => setLoading(false));
+      fetchWithAuth(`${BACKEND_URL}/api/hr/dashboard-stats`).catch((error) => { console.error(error); return null; }),
+      fetchWithAuth(`${BACKEND_URL}/api/hr/alerts`).catch((error) => { console.error(error); return null; }),
+    ]).then(([statsRes, alertsRes]) => {
+      if (statsRes?.success) setStats(statsRes.stats);
+      if (alertsRes?.success) setActiveHrAlerts(alertsRes.alerts.length);
+    }).finally(() => setLoading(false));
   }, []);
 
   const statCards = [
@@ -47,6 +50,7 @@ export default function HrDashboard() {
     { label: "Departments", value: stats ? stats.totalDepartments ?? 0 : null, icon: Building2, color: "bg-purple-500", href: "/hr/employees" },
     { label: "Pending Leaves", value: stats ? stats.pendingLeaves ?? 0 : null, icon: Clock, color: "bg-amber-500", href: "/hr/leaves" },
     { label: "Today's Attendance", value: stats ? stats.todayAttendance ?? 0 : null, icon: CalendarCheck, color: "bg-teal-500", href: "/hr/attendance" },
+    { label: "Active HR Alerts", value: activeHrAlerts, icon: Bell, color: "bg-orange-500", href: "/hr/alerts" },
   ];
 
   const quickLinks = [
@@ -57,6 +61,7 @@ export default function HrDashboard() {
     { label: "Performance", icon: Star, href: "/hr/performance", color: "bg-yellow-50 text-yellow-700 dark:bg-yellow-900/20 dark:text-yellow-300" },
     { label: "Biometric", icon: Fingerprint, href: "/hr/biometric", color: "bg-rose-50 text-rose-700 dark:bg-rose-900/20 dark:text-rose-300" },
     { label: "Announcements", icon: Bell, href: "/hr/announcements", color: "bg-purple-50 text-purple-700 dark:bg-purple-900/20 dark:text-purple-300" },
+    { label: "HR Alerts", icon: AlertTriangle, href: "/hr/alerts", color: "bg-orange-50 text-orange-700 dark:bg-orange-900/20 dark:text-orange-300" },
     { label: "Leaves", icon: CalendarCheck, href: "/hr/leaves", color: "bg-amber-50 text-amber-700 dark:bg-amber-900/20 dark:text-amber-300" },
   ];
 
@@ -70,7 +75,7 @@ export default function HrDashboard() {
 
       {/* Stats */}
       {(
-        <div className="grid grid-cols-2 gap-3 sm:gap-5 sm:grid-cols-3 xl:grid-cols-5">
+        <div className="grid grid-cols-2 gap-3 sm:gap-5 sm:grid-cols-3 xl:grid-cols-6">
           {statCards.map((card) => {
             const Icon = card.icon;
             return (

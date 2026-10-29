@@ -637,7 +637,7 @@ export const PaymentDetailsSection = ({
                                 <p className="mt-1 text-xs">
                                     They were built from a different IMEI (e.g. the returned product&apos;s), not the current
                                     {idsCheck.source === 'imei' ? <> IMEI <span className="font-mono">{idsCheck.current_imei}</span></> : ' purchaser mobile (no IMEI on this delivery)'}.
-                                    Updating re-derives both from it; the old ledger link keeps working.
+                                    Updating re-derives both from it; any previously paid 1Bill ID stays in payment history, and the old ledger link keeps working.
                                 </p>
                             </div>
                             <button

@@ -58,7 +58,7 @@ export default function CreateEmployeePage() {
   const [form, setForm] = useState({
     full_name: "", cnic: "", phone: "", email: "", address: "",
     emergency_contact: "", emergency_phone: "", qualification: "", experience: "",
-    date_of_birth: "", date_of_joining: "", department: "", designation: "",
+    date_of_birth: "", date_of_joining: "", probation_end_date: "", contract_end_date: "", department: "", designation: "",
     outlet_id: "", basic_salary: "", user_id: "", device_user_id: "",
   });
 
@@ -200,7 +200,7 @@ export default function CreateEmployeePage() {
         )}
         <div className="mt-6 flex gap-3">
           <button onClick={() => router.push("/hr/employees")} className="flex-1 rounded-lg bg-primary py-2 text-white">View All Employees</button>
-          <button onClick={() => { setCredentials(null); docs.forEach((d) => d.preview && URL.revokeObjectURL(d.preview)); setDocs([]); setDocResult(null); setForm({ full_name: "", cnic: "", phone: "", email: "", address: "", emergency_contact: "", emergency_phone: "", qualification: "", experience: "", date_of_birth: "", date_of_joining: "", department: "", designation: "", outlet_id: "", basic_salary: "", user_id: "", device_user_id: "" }); }} className="flex-1 rounded-lg border border-stroke py-2 dark:border-stroke-dark">Add Another</button>
+          <button onClick={() => { setCredentials(null); docs.forEach((d) => d.preview && URL.revokeObjectURL(d.preview)); setDocs([]); setDocResult(null); setForm({ full_name: "", cnic: "", phone: "", email: "", address: "", emergency_contact: "", emergency_phone: "", qualification: "", experience: "", date_of_birth: "", date_of_joining: "", probation_end_date: "", contract_end_date: "", department: "", designation: "", outlet_id: "", basic_salary: "", user_id: "", device_user_id: "" }); }} className="flex-1 rounded-lg border border-stroke py-2 dark:border-stroke-dark">Add Another</button>
         </div>
       </div>
     );
@@ -243,6 +243,8 @@ export default function CreateEmployeePage() {
           {field("designation", "Designation")}
           {field("date_of_birth", "Date of Birth", "date")}
           {field("date_of_joining", "Date of Joining", "date")}
+          {field("probation_end_date", "Probation End Date", "date")}
+          {field("contract_end_date", "Contract End Date", "date")}
           {field("basic_salary", "Basic Salary", "number")}
           <div>
             <label className="mb-1 block text-sm text-gray-500">Outlet</label>
