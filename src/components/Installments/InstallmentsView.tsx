@@ -252,8 +252,8 @@ function InstallmentsViewContent({ adminMode = false }: InstallmentsViewProps) {
   })();
 
   const openPtpModal = (inst: any) => {
-    if (!inst.imei_serial) {
-      toast.error("No IMEI/device associated with this order");
+    if (!inst.can_unlock_paytrigger) {
+      toast.error("No active PayTrigger device associated with this order");
       return;
     }
     const defaultDate = new Date();
@@ -264,7 +264,7 @@ function InstallmentsViewContent({ adminMode = false }: InstallmentsViewProps) {
   };
 
   const handleSubmitPtp = async () => {
-    if (!ptpRow || !ptpDate) return;
+    if (!ptpRow?.can_unlock_paytrigger || !ptpDate) return;
     if (ptpDate > maxPtpStr) {
       toast.error("Promised payment date cannot be more than 10 days from today");
       return;
@@ -1449,7 +1449,7 @@ function InstallmentsViewContent({ adminMode = false }: InstallmentsViewProps) {
                                   </svg>
                               </button>
                           )}
-                          {inst.status !== "paid" && (
+                          {inst.status !== "paid" && inst.can_unlock_paytrigger && (
                               <button
                                   onClick={() => openPtpModal(inst)}
                                   disabled={!inst.imei_serial}
@@ -1722,7 +1722,7 @@ function InstallmentsViewContent({ adminMode = false }: InstallmentsViewProps) {
       />
 
       {/* PTP (Promise to Pay) MODAL */}
-      {ptpModalOpen && ptpRow && (
+      {ptpModalOpen && ptpRow?.can_unlock_paytrigger && (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
           <div className="w-full max-w-md bg-white dark:bg-boxdark rounded-3xl shadow-2xl overflow-hidden border border-gray-100 dark:border-strokedark">
 
