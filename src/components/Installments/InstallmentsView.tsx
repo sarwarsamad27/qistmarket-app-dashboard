@@ -1321,25 +1321,15 @@ function InstallmentsViewContent({ adminMode = false }: InstallmentsViewProps) {
                         {inst.partialPayment ? `Rs. ${inst.partialPayment.toLocaleString()}` : "-"}
                       </td>
                       <td className="px-4 py-3.5">
-                        <div className="flex flex-col gap-0.5 font-black">
-                          {inst.paidDate ? (
-                            <span className="text-slate-800 dark:text-slate-200">
-                              {formatExactDate(inst.paidDate, 'DD MMM YYYY, hh:mm A')}
-                            </span>
-                          ) : (
-                            <span className="text-gray-300 font-black">-</span>
-                          )}
-                          {inst.paymentHistory && inst.paymentHistory.length > 0 && (
-                            <button
-                              type="button"
-                              onClick={() => openHistoryModal(inst)}
-                              className="text-[10px] text-[#E31E24] hover:text-red-700 hover:underline italic font-black uppercase tracking-wider text-left transition-colors cursor-pointer"
-                              title="Click to view detailed payment logs"
-                            >
-                              ({inst.paymentHistory.length} {inst.paymentHistory.length === 1 ? 'log' : 'logs'})
-                            </button>
-                          )}
-                        </div>
+                        {inst.lastPayment ? (
+                          <button type="button" onClick={() => openHistoryModal(inst)}
+                            className="flex flex-col gap-1 text-left font-bold hover:underline"
+                            title="View payment details and history">
+                            <span className="text-emerald-600">Rs. {Number(inst.lastPayment.amount).toLocaleString()}</span>
+                            <span>{formatExactDate(inst.lastPayment.date, 'DD MMM YYYY, hh:mm A')}</span>
+                            <span className="text-[10px] text-[#E31E24]">View history ({inst.paymentHistory?.length || 0})</span>
+                          </button>
+                        ) : <span className="text-gray-400">No payment recorded</span>}
                       </td>
                       <td className="px-4 py-3.5">
                         {inst.consumer_number ? (
@@ -1865,51 +1855,43 @@ function InstallmentsViewContent({ adminMode = false }: InstallmentsViewProps) {
                   <p className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate">{historyRow.product_name || 'N/A'}</p>
                 </div>
                 <div>
-                  <p className="text-[10px] font-black uppercase text-gray-400">Total Partial Paid</p>
+                  <p className="text-[10px] font-black uppercase text-gray-400">Last Payment Amount</p>
                   <p className="text-xs font-black text-emerald-600">
-                    Rs. {historyRow.partialPayment ? historyRow.partialPayment.toLocaleString() : (historyRow.paymentHistory?.reduce((sum: number, h: any) => sum + Number(h.amount || 0), 0)?.toLocaleString() || '0')}
+                    Rs. {Number(historyRow.lastPayment?.amount || 0).toLocaleString()}
                   </p>
                 </div>
               </div>
 
-              {/* Logs Table / List */}
-              <div className="rounded-2xl border border-gray-100 dark:border-strokedark overflow-hidden">
-                <table className="w-full text-left text-xs">
-                  <thead className="bg-gray-100 dark:bg-gray-700/60 text-[10px] font-black text-gray-400 uppercase tracking-wider">
-                    <tr>
-                      <th className="px-4 py-2.5">#</th>
-                      <th className="px-4 py-2.5">Amount</th>
-                      <th className="px-4 py-2.5">Method</th>
-                      <th className="px-4 py-2.5 text-right">Date &amp; Time</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100 dark:divide-strokedark/50">
-                    {historyRow.paymentHistory && historyRow.paymentHistory.length > 0 ? (
-                      historyRow.paymentHistory.map((h: any, idx: number) => (
-                        <tr key={idx} className="hover:bg-gray-50/50 dark:hover:bg-gray-800/30 transition-colors">
-                          <td className="px-4 py-3 font-bold text-gray-400">{idx + 1}</td>
-                          <td className="px-4 py-3 font-black text-emerald-600 dark:text-emerald-400 text-sm">
-                            Rs. {Number(h.amount || 0).toLocaleString()}
-                          </td>
-                          <td className="px-4 py-3">
-                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-300">
-                              {h.method || 'Cash'}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3 text-right font-medium text-slate-700 dark:text-slate-300">
-                            {formatExactDate(h.date, 'DD MMM YYYY, hh:mm A')}
-                          </td>
-                        </tr>
-                      ))
-                    ) : (
-                      <tr>
-                        <td colSpan={4} className="px-4 py-6 text-center text-gray-400 italic">
-                          No payment history logs found
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
+              <p className="text-xs text-gray-500">Latest payment first. Times shown in Pakistan time. Missing historical details are marked Not recorded.</p>
+              <div className="space-y-4">
+                {(historyRow.paymentHistory || []).map((h: any, idx: number) => (
+                  <section key={`${h.paymentId || 'entry'}-${idx}`} className="rounded-xl border border-gray-200 p-4 dark:border-strokedark">
+                    <h4 className="mb-3 font-bold">{idx === 0 ? 'Latest payment' : `Payment ${idx + 1}`} ? Rs. {Number(h.amount || 0).toLocaleString()}</h4>
+                    <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-xs">
+                      {[
+                        ['Payment date', formatExactDate(h.date, 'DD MMM YYYY')],
+                        ['Payment time (PKT)', formatExactDate(h.date, 'hh:mm:ss A')],
+                        ['Method', h.method],
+                        ['Received by', h.collectorName || (h.collectorId ? `User #${h.collectorId}` : null)],
+                        ['Payment source', h.source],
+                        ['Receiving outlet', h.collectorOutletName || (h.collectorOutletId ? `Outlet #${h.collectorOutletId}` : null)],
+                        ['Receipt ID', h.paymentId],
+                        ['Transaction ID', h.transactionId],
+                        ['Installment month', h.month],
+                        ['Recorded at', h.recordedAt ? formatExactDate(h.recordedAt, 'DD MMM YYYY, hh:mm:ss A') : null],
+                        ['Original payment date', h.originalDate ? formatExactDate(h.originalDate, 'DD MMM YYYY, hh:mm:ss A') : null],
+                        ['Entry recorded by', h.recordedByName || (h.recordedById ? `User #${h.recordedById}` : null)],
+                        ['Last edited by', h.lastEditedByName || (h.lastEditedById ? `User #${h.lastEditedById}` : null)],
+                        ['Entry type', h.edited ? 'Edited ledger entry' : h.isLegacy ? 'Imported history' : 'Payment'],
+                        ['Submitted at', h.submittedAt ? formatExactDate(h.submittedAt, 'DD MMM YYYY, hh:mm:ss A') : null],
+                        ['Remarks', h.feedback],
+                      ].map(([label, value]) => <div key={label} className="min-w-0">
+                        <dt className="text-gray-500">{label}</dt>
+                        <dd className="mt-1 break-words font-semibold">{value ?? 'Not recorded'}</dd>
+                      </div>)}
+                    </dl>
+                  </section>
+                ))}
               </div>
             </div>
 
