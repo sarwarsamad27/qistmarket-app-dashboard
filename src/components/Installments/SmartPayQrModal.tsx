@@ -76,9 +76,9 @@ export default function SmartPayQrModal({ open, onClose, orderId, monthNumber, d
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
             <div role="dialog" aria-modal="true" aria-label="SmartPay QR" className="relative w-full max-w-sm rounded-[32px] bg-white dark:bg-gray-900 shadow-2xl overflow-hidden">
                 <div className="bg-gradient-to-r from-[#1a365d] to-[#2b6cb0] p-6 text-white text-center">
-                    <button onClick={onClose} aria-label="Close QR" className="absolute right-4 top-4 rounded-full px-3 py-1 bg-white/10">?</button>
+                    <button onClick={onClose} aria-label="Close QR" className="absolute right-4 top-4 rounded-full px-3 py-1 bg-white/10">&times;</button>
                     <h3 className="font-black text-xl">SmartPay DQR</h3>
-                    <p className="text-xs mt-2">Month {monthNumber} ? {customerName}</p>
+                    <p className="text-xs mt-2">Month {monthNumber} &middot; {customerName}</p>
                 </div>
                 <div className="p-6 text-center">
                     {loading ? <div role="status" className="py-10">
