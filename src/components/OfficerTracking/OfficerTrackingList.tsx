@@ -84,9 +84,10 @@ export default function OfficerTrackingList({ basePath }: { basePath: string }) 
     verification: officers.filter((o) => o.role === "verification").length,
     delivery: officers.filter((o) => o.role === "delivery").length,
     recovery: officers.filter((o) => o.role === "recovery").length,
+    csr: officers.filter((o) => o.role === "csr").length,
   }), [officers]);
 
-  const qs = `?from=${from}&to=${to}`;
+  const qs = `?from=${from}&to=${to}${outletId ? `&outlet_id=${encodeURIComponent(outletId)}` : ""}`;
 
   return (
     <>
@@ -94,12 +95,12 @@ export default function OfficerTrackingList({ basePath }: { basePath: string }) 
       <PageHeader
         icon={Radar}
         title="Officer Tracking"
-        subtitle={isGlobal ? "Every field officer across all outlets — tap an officer for full activity." : "Your outlet's field officers — tap an officer for full activity."}
+        subtitle={isGlobal ? "Field officers and CSRs across all outlets — tap a person for full activity and sales." : "Your outlet's field officers and CSRs — tap a person for full activity and sales."}
       />
 
       <div className="mb-4 flex flex-wrap items-end gap-3 rounded-2xl bg-white p-4 shadow-sm dark:bg-gray-dark">
         <div className="flex flex-wrap gap-1 rounded-xl bg-gray-100 p-1 dark:bg-dark-3">
-          {(["all", "verification", "delivery", "recovery"] as const).map((r) => (
+          {(["all", "verification", "delivery", "recovery", "csr"] as const).map((r) => (
             <button
               key={r}
               onClick={() => setRole(r)}
@@ -188,6 +189,12 @@ export default function OfficerTrackingList({ basePath }: { basePath: string }) 
                       <Stat label="Collections" value={o.stats.collections} />
                       <Stat label="Amount" value={fmtRs(o.stats.amount_collected)} />
                       <Stat label="Visits" value={o.stats.visits} />
+                    </>
+                  )}
+                  {o.role === "csr" && (
+                    <>
+                      <Stat label="Sales" value={o.stats.sales} />
+                      <Stat label="Order value" value={fmtRs(o.stats.sales_amount)} wide />
                     </>
                   )}
                 </div>

@@ -1,12 +1,13 @@
-import { ShieldCheck, Truck, RotateCcw } from "lucide-react";
+import { ShieldCheck, Truck, RotateCcw, ShoppingCart } from "lucide-react";
 import { pktDate, pktMonthStart } from "@/utils/pkt";
 
-export type RoleKey = "verification" | "delivery" | "recovery";
+export type RoleKey = "verification" | "delivery" | "recovery" | "csr";
 
 export const ROLE_META: Record<RoleKey, { label: string; icon: any; color: string; bg: string }> = {
   verification: { label: "Verification Officer", icon: ShieldCheck, color: "text-emerald-600", bg: "bg-emerald-50 dark:bg-emerald-500/10" },
   delivery: { label: "Delivery Officer", icon: Truck, color: "text-purple-600", bg: "bg-purple-50 dark:bg-purple-500/10" },
   recovery: { label: "Recovery Officer", icon: RotateCcw, color: "text-orange-600", bg: "bg-orange-50 dark:bg-orange-500/10" },
+  csr: { label: "CSR", icon: ShoppingCart, color: "text-blue-600", bg: "bg-blue-50 dark:bg-blue-500/10" },
 };
 
 export const fmtRs = (n: any) => `Rs. ${Math.round(Number(n) || 0).toLocaleString()}`;

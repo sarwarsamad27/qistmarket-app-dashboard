@@ -92,6 +92,26 @@ const Paragraph = ({ text }: { text?: string | null }) =>
   text ? <p className="whitespace-pre-line text-sm leading-relaxed text-gray-700 dark:text-gray-200">{text}</p> : <p className="text-sm text-gray-400">Not provided</p>;
 
 function buildTabs(role: RoleKey, data: any): TabDef[] {
+  if (role === "csr") {
+    return [{
+      key: "sales",
+      label: "Sales / Orders",
+      rows: data.sales || [],
+      columns: [
+        { key: "order_ref", label: "Order", render: (r) => <OrderLink row={r} /> },
+        { key: "customer_name", label: "Customer", render: (r) => <Customer row={r} />, csv: (r) => [r.customer_name, r.phone].filter(Boolean).join(" | ") },
+        { key: "product_name", label: "Product" },
+        { key: "total_amount", label: "Order value", nowrap: true, render: (r) => <b>{fmtRs(r.total_amount)}</b>, csv: (r) => r.total_amount },
+        { key: "advance_amount", label: "Advance", nowrap: true, render: (r) => fmtRs(r.advance_amount), csv: (r) => r.advance_amount },
+        { key: "monthly_amount", label: "Installment", nowrap: true, render: (r) => <span>{fmtRs(r.monthly_amount)} × {r.months}</span>, csv: (r) => `${r.monthly_amount} x ${r.months}` },
+        { key: "status", label: "Status", render: (r) => <StatusPill value={r.status} />, csv: (r) => humanize(r.status) },
+        { key: "channel", label: "Channel", render: (r) => humanize(r.channel), csv: (r) => humanize(r.channel) },
+        { key: "outlet_name", label: "Outlet", render: (r) => r.outlet_name || "—", csv: (r) => r.outlet_name },
+        { key: "area", label: "Area" },
+        { key: "created_at", label: "Created", render: (r) => <When value={r.created_at} />, csv: (r) => fmtDateTime(r.created_at) },
+      ],
+    }];
+  }
   if (role === "verification") {
     return [{
       key: "verifications",
@@ -267,6 +287,14 @@ function buildTabs(role: RoleKey, data: any): TabDef[] {
 
 function summaryCards(role: RoleKey, s: any): { label: string; value: string | number; tone?: string }[] {
   if (!s) return [];
+  if (role === "csr") return [
+    { label: "Sales / orders", value: s.sales },
+    { label: "Total order value", value: fmtRs(s.sales_amount), tone: "text-blue-600" },
+    { label: "Delivered", value: s.delivered, tone: "text-emerald-600" },
+    { label: "Pending / in process", value: s.pending },
+    { label: "Approved", value: s.approved },
+    { label: "Rejected / cancelled", value: `${s.rejected} / ${s.cancelled}`, tone: "text-red-600" },
+  ];
   if (role === "verification") return [
     { label: "Total verifications", value: s.total },
     { label: "Completed", value: s.completed },
@@ -301,6 +329,7 @@ export default function OfficerTrackingDetail({ id, basePath }: { id: string; ba
   const params = useSearchParams();
   const [from, setFrom] = useState(params.get("from") || monthStart());
   const [to, setTo] = useState(params.get("to") || today());
+  const outletId = params.get("outlet_id") || "";
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -322,7 +351,8 @@ export default function OfficerTrackingDetail({ id, basePath }: { id: string; ba
       setLoading(true);
       setError(null);
       try {
-        const res = await fetch(`${BACKEND_URL}/api/officer-tracking/officers/${id}?from=${from}&to=${to}`, {
+        const outletQuery = outletId ? `&outlet_id=${encodeURIComponent(outletId)}` : "";
+        const res = await fetch(`${BACKEND_URL}/api/officer-tracking/officers/${id}?from=${from}&to=${to}${outletQuery}`, {
           headers: { Authorization: `Bearer ${Cookies.get("auth_token")}` },
           signal: ctrl.signal,
         });
@@ -338,7 +368,7 @@ export default function OfficerTrackingDetail({ id, basePath }: { id: string; ba
       }
     }, 300);
     return () => { clearTimeout(t); ctrl.abort(); };
-  }, [id, from, to]);
+  }, [id, from, to, outletId]);
 
   const role: RoleKey | null = data?.officer?.role || null;
   const tabs = useMemo(() => (role ? buildTabs(role, data) : []), [role, data]);
@@ -360,7 +390,7 @@ export default function OfficerTrackingDetail({ id, basePath }: { id: string; ba
   return (
     <>
       <Breadcrumb pageName="Officer Activity" />
-      <Link href={`${basePath}?from=${from}&to=${to}`} className="mb-4 inline-flex items-center gap-1 text-sm font-semibold text-gray-500 hover:text-[#ff3d3d]">
+      <Link href={`${basePath}?from=${from}&to=${to}${outletId ? `&outlet_id=${encodeURIComponent(outletId)}` : ""}`} className="mb-4 inline-flex items-center gap-1 text-sm font-semibold text-gray-500 hover:text-[#ff3d3d]">
         <ArrowLeft className="size-4" /> All officers
       </Link>
 
