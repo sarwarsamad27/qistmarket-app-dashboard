@@ -328,6 +328,12 @@ export const NAV_DATA = [
         items: [],
       },
       {
+        title: "Verification Management",
+        icon: Icons.ShieldCheckIcon,
+        url: "/admin/verification-management",
+        items: [],
+      },
+      {
         title: "Officer Tracking",
         icon: Icons.ActivityIcon,
         url: "/admin/officer-tracking",
@@ -850,6 +856,5 @@ export const NAV_DATA = [
     ],
   },
 ];
-
 
 
