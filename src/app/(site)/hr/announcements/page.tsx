@@ -6,15 +6,53 @@ import toast from "react-hot-toast";
 
 const EMPTY = { title: "", message: "", type: "announcement", role_id: "" };
 type RecipientRole = { id: number; name: string; active_users: number };
+type ChannelResult = {
+  accepted: number;
+  failed: number;
+  skipped: number;
+  reasons?: Record<string, number>;
+};
 type AnnouncementResponse = {
   count: number;
-  channels?: Record<string, {
-    accepted: number;
-    failed: number;
-    skipped: number;
-    reasons?: Record<string, number>;
-  }>;
+  channels?: Record<string, ChannelResult>;
 };
+
+const CHANNEL_LABELS: Record<string, string> = { sms: "SMS", whatsapp: "WhatsApp", push: "Mobile app" };
+
+function explainReason(reason: string) {
+  if (/^Jazz response:/i.test(reason)) {
+    const response = reason.slice("Jazz response:".length);
+    if (/account is expired/i.test(response)) return "Jazz account needs attention";
+    if (/insufficient funds/i.test(response)) return "Jazz account balance is low";
+    if (/mask not allowed/i.test(response)) return "Jazz sender name is not approved";
+    if (/invalid username\/password/i.test(response)) return "Jazz account credentials need checking";
+    return "Jazz gateway rejected the message";
+  }
+  const explanations: Record<string, string> = {
+    no_phone_number: "no phone number",
+    invalid_phone_number: "invalid phone number",
+    jazz_sms_disabled_in_shared_otp_settings: "SMS is disabled in channel settings",
+    jazz_gateway_not_configured: "Jazz SMS is not configured",
+    wati_hr_template_not_configured: "WhatsApp template is not configured",
+    wati_template_rejected_or_unavailable: "WhatsApp template was rejected",
+    no_registered_push_token: "no app notification token",
+    firebase_not_configured: "app notifications are not configured",
+    firebase_rejected_or_unavailable: "app notification could not be sent",
+  };
+  return explanations[reason] || "provider could not send";
+}
+
+function formatChannelStatus(channel: string, result: ChannelResult) {
+  const label = CHANNEL_LABELS[channel] || channel;
+  const reasons = Object.entries(result.reasons || {})
+    .map(([reason, count]) => `${count} ${explainReason(reason)}`)
+    .join(", ");
+  const acceptedLabel = channel === "push" ? "sent" : "accepted";
+  const parts = [`${result.accepted} ${acceptedLabel}`];
+  if (result.failed) parts.push(`${result.failed} failed`);
+  if (result.skipped) parts.push(`${result.skipped} skipped`);
+  return `${label}: ${parts.join(", ")}${reasons ? ` (${reasons})` : ""}`;
+}
 
 export default function HrAnnouncementsPage() {
   const [form, setForm] = useState(EMPTY);
@@ -37,19 +75,14 @@ export default function HrAnnouncementsPage() {
         body: JSON.stringify({ ...form, role_id: form.role_id || undefined, channels }),
       });
       const channelSummary = Object.entries(data.channels || {})
-        .map(([channel, result]) => {
-          const reasons = Object.entries(result.reasons || {})
-            .map(([reason, count]) => `${reason.replaceAll("_", " ")} (${count})`)
-            .join(", ");
-          return `${channel}: ${result.accepted} accepted${result.failed ? `, ${result.failed} failed` : ""}${result.skipped ? `, ${result.skipped} skipped` : ""}${reasons ? ` — ${reasons}` : ""}`;
-        })
-        .join(" · ");
+        .map(([channel, result]) => formatChannelStatus(channel, result))
+        .join(". ");
       const failures = Object.values(data.channels || {}).reduce((total, result) => total + result.failed, 0);
       const skipped = Object.values(data.channels || {}).reduce((total, result) => total + result.skipped, 0);
-      const summary = `Saved in app for ${data.count} user(s). External counts are gateway acceptance, not handset delivery. ${channelSummary || "No external channels selected."}`;
-      if (failures) toast.error(summary, { duration: 10000 });
-      else if (skipped) toast(summary, { duration: 10000 });
-      else toast.success(summary, { duration: 8000 });
+      const summary = `Announcement saved for ${data.count} users. ${channelSummary || "No external channels selected."}`;
+      if (failures) toast.error(summary, { duration: 8000 });
+      else if (skipped) toast(summary, { duration: 8000 });
+      else toast.success(summary, { duration: 6000 });
       setForm(EMPTY);
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : "Failed");
@@ -80,7 +113,7 @@ export default function HrAnnouncementsPage() {
             <label className="mb-1 block text-sm text-gray-500">Send to</label>
             <select value={form.role_id} onChange={(e) => setForm({ ...form, role_id: e.target.value })}
               className="w-full rounded-lg border border-stroke px-3 py-2 text-sm dark:border-stroke-dark dark:bg-dark-3">
-              <option value="">All active employees</option>
+              <option value="">All active users</option>
               {roles.map((role) => <option key={role.id} value={role.id}>{role.name} ({role.active_users})</option>)}
             </select>
           </div>
