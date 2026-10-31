@@ -94,10 +94,10 @@ export default function HrBiometricPage() {
 
   const refreshAll = () => Promise.all([loadStatus(), loadUsers(), loadEmployees(), tab === "punches" ? loadPunches() : null]);
 
-  const syncNow = async () => {
+  const syncNow = async (deviceId?: number) => {
     setSyncing(true);
     try {
-      const r = await hrFetch("/biometric/sync", { method: "POST", body: JSON.stringify({}) });
+      const r = await hrFetch("/biometric/sync", { method: "POST", body: JSON.stringify(deviceId ? { device_id: deviceId } : {}) });
       toast.success(r.message);
       await refreshAll();
     } catch (e) {
@@ -112,11 +112,11 @@ export default function HrBiometricPage() {
     e.preventDefault();
     if (!editDevice) return;
     try {
-      await hrFetch("/biometric/device", { method: "PUT", body: JSON.stringify(editDevice) });
+      const result = await hrFetch("/biometric/device", { method: "PUT", body: JSON.stringify(editDevice) });
       toast.success("Device saved — syncing…");
       setEditDevice(null);
       await loadStatus();
-      syncNow();
+      await syncNow(result.device.id);
     } catch (err) { toast.error((err as Error).message); }
   };
 
@@ -170,7 +170,7 @@ export default function HrBiometricPage() {
         </div>
         <div className="flex gap-2">
           <Link href="/hr/attendance" className="rounded-lg border border-stroke px-3 py-2 text-sm dark:border-stroke-dark">Attendance</Link>
-          <button onClick={syncNow} disabled={syncing || !device} className="flex items-center gap-1 rounded-lg bg-primary px-4 py-2 text-sm text-white disabled:opacity-50">
+          <button onClick={() => void syncNow()} disabled={syncing || !device} className="flex items-center gap-1 rounded-lg bg-primary px-4 py-2 text-sm text-white disabled:opacity-50">
             <RefreshCw className={`h-4 w-4 ${syncing ? "animate-spin" : ""}`} /> {syncing ? "Syncing…" : "Sync Now"}
           </button>
         </div>
