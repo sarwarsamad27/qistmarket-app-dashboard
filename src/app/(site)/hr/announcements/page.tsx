@@ -8,7 +8,12 @@ const EMPTY = { title: "", message: "", type: "announcement", role_id: "" };
 type RecipientRole = { id: number; name: string; active_users: number };
 type AnnouncementResponse = {
   count: number;
-  channels?: Record<string, { accepted: number; failed: number; skipped: number }>;
+  channels?: Record<string, {
+    accepted: number;
+    failed: number;
+    skipped: number;
+    reasons?: Record<string, number>;
+  }>;
 };
 
 export default function HrAnnouncementsPage() {
@@ -32,8 +37,12 @@ export default function HrAnnouncementsPage() {
         body: JSON.stringify({ ...form, role_id: form.role_id || undefined, channels }),
       });
       const channelSummary = Object.entries(data.channels || {})
-        .map(([channel, result]) =>
-          `${channel}: ${result.accepted} accepted${result.failed ? `, ${result.failed} failed` : ""}${result.skipped ? `, ${result.skipped} skipped` : ""}`)
+        .map(([channel, result]) => {
+          const reasons = Object.entries(result.reasons || {})
+            .map(([reason, count]) => `${reason.replaceAll("_", " ")} (${count})`)
+            .join(", ");
+          return `${channel}: ${result.accepted} accepted${result.failed ? `, ${result.failed} failed` : ""}${result.skipped ? `, ${result.skipped} skipped` : ""}${reasons ? ` — ${reasons}` : ""}`;
+        })
         .join(" · ");
       const failures = Object.values(data.channels || {}).reduce((total, result) => total + result.failed, 0);
       const skipped = Object.values(data.channels || {}).reduce((total, result) => total + result.skipped, 0);
