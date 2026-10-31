@@ -237,7 +237,7 @@ export default function VerificationManagementPage() {
       </div>
 
       <div className="mb-6 grid grid-cols-1 gap-5 xl:grid-cols-2">
-        <section className="rounded-2xl border border-stroke bg-white p-5 shadow-sm dark:border-dark-3 dark:bg-boxdark">
+        <section className="flex h-[28rem] min-h-0 flex-col rounded-2xl border border-stroke bg-white p-5 shadow-sm dark:border-dark-3 dark:bg-boxdark xl:h-[34rem]">
           <div className="mb-4 flex items-center justify-between">
             <div>
               <h2 className="font-bold text-dark dark:text-white">Officer performance</h2>
@@ -247,9 +247,9 @@ export default function VerificationManagementPage() {
               Monitor officers <ArrowUpRight className="size-3.5" />
             </Link>
           </div>
-          <div className="overflow-x-auto">
+          <div className="min-h-0 flex-1 overflow-auto">
             <table className="w-full min-w-[520px] text-left text-sm">
-              <thead className="text-[11px] uppercase tracking-wide text-gray-400">
+              <thead className="sticky top-0 z-10 bg-white text-[11px] uppercase tracking-wide text-gray-400 dark:bg-boxdark">
                 <tr><th className="pb-2">Officer</th><th className="pb-2 text-right">Assigned</th><th className="pb-2 text-right">Pending</th><th className="pb-2 text-right">Approved</th><th className="pb-2 text-right">Rejected</th></tr>
               </thead>
               <tbody>
@@ -269,7 +269,7 @@ export default function VerificationManagementPage() {
           </div>
         </section>
 
-        <section className="rounded-2xl border border-stroke bg-white p-5 shadow-sm dark:border-dark-3 dark:bg-boxdark">
+        <section className="flex h-[28rem] min-h-0 flex-col rounded-2xl border border-stroke bg-white p-5 shadow-sm dark:border-dark-3 dark:bg-boxdark xl:h-[34rem]">
           <div className="mb-4 flex items-center justify-between">
             <div>
               <h2 className="font-bold text-dark dark:text-white">Area-wise report</h2>
@@ -277,7 +277,7 @@ export default function VerificationManagementPage() {
             </div>
             <MapPin className="size-5 text-[#ff3d3d]" />
           </div>
-          <div className="max-h-64 overflow-auto">
+          <div className="min-h-0 flex-1 overflow-auto">
             <table className="w-full min-w-[440px] text-left text-sm">
               <thead className="sticky top-0 bg-white text-[11px] uppercase tracking-wide text-gray-400 dark:bg-boxdark">
                 <tr><th className="pb-2">City / area</th><th className="pb-2 text-right">Total</th><th className="pb-2 text-right">Pending</th><th className="pb-2 text-right">Approved</th><th className="pb-2 text-right">Rejected</th></tr>
