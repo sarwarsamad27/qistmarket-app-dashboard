@@ -166,7 +166,7 @@ export default function HrBiometricPage() {
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="flex items-center gap-2 text-2xl font-bold text-dark dark:text-white"><Fingerprint className="h-6 w-6 text-primary" /> Biometric Device</h1>
-          <p className="text-xs text-gray-500">Branch attendance devices via ZKBio Zlink — punches sync automatically every few minutes; linked employees&apos; attendance is filled from them. Manual entries are never overwritten.</p>
+          <p className="text-xs text-gray-500">Attendance devices sync via ZKBio Zlink, direct LAN, or an office agent when the server cannot reach the device. Linked employees&apos; attendance is filled from device punches; manual entries are never overwritten.</p>
         </div>
         <div className="flex gap-2">
           <Link href="/hr/attendance" className="rounded-lg border border-stroke px-3 py-2 text-sm dark:border-stroke-dark">Attendance</Link>
@@ -191,7 +191,7 @@ export default function HrBiometricPage() {
                 <div className="space-y-1 text-sm">
                   <p className="text-base font-semibold text-dark dark:text-white">
                     {d.name || "Attendance Device"}{" "}
-                    <span className="font-mono text-sm font-normal text-gray-500">{d.source === "zlink" ? `ZKBio Zlink · SN ${d.ip}` : `${d.ip}:${d.port}`}</span>
+                    <span className="font-mono text-sm font-normal text-gray-500">{d.source === "zlink" ? `ZKBio Zlink · SN ${d.ip}` : d.source === "agent" ? `Office Agent · ${d.ip}:${d.port}` : `${d.ip}:${d.port}`}</span>
                   </p>
                   <p>
                     Status:{" "}
