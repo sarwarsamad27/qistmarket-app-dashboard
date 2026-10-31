@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 import { useEffect, useState } from 'react'
 import Loader from '@/components/common/Loader'
 import {
@@ -18,13 +18,13 @@ import ColumnFilter from '../DataTables/ColumnFilter'
 import Pagination from '../common/Pagination'
 import { Modal } from '../Modal/Modal'
 import { apiErrorMessage } from "@/lib/apiErrors";
-
 import { serialColumn } from '@/utils/serialColumn'
+
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL
 
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─────────────────────────────────────────────────────────────────────────────
 // Types
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─────────────────────────────────────────────────────────────────────────────
 interface AdvancePayment {
   amount: number
   paid: boolean
@@ -140,7 +140,7 @@ interface PaginationInfo {
   hasPrev: boolean
 }
 
-// â”€â”€ Extended Profile Types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Extended Profile Types
 interface RecoveryOfficer {
   id: number
   full_name: string
@@ -237,9 +237,9 @@ interface ExtendedProfile {
   due_payment_alerts: DuePaymentAlerts
 }
 
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─────────────────────────────────────────────────────────────────────────────
 // Helpers
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─────────────────────────────────────────────────────────────────────────────
 const fmt = (n: number) => `Rs. ${Number(n).toLocaleString()}`
 
 const fmtDate = (d: string | null) =>
@@ -265,7 +265,7 @@ const fmtDateTime = (d: string | null) =>
 
 const statusBadge = (status: string, paidAmount: number = 0, remainingAmount: number = 0) => {
   if (paidAmount > 0 && remainingAmount > 0 && status !== 'paid') {
-     return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
+    return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
   }
   const map: Record<string, string> = {
     paid:    'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300',
@@ -277,9 +277,9 @@ const statusBadge = (status: string, paidAmount: number = 0, remainingAmount: nu
 
 type ProfileTab = 'overview' | 'recovery' | 'timeline' | 'verification' | 'alerts'
 
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─────────────────────────────────────────────────────────────────────────────
 // Main Component
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─────────────────────────────────────────────────────────────────────────────
 const CustomerList = () => {
   const [customers, setCustomers]         = useState<CustomerGroup[]>([])
   const [pagination, setPagination]       = useState<PaginationInfo>({
@@ -296,25 +296,21 @@ const CustomerList = () => {
   const [extProfile, setExtProfile]       = useState<ExtendedProfile | null>(null)
   const [extLoading, setExtLoading]       = useState(false)
 
-  // â”€â”€ Data Fetching â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const fetchCustomers = async (page = pagination.page, limit = pagination.limit, search = globalFilter) => {
     setLoading(true)
     try {
       const token = Cookies.get('auth_token')
       if (!token) return
-
       const params = new URLSearchParams({
         page:   page.toString(),
         limit:  limit.toString(),
         search: search.trim(),
       })
-
       const res = await fetch(`${BACKEND_URL}/api/customers?${params}`, {
         headers: { Authorization: `Bearer ${token}` },
       })
       if (!res.ok) throw new Error(await apiErrorMessage(res, "Failed to fetch customers"))
       const json = await res.json()
-
       if (json.success && json.data) {
         setCustomers(json.data.customers ?? [])
         setPagination(json.data.pagination)
@@ -346,10 +342,8 @@ const CustomerList = () => {
     }
   }
 
-  // Fetch on mount
   useEffect(() => { fetchCustomers(1, pagination.limit, globalFilter) }, [])
 
-  // Search â€” debounced, reset to page 1
   useEffect(() => {
     const t = setTimeout(() => {
       fetchCustomers(1, pagination.limit, globalFilter)
@@ -357,12 +351,11 @@ const CustomerList = () => {
     return () => clearTimeout(t)
   }, [globalFilter])
 
-  const openDetails  = (c: CustomerGroup) => {
+  const openDetails = (c: CustomerGroup) => {
     setSelectedCustomer(c)
     setDetailsOpen(true)
     setActiveTab('overview')
     setExtProfile(null)
-    // Load from the first delivered order
     const firstOrderId = c.orders[0]?.order_id
     if (firstOrderId) fetchExtendedProfile(firstOrderId)
   }
@@ -378,7 +371,6 @@ const CustomerList = () => {
     fetchCustomers(1, limit, globalFilter)
   }
 
-  // â”€â”€ Columns â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const columns: ColumnDef<CustomerGroup>[] = [
     serialColumn<CustomerGroup>(),
     {
@@ -510,7 +502,6 @@ const CustomerList = () => {
     getPaginationRowModel: getPaginationRowModel(),
   })
 
-  // Severity colours for overdue alerts
   const severityStyle = (sev: string) => {
     if (sev === 'critical') return 'border-l-4 border-red-600 bg-red-50 dark:bg-red-900/20'
     if (sev === 'high')     return 'border-l-4 border-orange-500 bg-orange-50 dark:bg-orange-900/20'
@@ -522,15 +513,14 @@ const CustomerList = () => {
     return                         'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300'
   }
 
-  const tabs: { id: ProfileTab; label: string; icon: string }[] = [
-    { id: 'overview',      label: 'Overview',      icon: 'ðŸ—‚ï¸' },
-    { id: 'recovery',      label: 'Recovery History', icon: 'ðŸƒ' },
-    { id: 'timeline',      label: 'Timeline',      icon: 'ðŸ“…' },
-    { id: 'verification',  label: 'Verification',  icon: 'ðŸ›¡ï¸' },
-    { id: 'alerts',        label: 'Payment Alerts', icon: 'ðŸ””' },
+  const tabs: { id: ProfileTab; label: string }[] = [
+    { id: 'overview',     label: 'Overview'         },
+    { id: 'recovery',     label: 'Recovery History' },
+    { id: 'timeline',     label: 'Timeline'         },
+    { id: 'verification', label: 'Verification'     },
+    { id: 'alerts',       label: 'Payment Alerts'   },
   ]
 
-  // â”€â”€ Render â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   return (
     <section className="data-table-common rounded-[10px] bg-white shadow-1 dark:bg-gray-dark dark:shadow-card">
       {/* Top bar */}
@@ -539,9 +529,7 @@ const CustomerList = () => {
           <input
             type="text"
             value={globalFilter || ''}
-            onChange={(e) => {
-              setGlobalFilter(e.target.value)
-            }}
+            onChange={(e) => setGlobalFilter(e.target.value)}
             className="w-full rounded-lg border border-stroke bg-transparent px-5 py-2.5 outline-none focus:border-[#ff3d3d]"
             placeholder="Search by name, WhatsApp, CNIC, city..."
           />
@@ -549,7 +537,6 @@ const CustomerList = () => {
             <SearchIcon className="size-4.5" />
           </button>
         </div>
-
         <div className="flex items-center gap-6">
           <div className="flex items-center text-sm text-gray-600 dark:text-gray-300">
             <p className="pl-2 font-medium text-dark dark:text-current">Per Page:</p>
@@ -564,12 +551,8 @@ const CustomerList = () => {
             </select>
           </div>
           <div className="flex items-center gap-4 text-sm text-gray-600 dark:text-gray-300">
-            <span>
-              Customers: <strong className="text-dark dark:text-white">{pagination.total}</strong>
-            </span>
-            <span>
-              Orders: <strong className="text-dark dark:text-white">{totalOrders}</strong>
-            </span>
+            <span>Customers: <strong className="text-dark dark:text-white">{pagination.total}</strong></span>
+            <span>Orders: <strong className="text-dark dark:text-white">{totalOrders}</strong></span>
           </div>
         </div>
       </div>
@@ -613,7 +596,6 @@ const CustomerList = () => {
               </tr>
             ))}
           </thead>
-
           <tbody>
             {loading ? (
               <tr>
@@ -623,9 +605,7 @@ const CustomerList = () => {
               </tr>
             ) : customers.length === 0 ? (
               <tr>
-                <td colSpan={columns.length} className="py-12 text-center">
-                  No customers found
-                </td>
+                <td colSpan={columns.length} className="py-12 text-center">No customers found</td>
               </tr>
             ) : (
               table.getRowModel().rows.map((row) => (
@@ -642,7 +622,7 @@ const CustomerList = () => {
         </table>
       </div>
 
-      {/* Pagination footer */}
+      {/* Pagination */}
       <div className="flex items-center justify-between px-7.5 py-7">
         <Pagination
           currentPage={pagination.page}
@@ -655,7 +635,7 @@ const CustomerList = () => {
         </p>
       </div>
 
-      {/* â”€â”€ View Details Modal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+      {/* View Details Modal */}
       <Modal
         open={detailsOpen}
         onClose={closeDetails}
@@ -663,7 +643,8 @@ const CustomerList = () => {
       >
         {selectedCustomer && (
           <div className="flex flex-col max-h-[90vh]">
-            {/* â”€â”€ Modal Header â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+
+            {/* Modal Header */}
             <div className="shrink-0 bg-gradient-to-r from-[#ff3d3d] to-[#c0392b] px-6 py-5">
               <div className="flex items-center gap-4">
                 {selectedCustomer.customer.profile_photo ? (
@@ -683,12 +664,11 @@ const CustomerList = () => {
                     <p className="text-sm text-red-100">S/O, D/O, W/O: {selectedCustomer.customer.father_husband_name}</p>
                   )}
                   <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1 text-sm text-red-100">
-                    <span>ðŸ“ž {selectedCustomer.customer.whatsapp_number}</span>
-                    {selectedCustomer.customer.cnic_number && <span>ðŸªª {selectedCustomer.customer.cnic_number}</span>}
-                    {selectedCustomer.customer.city && <span>ðŸ“ {selectedCustomer.customer.city}</span>}
+                    <span>{selectedCustomer.customer.whatsapp_number}</span>
+                    {selectedCustomer.customer.cnic_number && <span>CNIC: {selectedCustomer.customer.cnic_number}</span>}
+                    {selectedCustomer.customer.city && <span>{selectedCustomer.customer.city}</span>}
                   </div>
                 </div>
-                {/* Alert badge */}
                 {extProfile && extProfile.due_payment_alerts.overdue.length > 0 && (
                   <div className="shrink-0 flex flex-col items-center bg-white/20 rounded-xl px-4 py-2 text-white">
                     <span className="text-2xl font-black">{extProfile.due_payment_alerts.overdue.length}</span>
@@ -698,22 +678,21 @@ const CustomerList = () => {
               </div>
             </div>
 
-            {/* â”€â”€ Tabs â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
-            <div className="shrink-0 flex border-b border-stroke dark:border-dark-3 bg-gray-50 dark:bg-gray-900 overflow-x-auto no-scrollbar">
+            {/* Tabs */}
+            <div className="shrink-0 flex border-b border-stroke dark:border-dark-3 bg-gray-50 dark:bg-gray-900 overflow-x-auto">
               {tabs.map(tab => (
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center gap-2 px-5 py-3.5 text-xs font-bold uppercase tracking-widest whitespace-nowrap transition-all relative ${
+                  className={`relative flex items-center gap-2 px-5 py-3.5 text-xs font-bold uppercase tracking-widest whitespace-nowrap transition-all ${
                     activeTab === tab.id
                       ? 'text-[#ff3d3d]'
                       : 'text-gray-500 hover:text-gray-800 dark:hover:text-gray-200'
                   }`}
                 >
-                  <span>{tab.icon}</span>
                   {tab.label}
                   {tab.id === 'alerts' && extProfile && extProfile.due_payment_alerts.overdue.length > 0 && (
-                    <span className="ml-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[9px] font-black text-white">
+                    <span className="flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[9px] font-black text-white">
                       {extProfile.due_payment_alerts.overdue.length}
                     </span>
                   )}
@@ -724,13 +703,12 @@ const CustomerList = () => {
               ))}
             </div>
 
-            {/* â”€â”€ Tab Content â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+            {/* Tab Content */}
             <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar bg-white dark:bg-gray-800 p-6">
 
-              {/* â”€â”€ OVERVIEW TAB â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+              {/* OVERVIEW TAB */}
               {activeTab === 'overview' && (
                 <div className="space-y-6">
-                  {/* Ledger summary pills */}
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                     <div className="rounded-xl bg-gray-50 dark:bg-gray-900 p-4 text-center border border-stroke dark:border-dark-3">
                       <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Orders</p>
@@ -750,7 +728,6 @@ const CustomerList = () => {
                     </div>
                   </div>
 
-                  {/* Orders list */}
                   <div>
                     <h3 className="mb-3 text-sm font-black uppercase tracking-wider text-gray-500 dark:text-gray-400">Orders & Ledger</h3>
                     {selectedCustomer.orders.length === 0 ? (
@@ -758,40 +735,24 @@ const CustomerList = () => {
                     ) : (
                       <div className="space-y-4">
                         {selectedCustomer.orders.map((order) => (
-                          <div
-                            key={order.order_id}
-                            className="rounded-xl border border-stroke bg-gray-50 p-4 text-sm dark:border-dark-3 dark:bg-dark-3"
-                          >
-                            {/* Order header */}
+                          <div key={order.order_id} className="rounded-xl border border-stroke bg-gray-50 p-4 text-sm dark:border-dark-3 dark:bg-dark-3">
                             <div className="flex flex-wrap items-start justify-between gap-3">
                               <div>
-                                <p className="font-semibold text-dark dark:text-white">
-                                  {order.product_details.product_name || 'Product N/A'}
-                                </p>
-                                <p className="text-xs text-gray-500 dark:text-gray-400">
-                                  Ref: {order.order_ref} â€¢ Token: {order.token_number}
-                                </p>
+                                <p className="font-semibold text-dark dark:text-white">{order.product_details.product_name || 'Product N/A'}</p>
+                                <p className="text-xs text-gray-500 dark:text-gray-400">Ref: {order.order_ref} &bull; Token: {order.token_number}</p>
                                 {order.product_details.imei_serial && (
-                                  <p className="text-xs text-gray-500 dark:text-gray-400">
-                                    IMEI / Serial: {order.product_details.imei_serial}
-                                  </p>
+                                  <p className="text-xs text-gray-500 dark:text-gray-400">IMEI: {order.product_details.imei_serial}</p>
                                 )}
                                 {order.product_details.color_variant && (
-                                  <p className="text-xs text-gray-500 dark:text-gray-400">
-                                    Color: {order.product_details.color_variant}
-                                  </p>
+                                  <p className="text-xs text-gray-500 dark:text-gray-400">Color: {order.product_details.color_variant}</p>
                                 )}
-                                <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">
-                                  Created: {fmtDate(order.created_at)}
-                                </p>
+                                <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">Created: {fmtDate(order.created_at)}</p>
                               </div>
                               <div className="flex flex-wrap gap-2">
-                                <span className="rounded-full bg-gray-200 px-2.5 py-0.5 text-xs font-medium text-gray-700 dark:bg-gray-700 dark:text-gray-200">
-                                  {order.status}
-                                </span>
+                                <span className="rounded-full bg-gray-200 px-2.5 py-0.5 text-xs font-medium text-gray-700 dark:bg-gray-700 dark:text-gray-200">{order.status}</span>
                                 {order.is_delivered && (
                                   <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-medium text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300">
-                                    âœ“ Delivered {fmtDate(order.delivery_date)}
+                                    Delivered {fmtDate(order.delivery_date)}
                                   </span>
                                 )}
                                 {order.verification_status && (
@@ -802,44 +763,29 @@ const CustomerList = () => {
                               </div>
                             </div>
 
-                            {/* Plan info */}
                             <div className="mt-3 grid gap-3 sm:grid-cols-4">
                               <div>
                                 <p className="text-xs text-gray-500 dark:text-gray-400">Advance</p>
-                                <p className="font-semibold text-dark dark:text-white">
-                                  {fmt(order.plan.advance_amount)}
-                                </p>
+                                <p className="font-semibold text-dark dark:text-white">{fmt(order.plan.advance_amount)}</p>
                               </div>
                               <div>
                                 <p className="text-xs text-gray-500 dark:text-gray-400">Monthly / Months</p>
-                                <p className="font-semibold text-dark dark:text-white">
-                                  {fmt(order.plan.monthly_amount)} Ã— {order.plan.months}
-                                </p>
+                                <p className="font-semibold text-dark dark:text-white">{fmt(order.plan.monthly_amount)} x {order.plan.months}</p>
                               </div>
                               <div>
                                 <p className="text-xs text-gray-500 dark:text-gray-400">Total Plan Value</p>
-                                <p className="font-semibold text-dark dark:text-white">
-                                  {fmt(order.plan.total_plan_value)}
-                                </p>
+                                <p className="font-semibold text-dark dark:text-white">{fmt(order.plan.total_plan_value)}</p>
                               </div>
                               <div>
                                 <p className="text-xs text-gray-500 dark:text-gray-400">Grand Remaining</p>
-                                <p className="font-semibold text-red-500">
-                                  {fmt(order.ledger.summary.grandTotalRemaining)}
-                                </p>
-                                <p className="text-xs text-gray-400 dark:text-gray-500">
-                                  {order.ledger.summary.paidInstallments} paid /{' '}
-                                  {order.ledger.summary.pendingInstallments} pending
-                                </p>
+                                <p className="font-semibold text-red-500">{fmt(order.ledger.summary.grandTotalRemaining)}</p>
+                                <p className="text-xs text-gray-400 dark:text-gray-500">{order.ledger.summary.paidInstallments} paid / {order.ledger.summary.pendingInstallments} pending</p>
                               </div>
                             </div>
 
-                            {/* Installments */}
-                            <div className="mt-4 rounded-lg bg-white p-3 dark:bg-gray-900 md:col-span-2">
+                            <div className="mt-4 rounded-lg bg-white p-3 dark:bg-gray-900">
                               <div className="mb-2 flex items-center justify-between">
-                                <h4 className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
-                                  Installments Timeline
-                                </h4>
+                                <h4 className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Installments Timeline</h4>
                                 {order.ledger.ledger_token && (
                                   <span className="rounded bg-gray-100 px-2 py-0.5 font-mono text-[10px] text-gray-500 dark:bg-gray-800 dark:text-gray-400">
                                     #{order.ledger.ledger_token}
@@ -874,22 +820,18 @@ const CustomerList = () => {
                                               </div>
                                             ) : null}
                                           </td>
-                                          <td className="py-1 pr-2 text-right">
-                                            {inst.paidAmount > 0 ? fmt(inst.paidAmount) : '-'}
-                                          </td>
+                                          <td className="py-1 pr-2 text-right">{inst.paidAmount > 0 ? fmt(inst.paidAmount) : '-'}</td>
                                           <td className="py-1 pr-2 text-right">
                                             {(inst.remainingAmount > 0 || (inst.arrears || 0) > 0) ? (
-                                               (inst.arrears || 0) > 0 ? (
-                                                 <div>
-                                                   <span className="font-bold text-red-500">{fmt(inst.remainingAmount + (inst.arrears || 0))}</span>
-                                                   <div className="text-[8px] text-gray-400 font-normal">
-                                                     ({fmt(inst.remainingAmount)} + {fmt(inst.arrears || 0)} arr)
-                                                   </div>
-                                                 </div>
-                                               ) : (
-                                                 fmt(inst.remainingAmount)
-                                               )
-                                             ) : '-'}
+                                              (inst.arrears || 0) > 0 ? (
+                                                <div>
+                                                  <span className="font-bold text-red-500">{fmt(inst.remainingAmount + (inst.arrears || 0))}</span>
+                                                  <div className="text-[8px] text-gray-400 font-normal">
+                                                    ({fmt(inst.remainingAmount)} + {fmt(inst.arrears || 0)} arr)
+                                                  </div>
+                                                </div>
+                                              ) : fmt(inst.remainingAmount)
+                                            ) : '-'}
                                           </td>
                                           <td className="py-1 text-right">
                                             <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${statusBadge(inst.status, inst.paidAmount, inst.remainingAmount)}`}>
@@ -911,17 +853,15 @@ const CustomerList = () => {
                 </div>
               )}
 
-              {/* â”€â”€ RECOVERY HISTORY TAB â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+              {/* RECOVERY HISTORY TAB */}
               {activeTab === 'recovery' && (
                 <div className="space-y-4">
-                  <h3 className="text-sm font-black uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-4">
-                    Recovery Visit History
-                  </h3>
+                  <h3 className="text-sm font-black uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-4">Recovery Visit History</h3>
                   {extLoading ? (
                     <div className="py-12 text-center"><Loader text="Loading recovery history..." /></div>
                   ) : !extProfile || extProfile.recovery_history.length === 0 ? (
                     <div className="py-16 text-center">
-                      <div className="text-5xl mb-4">ðŸƒ</div>
+                      <p className="text-4xl mb-4">--</p>
                       <p className="text-sm font-semibold text-gray-400">No recovery visits recorded yet.</p>
                     </div>
                   ) : (
@@ -931,26 +871,22 @@ const CustomerList = () => {
                           <div>
                             <div className="flex items-center gap-2 flex-wrap">
                               <span className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${visit.payment_collected ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300' : 'bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-300'}`}>
-                                {visit.payment_collected ? 'âœ… Payment Collected' : 'ðŸš¶ Visit Only'}
+                                {visit.payment_collected ? 'Payment Collected' : 'Visit Only'}
                               </span>
                               {visit.payment_collected && visit.amount_collected != null && (
-                                <span className="text-sm font-black text-emerald-600 dark:text-emerald-400">
-                                  {fmt(visit.amount_collected)}
-                                </span>
+                                <span className="text-sm font-black text-emerald-600 dark:text-emerald-400">{fmt(visit.amount_collected)}</span>
                               )}
                             </div>
-                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                              ðŸ“… {fmtDateTime(visit.visit_time)}
-                            </p>
+                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{fmtDateTime(visit.visit_time)}</p>
                             {visit.officer && (
                               <p className="text-xs text-gray-600 dark:text-gray-300 mt-0.5">
-                                ðŸ‘¤ {visit.officer.full_name}{visit.officer.phone ? ` â€¢ ${visit.officer.phone}` : ''}
+                                Officer: {visit.officer.full_name}{visit.officer.phone ? ` - ${visit.officer.phone}` : ''}
                               </p>
                             )}
                           </div>
                           {visit.fuel_charges != null && visit.fuel_charges > 0 && (
                             <span className="text-xs bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300 rounded-full px-2.5 py-0.5 font-semibold">
-                              â›½ Fuel: {fmt(visit.fuel_charges)}
+                              Fuel: {fmt(visit.fuel_charges)}
                             </span>
                           )}
                         </div>
@@ -985,17 +921,14 @@ const CustomerList = () => {
                 </div>
               )}
 
-              {/* â”€â”€ TIMELINE TAB â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+              {/* TIMELINE TAB */}
               {activeTab === 'timeline' && (
                 <div className="space-y-4">
-                  <h3 className="text-sm font-black uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-4">
-                    Activity Timeline
-                  </h3>
+                  <h3 className="text-sm font-black uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-4">Activity Timeline</h3>
                   {extLoading ? (
                     <div className="py-12 text-center"><Loader text="Loading timeline..." /></div>
                   ) : !extProfile || extProfile.timeline.length === 0 ? (
                     <div className="py-16 text-center">
-                      <div className="text-5xl mb-4">ðŸ“…</div>
                       <p className="text-sm font-semibold text-gray-400">No timeline events recorded.</p>
                     </div>
                   ) : (
@@ -1006,40 +939,31 @@ const CustomerList = () => {
                           const isVisit   = entry.type === 'visit'
                           const isPtp     = entry.type === 'ptp'
                           const isPayment = entry.type === 'payment'
-                          const dot = isVisit ? 'ðŸƒ' : isPtp ? 'ðŸ“' : 'ðŸ’³'
+                          const typeLabel = isVisit ? 'Field Visit' : isPtp ? 'Promise to Pay' : `Payment (${entry.source || 'external'})`
                           const cardBg = isPayment
                             ? 'bg-emerald-50 border-emerald-200 dark:bg-emerald-900/10 dark:border-emerald-800'
                             : isPtp
                             ? 'bg-blue-50 border-blue-200 dark:bg-blue-900/10 dark:border-blue-800'
                             : 'bg-gray-50 border-stroke dark:bg-gray-900 dark:border-dark-3'
-
                           return (
                             <div key={idx} className="relative pl-12">
-                              <div className="absolute left-3.5 -translate-x-1/2 flex h-7 w-7 items-center justify-center rounded-full bg-white dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700 text-sm shadow-sm">
-                                {dot}
+                              <div className="absolute left-3.5 -translate-x-1/2 flex h-7 w-7 items-center justify-center rounded-full bg-white dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700 text-xs font-bold shadow-sm">
+                                {isVisit ? 'V' : isPtp ? 'P' : '$'}
                               </div>
                               <div className={`rounded-xl border p-4 ${cardBg}`}>
                                 <div className="flex items-start justify-between gap-2 flex-wrap">
                                   <div>
-                                    <p className="text-xs font-black uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                                      {isVisit ? 'Field Visit' : isPtp ? 'Promise to Pay' : `Payment (${entry.source || 'external'})`}
-                                    </p>
-                                    <p className="text-[11px] text-gray-400 dark:text-gray-500 mt-0.5">
-                                      {fmtDateTime(entry.date)}
-                                    </p>
+                                    <p className="text-xs font-black uppercase tracking-wider text-gray-500 dark:text-gray-400">{typeLabel}</p>
+                                    <p className="text-[11px] text-gray-400 dark:text-gray-500 mt-0.5">{fmtDateTime(entry.date)}</p>
                                     {entry.officer_name && (
-                                      <p className="text-xs text-gray-600 dark:text-gray-300 mt-0.5">ðŸ‘¤ {entry.officer_name}</p>
+                                      <p className="text-xs text-gray-600 dark:text-gray-300 mt-0.5">Officer: {entry.officer_name}</p>
                                     )}
                                   </div>
                                   {isPayment && entry.amount_collected != null && (
-                                    <span className="text-sm font-black text-emerald-600 dark:text-emerald-400">
-                                      +{fmt(entry.amount_collected)}
-                                    </span>
+                                    <span className="text-sm font-black text-emerald-600 dark:text-emerald-400">+{fmt(entry.amount_collected)}</span>
                                   )}
                                   {isVisit && entry.payment_collected && entry.amount_collected != null && (
-                                    <span className="text-sm font-black text-emerald-600 dark:text-emerald-400">
-                                      +{fmt(entry.amount_collected)}
-                                    </span>
+                                    <span className="text-sm font-black text-emerald-600 dark:text-emerald-400">+{fmt(entry.amount_collected)}</span>
                                   )}
                                   {isPtp && (
                                     <span className={`text-xs font-bold rounded-full px-2.5 py-0.5 ${entry.status === 'kept' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300' : 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300'}`}>
@@ -1051,9 +975,7 @@ const CustomerList = () => {
                                   <p className="mt-2 text-sm text-gray-700 dark:text-gray-200 leading-relaxed">{entry.feedback}</p>
                                 )}
                                 {isPtp && entry.promised_date && (
-                                  <p className="mt-1 text-xs text-blue-600 dark:text-blue-400">
-                                    Promised by: {fmtDate(entry.promised_date)}
-                                  </p>
+                                  <p className="mt-1 text-xs text-blue-600 dark:text-blue-400">Promised by: {fmtDate(entry.promised_date)}</p>
                                 )}
                                 {isPayment && entry.payment_method && (
                                   <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">Via: {entry.payment_method}</p>
@@ -1080,47 +1002,40 @@ const CustomerList = () => {
                 </div>
               )}
 
-              {/* â”€â”€ VERIFICATION TAB â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+              {/* VERIFICATION TAB */}
               {activeTab === 'verification' && (
                 <div className="space-y-5">
-                  <h3 className="text-sm font-black uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-4">
-                    Verification Records
-                  </h3>
+                  <h3 className="text-sm font-black uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-4">Verification Records</h3>
                   {extLoading ? (
                     <div className="py-12 text-center"><Loader text="Loading verification..." /></div>
                   ) : !extProfile?.verification ? (
                     <div className="py-16 text-center">
-                      <div className="text-5xl mb-4">ðŸ›¡ï¸</div>
                       <p className="text-sm font-semibold text-gray-400">No verification records found.</p>
                     </div>
                   ) : (
                     <>
-                      {/* Status + officer */}
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div className="rounded-xl border border-stroke dark:border-dark-3 bg-gray-50 dark:bg-gray-900 p-4">
                           <p className="text-[10px] font-black uppercase tracking-wider text-gray-400 mb-2">Verification Status</p>
-                          <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold ${extProfile.verification.status === 'approved' || extProfile.verification.status === 'completed' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300' : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300'}`}>
-                            {extProfile.verification.status === 'approved' || extProfile.verification.status === 'completed' ? 'âœ“' : 'â³'}
+                          <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold ${
+                            extProfile.verification.status === 'approved' || extProfile.verification.status === 'completed'
+                              ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300'
+                              : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300'
+                          }`}>
                             {extProfile.verification.status}
                           </span>
                           <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-                            ðŸ“… Visit Date: {fmtDate(extProfile.verification.visit_date)}
+                            Visit Date: {fmtDate(extProfile.verification.visit_date)}
                           </p>
                         </div>
                         <div className="rounded-xl border border-stroke dark:border-dark-3 bg-gray-50 dark:bg-gray-900 p-4">
                           <p className="text-[10px] font-black uppercase tracking-wider text-gray-400 mb-2">Verification Officer</p>
                           {extProfile.verification.officer ? (
                             <div className="space-y-1">
-                              <p className="text-sm font-bold text-dark dark:text-white">
-                                ðŸ‘¤ {extProfile.verification.officer.full_name}
-                              </p>
-                              <p className="text-xs text-gray-500 dark:text-gray-400">
-                                @{extProfile.verification.officer.username}
-                              </p>
+                              <p className="text-sm font-bold text-dark dark:text-white">{extProfile.verification.officer.full_name}</p>
+                              <p className="text-xs text-gray-500 dark:text-gray-400">@{extProfile.verification.officer.username}</p>
                               {extProfile.verification.officer.phone && (
-                                <p className="text-xs text-gray-600 dark:text-gray-300">
-                                  ðŸ“ž {extProfile.verification.officer.phone}
-                                </p>
+                                <p className="text-xs text-gray-600 dark:text-gray-300">{extProfile.verification.officer.phone}</p>
                               )}
                             </div>
                           ) : (
@@ -1129,7 +1044,6 @@ const CustomerList = () => {
                         </div>
                       </div>
 
-                      {/* Recovery Officer card */}
                       {extProfile.recovery_officer && (
                         <div className="rounded-xl border border-stroke dark:border-dark-3 bg-gray-50 dark:bg-gray-900 p-4">
                           <p className="text-[10px] font-black uppercase tracking-wider text-gray-400 mb-3">Recovery Officer</p>
@@ -1141,21 +1055,18 @@ const CustomerList = () => {
                               <p className="font-bold text-dark dark:text-white">{extProfile.recovery_officer.full_name}</p>
                               <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
                                 <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold ${extProfile.recovery_officer.is_online ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400' : 'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400'}`}>
-                                  {extProfile.recovery_officer.is_online ? 'â— Online' : 'â—‹ Offline'}
+                                  {extProfile.recovery_officer.is_online ? 'Online' : 'Offline'}
                                 </span>
-                                {extProfile.recovery_officer.phone && <span>ðŸ“ž {extProfile.recovery_officer.phone}</span>}
+                                {extProfile.recovery_officer.phone && <span>{extProfile.recovery_officer.phone}</span>}
                               </div>
                               {extProfile.recovery_officer.working_hours && (
-                                <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
-                                  ðŸ• {extProfile.recovery_officer.working_hours}
-                                </p>
+                                <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">Hours: {extProfile.recovery_officer.working_hours}</p>
                               )}
                             </div>
                           </div>
                         </div>
                       )}
 
-                      {/* Guarantors */}
                       {extProfile.verification.grantors.length > 0 && (
                         <div>
                           <p className="text-[10px] font-black uppercase tracking-wider text-gray-400 mb-3">Guarantors</p>
@@ -1168,16 +1079,15 @@ const CustomerList = () => {
                                   {g.is_blacklisted && <span className="rounded-full bg-red-100 text-red-600 px-2 py-0.5 text-[9px] font-black uppercase">Blacklisted</span>}
                                 </div>
                                 <p className="font-bold text-dark dark:text-white text-sm">{g.name}</p>
-                                {g.cnic_number && <p className="text-xs text-gray-500 dark:text-gray-400">ðŸªª {g.cnic_number}</p>}
-                                {g.telephone_number && <p className="text-xs text-gray-500 dark:text-gray-400">ðŸ“ž {g.telephone_number}</p>}
-                                {g.present_address && <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">ðŸ“ {g.present_address}</p>}
+                                {g.cnic_number && <p className="text-xs text-gray-500 dark:text-gray-400">CNIC: {g.cnic_number}</p>}
+                                {g.telephone_number && <p className="text-xs text-gray-500 dark:text-gray-400">Ph: {g.telephone_number}</p>}
+                                {g.present_address && <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">{g.present_address}</p>}
                               </div>
                             ))}
                           </div>
                         </div>
                       )}
 
-                      {/* Documents */}
                       {extProfile.verification.documents.length > 0 && (
                         <div>
                           <p className="text-[10px] font-black uppercase tracking-wider text-gray-400 mb-3">Verification Documents</p>
@@ -1201,17 +1111,14 @@ const CustomerList = () => {
                 </div>
               )}
 
-              {/* â”€â”€ PAYMENT ALERTS TAB â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+              {/* PAYMENT ALERTS TAB */}
               {activeTab === 'alerts' && (
                 <div className="space-y-6">
-                  <h3 className="text-sm font-black uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                    Due Payment Alerts
-                  </h3>
+                  <h3 className="text-sm font-black uppercase tracking-wider text-gray-500 dark:text-gray-400">Due Payment Alerts</h3>
                   {extLoading ? (
                     <div className="py-12 text-center"><Loader text="Loading payment alerts..." /></div>
                   ) : !extProfile ? null : (
                     <>
-                      {/* Summary pills */}
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                         <div className="rounded-xl bg-red-50 dark:bg-red-900/20 p-4 border border-red-200 dark:border-red-800">
                           <p className="text-xs text-red-600 dark:text-red-400 font-black uppercase mb-1">Overdue</p>
@@ -1230,10 +1137,9 @@ const CustomerList = () => {
                         </div>
                       </div>
 
-                      {/* Overdue list */}
                       {extProfile.due_payment_alerts.overdue.length > 0 && (
                         <div>
-                          <p className="text-sm font-black text-red-600 dark:text-red-400 uppercase tracking-wider mb-3">ðŸš¨ Overdue Installments</p>
+                          <p className="text-sm font-black text-red-600 dark:text-red-400 uppercase tracking-wider mb-3">Overdue Installments</p>
                           <div className="space-y-2">
                             {extProfile.due_payment_alerts.overdue.map((inst, i) => (
                               <div key={i} className={`rounded-xl p-4 ${severityStyle(inst.severity)}`}>
@@ -1242,21 +1148,15 @@ const CustomerList = () => {
                                     <div className="flex items-center gap-2">
                                       <span className="font-black text-sm text-dark dark:text-white">Month #{inst.month}</span>
                                       <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-black uppercase ${severityBadge(inst.severity)}`}>
-                                        {inst.severity} â€¢ {inst.days_overdue}d overdue
+                                        {inst.severity} &bull; {inst.days_overdue}d overdue
                                       </span>
                                     </div>
-                                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                                      Due: {fmtDate(inst.due_date)}
-                                    </p>
+                                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Due: {fmtDate(inst.due_date)}</p>
                                   </div>
                                   <div className="text-right">
                                     <p className="text-sm font-black text-red-600 dark:text-red-400">{fmt(inst.remaining_amount)}</p>
-                                    {inst.paid_amount > 0 && (
-                                      <p className="text-xs text-emerald-600 dark:text-emerald-400">Partial: {fmt(inst.paid_amount)}</p>
-                                    )}
-                                    {inst.arrears > 0 && (
-                                      <p className="text-xs text-red-500 dark:text-red-400">+{fmt(inst.arrears)} arrears</p>
-                                    )}
+                                    {inst.paid_amount > 0 && <p className="text-xs text-emerald-600 dark:text-emerald-400">Partial: {fmt(inst.paid_amount)}</p>}
+                                    {inst.arrears > 0 && <p className="text-xs text-red-500 dark:text-red-400">+{fmt(inst.arrears)} arrears</p>}
                                   </div>
                                 </div>
                               </div>
@@ -1265,10 +1165,9 @@ const CustomerList = () => {
                         </div>
                       )}
 
-                      {/* Upcoming list */}
                       {extProfile.due_payment_alerts.upcoming.length > 0 && (
                         <div>
-                          <p className="text-sm font-black text-amber-600 dark:text-amber-400 uppercase tracking-wider mb-3">ðŸ“† Upcoming Installments</p>
+                          <p className="text-sm font-black text-amber-600 dark:text-amber-400 uppercase tracking-wider mb-3">Upcoming Installments</p>
                           <div className="space-y-2">
                             {extProfile.due_payment_alerts.upcoming.map((inst, i) => (
                               <div key={i} className="rounded-xl p-4 border-l-4 border-amber-400 bg-amber-50 dark:bg-amber-900/10">
@@ -1276,8 +1175,7 @@ const CustomerList = () => {
                                   <div>
                                     <span className="font-black text-sm text-dark dark:text-white">Month #{inst.month}</span>
                                     <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                                      Due: {fmtDate(inst.due_date)} â€¢
-                                      {inst.days_until_due === 0 ? ' Due today' : ` In ${inst.days_until_due} day${inst.days_until_due > 1 ? 's' : ''}`}
+                                      Due: {fmtDate(inst.due_date)} &bull; {inst.days_until_due === 0 ? 'Due today' : `In ${inst.days_until_due} day${inst.days_until_due > 1 ? 's' : ''}`}
                                     </p>
                                   </div>
                                   <p className="text-sm font-black text-amber-600 dark:text-amber-400">{fmt(inst.remaining_amount)}</p>
@@ -1290,7 +1188,6 @@ const CustomerList = () => {
 
                       {extProfile.due_payment_alerts.overdue.length === 0 && extProfile.due_payment_alerts.upcoming.length === 0 && (
                         <div className="py-16 text-center">
-                          <div className="text-5xl mb-4">âœ…</div>
                           <p className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">No overdue or upcoming payments in the next 30 days.</p>
                         </div>
                       )}
