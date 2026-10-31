@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import Cookies from 'js-cookie'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Store, Warehouse, Trophy, AlertTriangle, Activity, Users2, Landmark } from 'lucide-react'
+import { Store, Warehouse, Trophy, AlertTriangle, Activity, Users2, Landmark, Filter, CircleDollarSign, UserRound, Bell } from 'lucide-react'
 import { PaymentsOverviewChart } from '@/components/Charts/payments-overview/chart'
 import { useNotifications } from '../../../../contexts/NotificationContext'
 import { useAuth } from '../../../../contexts/AuthContext'
@@ -98,6 +98,9 @@ interface ReportSummary {
   totalReceived: number
   totalPending: number
   totalSalesAmount?: number
+  totalSalesCount?: number
+  totalOrders?: number
+  ordersByStatus?: Record<string, number>
   dailyTrend: DailyTrendPoint[]
 }
 
@@ -108,6 +111,50 @@ interface DashboardExtras {
   customerReceivables: number
   cashRecovered: number
   onlineRecovered: number
+  recoveryPercentage: number
+}
+
+interface DashboardOperations {
+  pendingApprovalOrders: number | null
+  approvedOrders: number | null
+  pendingVerifications: number | null
+  pendingDeliveries: number | null
+  installmentSummary: { installments: number; unpaid: number; arrears: number; paid_pct: number } | null
+  overdueRecovery: { total: number; count: number } | null
+  outletPerformance: { outlet_id: number; outlet_name: string; totalOrders: number; pendingCash: number }[]
+  verificationOfficers: { id: number; full_name: string; total_verifications?: number; approved_verifications?: number; score?: number }[]
+  inventory: { warehouseCount: number; inStock: number; valuation: number; lowStockCount: number | null } | null
+  expenses: { thisMonth: number; today: number; topCategories: { category: string; amount: number }[] } | null
+  activityLogs: { id: number; action: string; details: string; created_at: string; user?: { full_name: string } | null }[]
+  alerts: { severity: string; title: string; message: string; link?: string }[]
+}
+
+interface SalesFilters {
+  range: 'Day' | 'Week' | 'Month' | 'Custom'
+  startDate: string
+  endDate: string
+  channel: string
+  city: string
+}
+
+const initialOperations: DashboardOperations = {
+  pendingApprovalOrders: null,
+  approvedOrders: null,
+  pendingVerifications: null,
+  pendingDeliveries: null,
+  installmentSummary: null,
+  overdueRecovery: null,
+  outletPerformance: [],
+  verificationOfficers: [],
+  inventory: null,
+  expenses: null,
+  activityLogs: [],
+  alerts: [],
+}
+
+const localDateInput = (date: Date) => {
+  const offset = date.getTimezoneOffset()
+  return new Date(date.getTime() - offset * 60_000).toISOString().slice(0, 10)
 }
 
 const initialExtras: DashboardExtras = {
@@ -117,6 +164,7 @@ const initialExtras: DashboardExtras = {
   customerReceivables: 0,
   cashRecovered: 0,
   onlineRecovered: 0,
+  recoveryPercentage: 0,
 }
 
 const QUICK_LINKS = [
@@ -133,6 +181,22 @@ export default function Home() {
   const [stats, setStats] = useState<DashboardStats>(initialStats)
   const [reportSummary, setReportSummary] = useState<ReportSummary | null>(null)
   const [extras, setExtras] = useState<DashboardExtras>(initialExtras)
+  const [operations, setOperations] = useState<DashboardOperations>(initialOperations)
+  const [salesFilters, setSalesFilters] = useState<SalesFilters>({
+    range: 'Day',
+    startDate: localDateInput(new Date()),
+    endDate: localDateInput(new Date()),
+    channel: '',
+    city: '',
+  })
+  const [appliedSalesFilters, setAppliedSalesFilters] = useState<SalesFilters>({
+    range: 'Day',
+    startDate: localDateInput(new Date()),
+    endDate: localDateInput(new Date()),
+    channel: '',
+    city: '',
+  })
+  const [filteredSales, setFilteredSales] = useState<{ amount: number; count: number } | null>(null)
   const [recentOrders, setRecentOrders] = useState<OrderSummary[]>([])
   const [recentOrdersPagination, setRecentOrdersPagination] = useState<PaginationInfo | null>(null)
   const [deliveryStatus, setDeliveryStatus] = useState<DeliveryStatusItem[]>([])
@@ -168,13 +232,23 @@ export default function Home() {
     return res.json()
   }
 
-  const loadDashboard = async (isBackgroundRefresh = false) => {
+  const loadDashboard = async (isBackgroundRefresh = false, salesFilterOverride?: SalesFilters) => {
     if (!token) {
       setLoading(false)
       return
     }
 
     if (!isBackgroundRefresh) setLoading(true)
+
+    const activeSalesFilters = salesFilterOverride || appliedSalesFilters
+    const salesParams = new URLSearchParams({ dateRange: activeSalesFilters.range })
+    if (activeSalesFilters.range === 'Custom') {
+      if (activeSalesFilters.startDate) salesParams.set('startDate', activeSalesFilters.startDate)
+      if (activeSalesFilters.endDate) salesParams.set('endDate', activeSalesFilters.endDate)
+    }
+    if (activeSalesFilters.channel.trim()) salesParams.set('channel', activeSalesFilters.channel.trim())
+    if (activeSalesFilters.city.trim()) salesParams.set('city', activeSalesFilters.city.trim())
+    const currentMonth = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`
 
     const sources = [
       { key: 'allOrders', url: `${BACKEND_URL}/api/orders?page=1&limit=1` },
@@ -190,6 +264,20 @@ export default function Home() {
       { key: 'accountsSummaryRes', url: `${BACKEND_URL}/api/accounts/dashboard-summary` },
       { key: 'channelRecoveryRes', url: `${BACKEND_URL}/api/accounts/recovery-analytics/channel-wise` },
       { key: 'employeesRes', url: `${BACKEND_URL}/api/hr/employees` },
+      { key: 'approvalOrdersRes', url: `${BACKEND_URL}/api/orders?page=1&limit=1&status=pending` },
+      { key: 'approvedOrdersRes', url: `${BACKEND_URL}/api/orders?page=1&limit=1&status=approved` },
+      { key: 'pendingVerificationsRes', url: `${BACKEND_URL}/api/orders/verification-pending?page=1&limit=1` },
+      { key: 'pendingDeliveriesRes', url: `${BACKEND_URL}/api/orders/delivery-pending?page=1&limit=1` },
+      { key: 'installmentSummaryRes', url: `${BACKEND_URL}/api/accounts/monthly-installments/month?month=${currentMonth}` },
+      { key: 'overdueRecoveryRes', url: `${BACKEND_URL}/api/accounts/aging` },
+      { key: 'outletPerformanceRes', url: `${BACKEND_URL}/api/admin-panel/outlets/performance` },
+      { key: 'rankingsRes', url: `${BACKEND_URL}/api/admin-panel/rankings` },
+      { key: 'warehouseStockRes', url: `${BACKEND_URL}/api/accounts/stock/warehouse` },
+      { key: 'stockHealthRes', url: `${BACKEND_URL}/api/accounts/stock/health-alerts` },
+      { key: 'expenseSummaryRes', url: `${BACKEND_URL}/api/accounts/expenses/summary` },
+      { key: 'activityLogsRes', url: `${BACKEND_URL}/api/security-logs?page=1&limit=8` },
+      { key: 'alertsRes', url: `${BACKEND_URL}/api/accounts/alerts` },
+      { key: 'filteredSalesRes', url: `${BACKEND_URL}/api/reports/summary?${salesParams.toString()}` },
     ] as const
 
     // Each card/section is independent — one endpoint hiccuping (a deploy, a
@@ -224,6 +312,10 @@ export default function Home() {
       deliveredOrders, cancelledOrders, customersRes, recentOrdersRes,
       deliveryStatusRes, reportSummaryRes, accountsSummaryRes,
       channelRecoveryRes, employeesRes,
+      approvalOrdersRes, approvedOrdersRes, pendingVerificationsRes, pendingDeliveriesRes,
+      installmentSummaryRes, overdueRecoveryRes, outletPerformanceRes, rankingsRes,
+      warehouseStockRes, stockHealthRes, expenseSummaryRes, activityLogsRes, alertsRes,
+      filteredSalesRes,
     } = results
 
     setStats((prev) => ({
@@ -254,6 +346,9 @@ export default function Home() {
         totalReceived: overview.totalReceived ?? 0,
         totalPending: overview.totalPending ?? 0,
         totalSalesAmount: overview.totalSalesAmount ?? 0,
+        totalSalesCount: overview.totalSalesCount ?? 0,
+        totalOrders: overview.totalOrders ?? 0,
+        ordersByStatus: overview.ordersByStatus || {},
         dailyTrend: Array.isArray(dailyTrend) ? dailyTrend : [],
       })
     }
@@ -269,8 +364,55 @@ export default function Home() {
         customerReceivables: accountsSummary?.customerReceivables ?? prev.customerReceivables,
         cashRecovered: byChannel.find((c: any) => c.channel === 'Cash')?.amount ?? prev.cashRecovered,
         onlineRecovered: byChannel.find((c: any) => c.channel === 'Online')?.amount ?? prev.onlineRecovered,
+        recoveryPercentage: channelRecoveryRes?.data?.overallRecoveryPercentage ?? prev.recoveryPercentage,
       }))
     }
+
+    if (filteredSalesRes?.success) {
+      setFilteredSales({
+        amount: filteredSalesRes.data?.overview?.totalSalesAmount ?? 0,
+        count: filteredSalesRes.data?.overview?.totalSalesCount ?? 0,
+      })
+    }
+
+    const stockSummary = warehouseStockRes?.data?.summary || []
+    const expenseSummary = expenseSummaryRes?.summary
+    const agingItems = overdueRecoveryRes?.data?.items || []
+    setOperations((prev) => ({
+      pendingApprovalOrders: approvalOrdersRes?.data?.pagination?.total ?? prev.pendingApprovalOrders,
+      approvedOrders: approvedOrdersRes?.data?.pagination?.total ?? prev.approvedOrders,
+      pendingVerifications: pendingVerificationsRes?.data?.pagination?.total ?? prev.pendingVerifications,
+      pendingDeliveries: pendingDeliveriesRes?.data?.pagination?.total ?? prev.pendingDeliveries,
+      installmentSummary: installmentSummaryRes?.success
+        ? installmentSummaryRes.data?.summary ?? prev.installmentSummary
+        : prev.installmentSummary,
+      overdueRecovery: overdueRecoveryRes?.success
+        ? { total: overdueRecoveryRes.data?.total ?? 0, count: agingItems.length }
+        : prev.overdueRecovery,
+      outletPerformance: outletPerformanceRes?.success
+        ? (outletPerformanceRes.data || []).filter((row: any) => row.type !== 'warehouse').sort((a: any, b: any) => b.totalOrders - a.totalOrders).slice(0, 5)
+        : prev.outletPerformance,
+      verificationOfficers: rankingsRes?.success
+        ? (rankingsRes.data?.verification || []).slice(0, 5)
+        : prev.verificationOfficers,
+      inventory: warehouseStockRes?.success
+        ? {
+          warehouseCount: warehouseStockRes.data?.warehouses?.length ?? 0,
+          inStock: stockSummary.reduce((sum: number, item: any) => sum + (item.inStock || 0), 0),
+          valuation: stockSummary.reduce((sum: number, item: any) => sum + (item.valuation || 0), 0),
+          lowStockCount: stockHealthRes?.success ? stockHealthRes.data?.lowStock?.length ?? 0 : null,
+        }
+        : prev.inventory,
+      expenses: expenseSummary
+        ? {
+          thisMonth: expenseSummary.thisMonth ?? 0,
+          today: expenseSummary.today ?? 0,
+          topCategories: (expenseSummary.topCategories || []).slice(0, 4),
+        }
+        : prev.expenses,
+      activityLogs: activityLogsRes?.success ? activityLogsRes.logs || [] : prev.activityLogs,
+      alerts: alertsRes?.success ? alertsRes.data?.alerts || [] : prev.alerts,
+    }))
 
     setLoaded((prev) => ({ ...prev, ...loadedNow }))
     setLoading(false)
@@ -405,6 +547,13 @@ export default function Home() {
         />
       </div>
 
+      <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
+        <DashboardCard title="Pending Approval Orders" value={operations.pendingApprovalOrders} loading={loading} subtitle="Waiting for admin approval" tone="danger" />
+        <DashboardCard title="Approved Orders" value={operations.approvedOrders} loading={loading} subtitle="Approved and awaiting next steps" tone="info" />
+        <DashboardCard title="Pending Verifications" value={operations.pendingVerifications} loading={loading} subtitle="In verification queue" tone="primary" />
+        <DashboardCard title="Pending Deliveries" value={operations.pendingDeliveries} loading={loading} subtitle="Approved / picked for delivery" tone="success" />
+      </div>
+
       <div className="grid gap-5 md:grid-cols-3">
         <DashboardCard
           title="Total Collected (This Month)"
@@ -440,6 +589,136 @@ export default function Home() {
         <DashboardCard title="Vendor Payables" value={loaded.accountsSummaryRes ? extras.vendorPayables : null} loading={loading} subtitle="Outstanding vendor balance" tone="danger" isCurrency />
         <DashboardCard title="Customer Receivables" value={loaded.accountsSummaryRes ? extras.customerReceivables : null} loading={loading} subtitle="Outstanding customer balance" tone="primary" isCurrency />
       </div>
+
+      <section className="rounded-[10px] border border-stroke bg-white p-5 shadow-1 dark:border-dark-3 dark:bg-gray-dark">
+        <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h2 className="flex items-center gap-2 text-base font-semibold text-dark dark:text-white"><CircleDollarSign className="size-4 text-[#ff3d3d]" /> Sales by amount & orders</h2>
+            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">Delivered sales for the selected period, with channel and city filters.</p>
+          </div>
+          <span className="rounded-full bg-blue-50 px-2.5 py-1 text-[10px] font-semibold text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
+            {appliedSalesFilters.range === 'Custom'
+              ? `${appliedSalesFilters.startDate || 'Any date'} — ${appliedSalesFilters.endDate || 'Any date'}`
+              : appliedSalesFilters.range === 'Day' ? 'Today' : `This ${appliedSalesFilters.range.toLowerCase()}`}
+          </span>
+        </div>
+        <div className="mb-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+          <label className="text-xs font-medium text-gray-500 dark:text-gray-400">
+            Date range
+            <select
+              value={salesFilters.range}
+              onChange={(event) => setSalesFilters((current) => ({ ...current, range: event.target.value as SalesFilters['range'] }))}
+              className="mt-1 block w-full rounded-lg border border-stroke bg-white px-3 py-2 text-sm text-dark outline-none focus:border-[#ff3d3d] dark:border-dark-3 dark:bg-dark-2 dark:text-white"
+            >
+              <option value="Day">Today</option><option value="Week">Last 7 days</option><option value="Month">This month</option><option value="Custom">Custom dates</option>
+            </select>
+          </label>
+          {salesFilters.range === 'Custom' && (
+            <>
+              <label className="text-xs font-medium text-gray-500 dark:text-gray-400">
+                From
+                <input type="date" value={salesFilters.startDate} onChange={(event) => setSalesFilters((current) => ({ ...current, startDate: event.target.value }))} className="mt-1 block w-full rounded-lg border border-stroke bg-white px-3 py-2 text-sm text-dark outline-none focus:border-[#ff3d3d] dark:border-dark-3 dark:bg-dark-2 dark:text-white" />
+              </label>
+              <label className="text-xs font-medium text-gray-500 dark:text-gray-400">
+                To
+                <input type="date" value={salesFilters.endDate} onChange={(event) => setSalesFilters((current) => ({ ...current, endDate: event.target.value }))} className="mt-1 block w-full rounded-lg border border-stroke bg-white px-3 py-2 text-sm text-dark outline-none focus:border-[#ff3d3d] dark:border-dark-3 dark:bg-dark-2 dark:text-white" />
+              </label>
+            </>
+          )}
+          <label className="text-xs font-medium text-gray-500 dark:text-gray-400">
+            Channel
+            <input value={salesFilters.channel} onChange={(event) => setSalesFilters((current) => ({ ...current, channel: event.target.value }))} placeholder="All channels" className="mt-1 block w-full rounded-lg border border-stroke bg-white px-3 py-2 text-sm text-dark outline-none placeholder:text-gray-400 focus:border-[#ff3d3d] dark:border-dark-3 dark:bg-dark-2 dark:text-white" />
+          </label>
+          <label className="text-xs font-medium text-gray-500 dark:text-gray-400">
+            City
+            <input value={salesFilters.city} onChange={(event) => setSalesFilters((current) => ({ ...current, city: event.target.value }))} placeholder="All cities" className="mt-1 block w-full rounded-lg border border-stroke bg-white px-3 py-2 text-sm text-dark outline-none placeholder:text-gray-400 focus:border-[#ff3d3d] dark:border-dark-3 dark:bg-dark-2 dark:text-white" />
+          </label>
+        </div>
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="flex flex-wrap gap-3">
+            <div className="min-w-40 rounded-lg bg-gray-50 px-4 py-3 dark:bg-dark-3">
+              <p className="text-[11px] text-gray-500 dark:text-gray-400">Delivered sales amount</p>
+              <p className="mt-1 font-bold text-emerald-600 dark:text-emerald-300">{filteredSales ? `PKR ${filteredSales.amount.toLocaleString('en-PK')}` : <InlineLoading failed={!loading} className="h-5 w-24" />}</p>
+            </div>
+            <div className="min-w-40 rounded-lg bg-gray-50 px-4 py-3 dark:bg-dark-3">
+              <p className="text-[11px] text-gray-500 dark:text-gray-400">Sales orders</p>
+              <p className="mt-1 font-bold text-dark dark:text-white">{filteredSales ? filteredSales.count.toLocaleString() : <InlineLoading failed={!loading} className="h-5 w-16" />}</p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              setAppliedSalesFilters(salesFilters)
+              void loadDashboard(true, salesFilters)
+            }}
+            disabled={Boolean(salesFilters.range === 'Custom' && salesFilters.startDate && salesFilters.endDate && salesFilters.startDate > salesFilters.endDate)}
+            className="inline-flex items-center gap-2 rounded-lg bg-[#ff3d3d] px-4 py-2 text-xs font-bold text-white transition hover:bg-[#e93636] disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <Filter className="size-3.5" /> Apply filters
+          </button>
+        </div>
+      </section>
+
+      <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
+        <DashboardCard title="Total Installments (This Month)" value={operations.installmentSummary?.installments ?? null} loading={loading} subtitle="Scheduled installment count" tone="info" />
+        <DashboardCard title="Pending Recoveries" value={operations.overdueRecovery?.total ?? null} loading={loading} subtitle={`${operations.overdueRecovery?.count ?? 0} overdue installment(s)`} tone="danger" isCurrency />
+        <DashboardCard title="Recovery Percentage" value={loaded.channelRecoveryRes ? extras.recoveryPercentage : null} loading={loading} subtitle="Recovered vs due this month" tone="success" valueSuffix="%" />
+        <DashboardCard title="Monthly Sales Count" value={loaded.reportSummaryRes && reportSummary ? reportSummary.totalSalesCount ?? 0 : null} loading={loading} subtitle="Delivered orders this month" tone="primary" />
+      </div>
+
+      <div className="grid gap-5 xl:grid-cols-2">
+        <section className="rounded-[10px] border border-stroke bg-white p-5 shadow-1 dark:border-dark-3 dark:bg-gray-dark">
+          <div className="mb-3 flex items-center justify-between">
+            <div><h2 className="flex items-center gap-2 text-base font-semibold text-dark dark:text-white"><Store className="size-4 text-[#ff3d3d]" /> Outlet Performance</h2><p className="mt-1 text-xs text-gray-500 dark:text-gray-400">Top outlets by order volume</p></div>
+            <Link href="/admin/outlets" className="text-xs font-semibold text-[#ff3d3d] hover:underline">View outlets</Link>
+          </div>
+          <div className="max-h-64 overflow-auto">
+            <table className="w-full text-left text-xs">
+              <thead className="sticky top-0 bg-white text-[10px] uppercase tracking-wide text-gray-400 dark:bg-gray-dark"><tr><th className="py-2">Outlet</th><th className="py-2 text-right">Orders</th><th className="py-2 text-right">Pending cash</th><th className="py-2 text-right">Status</th></tr></thead>
+              <tbody>
+                {operations.outletPerformance.map((outlet) => <tr key={outlet.outlet_id} className="border-t border-stroke dark:border-dark-3"><td className="py-2.5 font-semibold text-dark dark:text-white">{outlet.outlet_name}</td><td className="py-2.5 text-right tabular-nums">{outlet.totalOrders.toLocaleString()}</td><td className="py-2.5 text-right tabular-nums">PKR {outlet.pendingCash.toLocaleString('en-PK')}</td><td className="py-2.5 text-right text-gray-500">{outlet.totalOrders ? 'Active' : 'No orders'}</td></tr>)}
+                {!operations.outletPerformance.length && <tr><td colSpan={4} className="py-6 text-center text-gray-400">{loading ? 'Loading outlet performance…' : 'No outlet data available.'}</td></tr>}
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section className="rounded-[10px] border border-stroke bg-white p-5 shadow-1 dark:border-dark-3 dark:bg-gray-dark">
+          <div className="mb-3 flex items-center justify-between">
+            <div><h2 className="flex items-center gap-2 text-base font-semibold text-dark dark:text-white"><UserRound className="size-4 text-[#ff3d3d]" /> Officer Performance</h2><p className="mt-1 text-xs text-gray-500 dark:text-gray-400">Verification team rankings this month</p></div>
+            <Link href="/admin/rankings" className="text-xs font-semibold text-[#ff3d3d] hover:underline">View rankings</Link>
+          </div>
+          <div className="max-h-64 overflow-auto">
+            <table className="w-full text-left text-xs">
+              <thead className="sticky top-0 bg-white text-[10px] uppercase tracking-wide text-gray-400 dark:bg-gray-dark"><tr><th className="py-2">Officer</th><th className="py-2 text-right">Verified</th><th className="py-2 text-right">Approved</th><th className="py-2 text-right">Score</th></tr></thead>
+              <tbody>
+                {operations.verificationOfficers.map((officer) => <tr key={officer.id} className="border-t border-stroke dark:border-dark-3"><td className="py-2.5 font-semibold text-dark dark:text-white">{officer.full_name}</td><td className="py-2.5 text-right tabular-nums">{officer.total_verifications ?? 0}</td><td className="py-2.5 text-right tabular-nums text-emerald-600">{officer.approved_verifications ?? 0}</td><td className="py-2.5 text-right tabular-nums">{Math.round(officer.score ?? 0).toLocaleString()}</td></tr>)}
+                {!operations.verificationOfficers.length && <tr><td colSpan={4} className="py-6 text-center text-gray-400">{loading ? 'Loading officer performance…' : 'No officer performance data available.'}</td></tr>}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+
+      <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
+        <DashboardCard title="Inventory In Stock" value={operations.inventory?.inStock ?? null} loading={loading} subtitle={`${operations.inventory?.warehouseCount ?? 0} central warehouse(s)`} tone="info" />
+        <DashboardCard title="Low Stock Items" value={operations.inventory?.lowStockCount ?? null} loading={loading} subtitle="Items below configured thresholds" tone="danger" />
+        <DashboardCard title="Inventory Valuation" value={operations.inventory?.valuation ?? null} loading={loading} subtitle="Central warehouse purchase value" tone="success" isCurrency />
+      </div>
+
+      {operations.expenses && (
+        <section className="rounded-[10px] border border-stroke bg-white p-5 shadow-1 dark:border-dark-3 dark:bg-gray-dark">
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+            <div><h2 className="text-base font-semibold text-dark dark:text-white">Expense Summary</h2><p className="mt-1 text-xs text-gray-500 dark:text-gray-400">Approved expenses by category</p></div>
+            <Link href="/accounts/expenses" className="text-xs font-semibold text-[#ff3d3d] hover:underline">View expenses</Link>
+          </div>
+          <div className="mb-3 grid gap-3 sm:grid-cols-2">
+            <div className="rounded-lg bg-gray-50 p-3 dark:bg-dark-3"><p className="text-[11px] text-gray-500">Today</p><p className="mt-1 font-bold text-dark dark:text-white">PKR {operations.expenses.today.toLocaleString('en-PK')}</p></div>
+            <div className="rounded-lg bg-gray-50 p-3 dark:bg-dark-3"><p className="text-[11px] text-gray-500">This month</p><p className="mt-1 font-bold text-dark dark:text-white">PKR {operations.expenses.thisMonth.toLocaleString('en-PK')}</p></div>
+          </div>
+          <div className="flex flex-wrap gap-2">{operations.expenses.topCategories.map((category) => <span key={category.category || 'other'} className="rounded-full bg-rose-50 px-3 py-1.5 text-[11px] font-medium text-rose-700 dark:bg-rose-500/10 dark:text-rose-300">{category.category || 'Other'} · PKR {category.amount.toLocaleString('en-PK')}</span>)}</div>
+        </section>
+      )}
 
       <div className="rounded-[10px] border border-stroke bg-white p-5 shadow-1 dark:border-dark-3 dark:bg-gray-dark">
         <h2 className="mb-4 text-base font-semibold text-dark dark:text-white">Quick Links</h2>
@@ -679,6 +958,21 @@ export default function Home() {
 
           <div className="rounded-[10px] border border-stroke bg-white p-5 shadow-1 dark:border-dark-3 dark:bg-gray-dark">
             <div className="mb-3 flex items-center justify-between">
+              <h2 className="flex items-center gap-2 text-base font-semibold text-dark dark:text-white"><Bell className="size-4 text-rose-500" /> Real-time Alerts</h2>
+              <Link href="/admin/alerts" className="text-xs font-medium text-[#ff3d3d] hover:underline">View all</Link>
+            </div>
+            <div className="max-h-[220px] space-y-2 overflow-y-auto pr-1 custom-scrollbar">
+              {operations.alerts.length === 0 ? (
+                <p className="py-4 text-center text-xs text-gray-500 dark:text-gray-400">{loading ? 'Loading alerts…' : 'No active alerts.'}</p>
+              ) : operations.alerts.slice(0, 5).map((alert, index) => {
+                const content = <div className="rounded-lg border border-stroke bg-gray-50 p-3 text-xs dark:border-dark-3 dark:bg-dark-3"><p className="font-semibold text-dark dark:text-white">{alert.title}</p><p className="mt-1 text-[11px] text-gray-500 dark:text-gray-400">{alert.message}</p><span className={`mt-2 inline-block rounded-full px-2 py-0.5 text-[10px] font-bold capitalize ${alert.severity === 'serious' ? 'bg-rose-100 text-rose-700' : alert.severity === 'warning' ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'}`}>{alert.severity}</span></div>
+                return alert.link ? <Link key={`${alert.title}-${index}`} href={alert.link}>{content}</Link> : <div key={`${alert.title}-${index}`}>{content}</div>
+              })}
+            </div>
+          </div>
+
+          <div className="rounded-[10px] border border-stroke bg-white p-5 shadow-1 dark:border-dark-3 dark:bg-gray-dark">
+            <div className="mb-3 flex items-center justify-between">
               <h2 className="text-base font-semibold text-dark dark:text-white">
                 Latest Notifications
               </h2>
@@ -724,6 +1018,25 @@ export default function Home() {
           </div>
         </div>
       </div>
+
+      <section className="rounded-[10px] border border-stroke bg-white p-5 shadow-1 dark:border-dark-3 dark:bg-gray-dark">
+        <div className="mb-3 flex items-center justify-between">
+          <div><h2 className="flex items-center gap-2 text-base font-semibold text-dark dark:text-white"><Activity className="size-4 text-[#ff3d3d]" /> Live Activity Logs</h2><p className="mt-1 text-xs text-gray-500 dark:text-gray-400">Latest system activity, refreshed with dashboard updates.</p></div>
+          <Link href="/admin/activity-logs" className="text-xs font-medium text-[#ff3d3d] hover:underline">View all</Link>
+        </div>
+        {operations.activityLogs.length === 0 ? (
+          <p className="py-6 text-center text-xs text-gray-500 dark:text-gray-400">{loading ? 'Loading activity…' : 'No recent activity found.'}</p>
+        ) : (
+          <div className="max-h-72 overflow-auto">
+            <table className="w-full min-w-[560px] text-left text-xs">
+              <thead className="sticky top-0 bg-white text-[10px] uppercase tracking-wide text-gray-400 dark:bg-gray-dark"><tr><th className="py-2">User</th><th className="py-2">Action</th><th className="py-2">Details</th><th className="py-2 text-right">Time</th></tr></thead>
+              <tbody>
+                {operations.activityLogs.map((log) => <tr key={log.id} className="border-t border-stroke dark:border-dark-3"><td className="py-2.5 font-semibold text-dark dark:text-white">{log.user?.full_name || 'System'}</td><td className="py-2.5"><span className="rounded-full bg-gray-100 px-2 py-1 font-medium text-gray-700 dark:bg-dark-3 dark:text-gray-200">{log.action}</span></td><td className="max-w-md truncate py-2.5 text-gray-500" title={log.details}>{log.details}</td><td className="whitespace-nowrap py-2.5 text-right text-gray-400">{new Date(log.created_at).toLocaleString()}</td></tr>)}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
     </div>
   )
 }
@@ -786,6 +1099,7 @@ interface DashboardCardProps {
   subtitle: string
   tone?: 'primary' | 'success' | 'danger' | 'info'
   isCurrency?: boolean
+  valueSuffix?: string
 }
 
 // Shimmer while a figure is loading; "—" (not a fake 0) if it failed to load.
@@ -802,7 +1116,7 @@ function InlineLoading({ failed, className = 'h-4 w-10' }: { failed?: boolean; c
   )
 }
 
-function DashboardCard({ title, value, loading = false, subtitle, tone = 'primary', isCurrency = false }: DashboardCardProps) {
+function DashboardCard({ title, value, loading = false, subtitle, tone = 'primary', isCurrency = false, valueSuffix = '' }: DashboardCardProps) {
   const toneClasses: Record<
     NonNullable<DashboardCardProps['tone']>,
     { badge: string; value: string }
@@ -834,7 +1148,7 @@ function DashboardCard({ title, value, loading = false, subtitle, tone = 'primar
         <p className={`mt-2 text-lg sm:text-xl lg:text-[22px] font-bold tracking-tight ${tones.value} break-words`}>
           {value === null ? (
             <InlineLoading failed={!loading} className="h-7 w-28" />
-          ) : isCurrency ? `PKR ${value.toLocaleString('en-PK')}` : value.toLocaleString()}
+          ) : isCurrency ? `PKR ${value.toLocaleString('en-PK')}` : `${value.toLocaleString()}${valueSuffix}`}
         </p>
       </div>
       <span className={`absolute top-4 right-4 rounded-full px-2 py-0.5 text-[10px] font-semibold ${tones.badge}`}>
@@ -844,4 +1158,3 @@ function DashboardCard({ title, value, loading = false, subtitle, tone = 'primar
     </div>
   )
 }
-
