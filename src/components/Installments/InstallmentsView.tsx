@@ -46,7 +46,7 @@ const ACCOUNT_CATEGORIES = [
   ['all', 'All Accounts', 'All outstanding accounts + paid installments this month'],
   ['regular', 'Regular Accounts', 'Only 1 installment due; 2nd due moves to overdue'],
   ['fresh', 'Fresh Accounts', 'Due today or upcoming; no overdue installment'],
-  ['overdue', 'Overdue Accounts', '2+ unpaid installments due'],
+  ['overdue', 'Overdue Accounts', '2+ installments due, or unpaid past next cycle'],
   ['blacklist', 'Blacklist Accounts', 'Due amount >= 3 installments; payment in last 3 months'],
   ['defaulter', 'Defaulter Accounts', 'Due amount >= 3 installments; no payment for 3 months'],
   ['ptp', 'PTP Accounts', 'Accounts with a promise to pay'],
