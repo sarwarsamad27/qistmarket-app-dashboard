@@ -43,7 +43,7 @@ const getAuthHeaders = () => {
 };
 
 const ACCOUNT_CATEGORIES = [
-  ['all', 'All Accounts', 'All outstanding accounts + paid installments this month'],
+  ['all', 'All Accounts', 'All running accounts (balance remaining); completed accounts hidden'],
   ['regular', 'Regular Accounts', 'Only 1 installment due; 2nd due moves to overdue'],
   ['fresh', 'Fresh Accounts', 'Due today or upcoming; no overdue installment'],
   ['overdue', 'Overdue Accounts', '2nd installment due (partial counts as unpaid); before 90 days'],
