@@ -64,6 +64,10 @@ interface HoTxn {
   outlet: { name: string } | null; bank_account: { bank_name: string; account_number: string } | null; vendor: { name: string } | null; created_by: { full_name: string; username: string } | null;
 }
 interface HoBook { balance: number; totalIn: number; totalOut: number; transactions: HoTxn[] }
+interface HoTransfer {
+  id: number; amount: number; status: string; receipt_id: string | null; receipt_photo_url: string | null; description: string | null; created_at: string;
+  sender_outlet: { name: string; code: string } | null; submitted_by: { full_name: string } | null;
+}
 interface Option { id: number; name?: string; full_name?: string; username?: string; outlet_id?: number; role?: string | null; code?: string }
 
 const TABS = [
@@ -159,6 +163,8 @@ export default function CashInHandPage() {
   const [hoSaving, setHoSaving] = useState(false);
   const [banks, setBanks] = useState<{ id: number; bank_name: string; account_number: string; is_active: boolean }[]>([]);
   const [vendors, setVendors] = useState<{ id: number; name: string }[]>([]);
+  const [hoTransfers, setHoTransfers] = useState<HoTransfer[]>([]);
+  const [hoTransferBusy, setHoTransferBusy] = useState<number | null>(null);
 
   const dHoSearch = useDebounced(hoSearch);
   const dSubSearch = useDebounced(subSearch);
@@ -191,6 +197,12 @@ export default function CashInHandPage() {
       .then((r) => r.json()).then((j) => { if (j.success) setHo(j.data); })
       .finally(() => setHoLoading(false));
   }, [hoRange, dHoSearch]);
+
+  // Outlet → Head Office cash transfer requests waiting for Accounts.
+  const loadHoTransfers = useCallback(() => {
+    fetch(`${BACKEND_URL}/api/accounts/ho-cash/transfers?status=pending`, { headers: authHeaders() })
+      .then((r) => r.json()).then((j) => { if (j.success) setHoTransfers(j.data); }).catch(() => {});
+  }, []);
 
   const loadSubs = useCallback((page = 1) => {
     setSubsLoading(true);
@@ -230,6 +242,7 @@ export default function CashInHandPage() {
   useEffect(() => { if (view === "history") loadSubs(1); }, [view, loadSubs]);
   useEffect(() => { if (view === "limits") fetchLimits(); }, [view]);
   useEffect(() => { if (view === "ho") loadHo(); }, [view, loadHo]);
+  useEffect(() => { loadHoTransfers(); }, [loadHoTransfers]);
   useEffect(() => {
     if (view !== "ho" || banks.length) return;
     fetch(`${BACKEND_URL}/api/accounts/bank-accounts`, { headers: authHeaders() }).then((r) => r.json()).then((j) => { if (j.success) setBanks(j.data); }).catch(() => {});
@@ -353,6 +366,30 @@ export default function CashInHandPage() {
     }
   };
 
+  const handleHoTransfer = async (t: HoTransfer, action: "accept" | "reject") => {
+    let reason = "";
+    if (action === "accept") {
+      if (!confirm(`Accept ${PKR(t.amount)} from ${t.sender_outlet?.name}? It will be added to Head Office cash and taken out of the outlet's cash.`)) return;
+    } else {
+      const r = prompt(`Reject ${PKR(t.amount)} from ${t.sender_outlet?.name}? Enter the reason:`);
+      if (r === null) return;
+      reason = r;
+    }
+    setHoTransferBusy(t.id);
+    try {
+      const res = await fetch(`${BACKEND_URL}/api/accounts/ho-cash/transfers/${t.id}/${action}`, { method: "POST", headers: authHeaders(), body: JSON.stringify({ reason }) });
+      if (!res.ok) throw new Error(await apiErrorMessage(res, `Failed to ${action} transfer.`));
+      toast.success(action === "accept" ? "Transfer accepted — cash added to Head Office." : "Transfer rejected.");
+      loadHoTransfers();
+      loadHo();
+      loadOverview();
+    } catch (err: any) {
+      toast.error(err.message);
+    } finally {
+      setHoTransferBusy(null);
+    }
+  };
+
   const hoColumns: ExportColumn<HoTxn>[] = [
     { header: "#", value: (_, i) => i + 1 },
     { header: "Date", value: (t) => fmt(t.transaction_date) },
@@ -412,7 +449,7 @@ export default function CashInHandPage() {
     { key: "total" as const, label: "Total Cash In Hand", value: data?.totalCashInHand || 0, note: "Outlets + officers + Head Office", icon: Wallet, tone: "emerald" },
     { key: "pending" as const, label: "Pending With Officers", value: data?.totalPending || 0, note: "Collected, not yet submitted", icon: Banknote, tone: "amber" },
     { key: "outlets" as const, label: "At Outlets", value: data?.outletCash || 0, note: "In outlet cash drawers", icon: Store, tone: "blue" },
-    { key: "ho" as const, label: "Head Office Cash", value: data?.hoCash || 0, note: "Accounts office cash book", icon: Building2, tone: "violet" },
+    { key: "ho" as const, label: "Head Office Cash", value: data?.hoCash || 0, note: hoTransfers.length ? `${hoTransfers.length} outlet transfer request${hoTransfers.length > 1 ? "s" : ""} pending` : "Accounts office cash book", icon: Building2, tone: "violet" },
   ];
   const tone: Record<string, string> = {
     emerald: "from-emerald-50 border-emerald-100 text-emerald-700 ring-emerald-400/30 dark:from-emerald-500/10 dark:border-emerald-500/20",
@@ -672,6 +709,44 @@ export default function CashInHandPage() {
               <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Cash Out (filtered)</p>
               <p className="text-2xl font-black text-rose-600">{PKR(ho?.totalOut || 0)}</p>
             </div>
+          </div>
+
+          <div className={card}>
+            <div className="flex items-center gap-2 border-b border-slate-100 px-4 py-3 dark:border-white/10">
+              <ArrowDownLeft className="size-4 text-emerald-600" />
+              <h3 className="text-sm font-bold text-dark dark:text-white">Outlet Cash Transfer Requests</h3>
+              <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-bold text-amber-700 dark:bg-amber-500/10">{hoTransfers.length} pending</span>
+              <p className="ml-auto hidden text-xs text-gray-500 sm:block">Cash outlets sent to Head Office — accept once the cash is received.</p>
+            </div>
+            {hoTransfers.length > 0 ? (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-sm">
+                  <thead className={thead}>
+                    <tr><th className={th}>S.No</th><th className={th}>Date</th><th className={th}>From Outlet</th><th className={th}>Sent By</th><th className={th}>Receipt / Ref</th><th className={th}>Description</th><th className={thR}>Amount</th><th className={th}></th></tr>
+                  </thead>
+                  <tbody>
+                    {hoTransfers.map((t, i) => (
+                      <tr key={t.id} className={tr}>
+                        <td className="px-4 py-3 text-xs tabular-nums text-gray-400">{i + 1}</td>
+                        <td className="whitespace-nowrap px-4 py-3 text-xs text-gray-500">{fmt(t.created_at)}</td>
+                        <td className="px-4 py-3 font-medium text-dark dark:text-white">{t.sender_outlet?.name || "—"}{t.sender_outlet?.code && <span className="ml-1.5 text-xs text-gray-400">{t.sender_outlet.code}</span>}</td>
+                        <td className="px-4 py-3 text-gray-600 dark:text-gray-300">{t.submitted_by?.full_name || "—"}</td>
+                        <td className="px-4 py-3 font-mono text-xs text-gray-600 dark:text-gray-300">
+                          {t.receipt_id || `TRF-${t.id}`}
+                          {t.receipt_photo_url && <a href={`${BACKEND_URL}${t.receipt_photo_url}`} target="_blank" rel="noreferrer" className="ml-2 font-sans font-bold text-blue-600 hover:underline">Photo</a>}
+                        </td>
+                        <td className="px-4 py-3 text-gray-600 dark:text-gray-300">{t.description || "—"}</td>
+                        <td className="px-4 py-3 text-right font-bold tabular-nums text-emerald-600">{PKR(t.amount)}</td>
+                        <td className="whitespace-nowrap px-4 py-3 text-right">
+                          <button disabled={hoTransferBusy === t.id} onClick={() => handleHoTransfer(t, "accept")} className="mr-1.5 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-emerald-700 disabled:opacity-50">Accept</button>
+                          <button disabled={hoTransferBusy === t.id} onClick={() => handleHoTransfer(t, "reject")} className="rounded-lg border border-rose-200 px-3 py-1.5 text-xs font-bold text-rose-600 hover:bg-rose-50 disabled:opacity-50 dark:border-rose-500/30 dark:hover:bg-rose-500/10">Reject</button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : <p className="px-4 py-6 text-center text-sm text-gray-500">No pending transfer requests from outlets.</p>}
           </div>
 
           <div className="flex flex-wrap items-center gap-2">

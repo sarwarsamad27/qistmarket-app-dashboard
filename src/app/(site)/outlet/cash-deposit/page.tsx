@@ -702,9 +702,9 @@ export default function CashDepositPage() {
                                                         </td>
                                                         <td className="border-b border-[#eee] py-4 px-4 dark:border-strokedark text-sm">
                                                             <span className={`inline-flex rounded-full bg-opacity-10 py-1 px-3 text-xs font-medium ${
-                                                                tr.status === 'accepted' ? 'bg-success text-success' : tr.status === 'rejected' ? 'bg-danger text-danger' : 'bg-warning text-warning'
+                                                                tr.status === 'accepted' || tr.status === 'received_by_ho' ? 'bg-success text-success' : tr.status === 'rejected' ? 'bg-danger text-danger' : 'bg-warning text-warning'
                                                             }`}>
-                                                                {tr.status.toUpperCase()}
+                                                                {tr.status === 'received_by_ho' ? 'RECEIVED BY HEAD OFFICE' : tr.status.toUpperCase()}
                                                             </span>
                                                         </td>
                                                     </tr>
