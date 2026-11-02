@@ -9,7 +9,7 @@ const API = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
 const inputClass = "w-full rounded-lg border border-stroke bg-white px-3 py-2 text-sm dark:border-stroke-dark dark:bg-dark-3";
 const buttonClass = "rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white disabled:opacity-50";
 
-type Outlet = { id: number; name: string; code?: string };
+type Outlet = { id: number; name: string; code?: string; type?: string };
 type Employee = { id: number; full_name: string; employee_id: string; outlet_id: number | null; department: string | null; status?: string };
 type Alert = { id: number; type: string; severity: string; title: string; message: string; last_seen: string };
 type Data = {
@@ -98,7 +98,7 @@ export default function HrAlertsPage() {
   const selectOutlet = (name = "outlet_id") => (
     <select name={name} required className={inputClass} defaultValue="">
       <option value="" disabled>Select outlet</option>
-      {data?.outlets.map((outlet) => <option key={outlet.id} value={outlet.id}>{outlet.name} ({outlet.code})</option>)}
+      {data?.outlets.map((outlet) => <option key={outlet.id} value={outlet.id}>{outlet.name} ({outlet.code}){outlet.type === "warehouse" ? " · Office / Warehouse" : ""}</option>)}
     </select>
   );
   const selectEmployee = (name = "employee_id", required = true, activeOnly = true) => (
