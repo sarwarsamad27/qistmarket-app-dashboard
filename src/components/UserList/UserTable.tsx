@@ -1306,7 +1306,7 @@ const UsersTable = () => {
           <p className="mb-6 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-200">{deleteBlocked}</p>
         ) : (
           <p className="mb-6 text-gray-600 dark:text-gray-300">
-            Delete <b>{selectedUser?.full_name}</b> ({roleLabel(selectedUser?.role)})? The account moves to the Recycle Bin: it can no longer log in or be selected anywhere, and wherever it was part of past orders, payments or reports it stays visible, greyed out as &quot;(Deleted)&quot;. You can restore it from Recycle Bin → Deleted Users.
+            Delete <b>{selectedUser?.full_name}</b> ({roleLabel(selectedUser?.role)})? The account moves to the Recycle Bin: it can no longer log in or be selected anywhere, and wherever it was part of past orders, payments or reports it stays visible, greyed out as &quot;(Deleted)&quot;. It cannot be restored, but its phone, CNIC, username and email are freed for a new user.
           </p>
         )}
         <div className="flex justify-end gap-4">

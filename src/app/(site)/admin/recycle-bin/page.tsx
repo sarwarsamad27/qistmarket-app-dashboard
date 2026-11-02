@@ -281,15 +281,18 @@ export default function RecycleBinPage() {
         ? `Permanently delete ${selectedCount} outlet(s)? This deletes the outlet together with its inventory, cash, expenses, vendors and bank accounts. Its staff accounts and orders are kept (unlinked from the outlet). This action CANNOT be undone.`
         : '';
 
+  // Deleted users are never restored: a new account may already reuse their phone /
+  // username, so bringing one back would create a duplicate.
+  const canRestore = tab !== 'users';
   const actions = (id: number, label: string, confirmMessage: string, allowPermanentDelete = true) => (
     <div className="flex items-center gap-3 whitespace-nowrap">
-      <button
+      {canRestore && <button
         disabled={busy}
         onClick={() => restore([id])}
         className="inline-flex items-center gap-1 text-green-600 font-semibold hover:underline disabled:opacity-50"
       >
         <RotateCcw className="w-3.5 h-3.5" /> Restore
-      </button>
+      </button>}
       {ENDPOINTS[tab].links && (
         <button
           disabled={busy}
@@ -347,7 +350,7 @@ export default function RecycleBinPage() {
                 ? 'Orders deleted from the app land here first. Restore to bring one back exactly as it was, or delete permanently to remove it and all its records for good — that step cannot be undone.'
                 : tab === 'outlets'
                   ? 'Outlets deleted from the app land here first. Wherever they still appear they read "(Deleted)". Restore to bring one back exactly as it was, or delete permanently to remove it together with its inventory, cash, expenses and vendors for good (its staff accounts, orders and customer ledgers are kept, unlinked) — that step cannot be undone. "Where used" shows exactly what would block it.'
-                  : 'Staff accounts deleted from User Management stay here as inactive history. They cannot log in or be assigned, and their past orders, payments and reports remain visible with the account marked "(Deleted)". Use "Where used" to inspect the linked history. Restore only if this account should become active again.'}
+                  : 'Staff accounts deleted from User Management stay here as inactive history. They cannot log in or be assigned, and their past orders, payments and reports remain visible with the account marked "(Deleted)". Use "Where used" to inspect the linked history. Deleted users cannot be restored — create a new user instead; the same phone, CNIC, username and email can be reused.'}
             </p>
           </div>
           <input
@@ -359,17 +362,17 @@ export default function RecycleBinPage() {
           />
         </div>
 
-        {selectedCount > 0 && (
+        {selectedCount > 0 && (canRestore || ENDPOINTS[tab].remove) && (
           <div className="flex items-center justify-between gap-3 mb-4 rounded-xl border border-blue-100 dark:border-blue-900/40 bg-blue-50 dark:bg-blue-500/10 px-4 py-3">
             <span className="text-sm font-semibold text-blue-800 dark:text-blue-300">{selectedCount} selected</span>
             <div className="flex items-center gap-4">
-              <button
+              {canRestore && <button
                 disabled={busy}
                 onClick={() => restore(Array.from(selectedIds))}
                 className="inline-flex items-center gap-1.5 text-green-700 dark:text-green-400 font-semibold hover:underline disabled:opacity-50"
               >
                 <RotateCcw className="w-4 h-4" /> Restore Selected ({selectedCount})
-              </button>
+              </button>}
               {ENDPOINTS[tab].remove && <button
                 disabled={busy}
                 onClick={() => deletePermanently(Array.from(selectedIds), bulkConfirm)}
