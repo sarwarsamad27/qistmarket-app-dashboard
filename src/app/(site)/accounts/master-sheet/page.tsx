@@ -160,7 +160,7 @@ export default function MasterSheetPage() {
       {/* Filters */}
       <div className="mb-6 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm dark:border-white/10 dark:bg-boxdark">
         <div className="flex flex-wrap items-center gap-3">
-          <span className="text-xs font-bold uppercase tracking-wide text-gray-400">Purchase date</span>
+          <span className="text-xs font-bold uppercase tracking-wide text-gray-400">Delivery date</span>
           <div className="flex flex-wrap gap-1 rounded-xl bg-gray-100 p-1 dark:bg-dark-3">
             {RANGES.map((r) => (
               <button
@@ -235,7 +235,7 @@ export default function MasterSheetPage() {
               <thead className="bg-gray-50 text-[11px] uppercase tracking-wide text-gray-500 dark:bg-dark-2 dark:text-gray-400">
                 <tr>
                   <th className="px-3 py-3 font-bold">#</th>
-                  <th className="px-3 py-3 font-bold">Date</th>
+                  <th className="px-3 py-3 font-bold">Delivered</th>
                   <th className="px-3 py-3 font-bold">1Bill ID</th>
                   <th className="px-3 py-3 font-bold">Customer</th>
                   <th className="px-3 py-3 font-bold">CNIC</th>
@@ -253,7 +253,10 @@ export default function MasterSheetPage() {
                 {pageRows.map((r, i) => (
                   <tr key={r.order_id} className="border-t border-slate-50 transition hover:bg-slate-50/70 dark:border-white/5 dark:hover:bg-white/5">
                     <td className="px-3 py-3 text-gray-400">{(page - 1) * PAGE_SIZE + i + 1}</td>
-                    <td className="whitespace-nowrap px-3 py-3 text-gray-600 dark:text-gray-300">{ddmmyyyy(r.order_date)}</td>
+                    <td className="whitespace-nowrap px-3 py-3 text-gray-600 dark:text-gray-300">
+                      {ddmmyyyy(r.delivered_at) || "—"}
+                      <p className="text-xs text-gray-400">Order {ddmmyyyy(r.order_date)}</p>
+                    </td>
                     <td className="px-3 py-3 font-mono text-xs text-gray-500">{r.bill_id || "—"}</td>
                     <td className="px-3 py-3">
                       <p className="font-semibold text-dark dark:text-white">{r.purchaser_name}</p>

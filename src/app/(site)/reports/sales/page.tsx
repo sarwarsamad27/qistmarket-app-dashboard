@@ -18,17 +18,6 @@ interface SalesSummary {
   totalCashSalesReceived: number
 }
 
-interface InstallmentCollection {
-  id: string
-  order_ref: string
-  customer_name: string
-  month_number: number
-  month_label: string
-  amount_collected: number
-  payment_date: string
-  payment_method: string
-}
-
 export default function GlobalSalesReportPage() {
   const [loading, setLoading] = useState(true)
   const [data, setData] = useState<any | null>(null)
@@ -37,10 +26,9 @@ export default function GlobalSalesReportPage() {
   const token = useMemo(() => Cookies.get('auth_token'), [])
 
   // Rendering thousands of rows at once freezes the page after the data arrives,
-  // so each table shows a page of rows and grows on demand.
+  // so the table shows a page of rows and grows on demand.
   const PAGE_SIZE = 100
   const [visibleOrders, setVisibleOrders] = useState(PAGE_SIZE)
-  const [visibleCollections, setVisibleCollections] = useState(PAGE_SIZE)
 
   useEffect(() => {
     if (!token) return
@@ -63,7 +51,6 @@ export default function GlobalSalesReportPage() {
         if (json.success) {
           setData(json.data)
           setVisibleOrders(PAGE_SIZE)
-          setVisibleCollections(PAGE_SIZE)
         }
       } catch (err: any) {
         if (err?.name === 'AbortError') return
@@ -190,83 +177,6 @@ export default function GlobalSalesReportPage() {
               </div>
             </div>
 
-            {/* ─── TABLE 2: Installment Collections (Payments received in Range) ─── */}
-            {(() => {
-              const collections: InstallmentCollection[] = data.installmentCollections || [];
-              if (collections.length === 0) return null;
-              const totalCollected = collections.reduce((s: number, c: InstallmentCollection) => s + c.amount_collected, 0);
-
-              return (
-                <div className="mb-6">
-                  <div className="mb-3 flex items-center gap-2">
-                    <div className="h-4 w-1 rounded-full bg-purple-500" />
-                    <h3 className="text-sm font-bold text-dark dark:text-white uppercase tracking-wider">
-                      Installment Collections — Payments Received in Period
-                    </h3>
-                    <span className="rounded-full bg-purple-100 px-2 py-0.5 text-[10px] font-bold text-purple-600 dark:bg-purple-900/30 dark:text-purple-400">
-                      {collections.length} payments • Rs. {totalCollected.toLocaleString()}
-                    </span>
-                  </div>
-                  <div className="rounded-[10px] border border-purple-200 bg-white shadow-1 dark:border-purple-900/30 dark:bg-gray-dark overflow-hidden">
-                    <div className="max-h-[500px] overflow-y-auto">
-                      <table className="w-full text-left">
-                        <thead className="sticky top-0 bg-purple-50 dark:bg-purple-900/20 z-10">
-                          <tr className="text-[11px] uppercase text-purple-600 dark:text-purple-400">
-                            <th className="px-6 py-4 w-16">S.No</th>
-                            <th className="px-6 py-4">Order Ref</th>
-                            <th className="px-6 py-4">Customer</th>
-                            <th className="px-6 py-4">Installment</th>
-                            <th className="px-6 py-4">Method</th>
-                            <th className="px-6 py-4">Payment Date</th>
-                            <th className="px-6 py-4 text-right">Amount Received</th>
-                          </tr>
-                        </thead>
-                        <tbody className="text-sm divide-y divide-stroke dark:divide-dark-3">
-                          {collections.slice(0, visibleCollections).map((c: InstallmentCollection, idx: number) => (
-                            <tr key={c.id} className="hover:bg-purple-50/40 dark:hover:bg-purple-900/10 transition-colors">
-                              <td className="px-6 py-3 text-xs text-gray-500">{idx + 1}</td>
-                              <td className="px-6 py-3">
-                                <span className="font-mono font-bold text-dark dark:text-white text-xs">{c.order_ref}</span>
-                              </td>
-                              <td className="px-6 py-3 text-sm text-gray-700 dark:text-gray-300">{c.customer_name}</td>
-                              <td className="px-6 py-3">
-                                <span className="inline-flex rounded-full bg-purple-100 px-2 py-0.5 text-[10px] font-bold text-purple-700 dark:bg-purple-900/30 dark:text-purple-300">
-                                  {c.month_label}
-                                </span>
-                              </td>
-                              <td className="px-6 py-3 text-xs text-gray-500 capitalize">{c.payment_method}</td>
-                              <td className="px-6 py-3 text-xs text-gray-500">
-                                {new Date(c.payment_date).toLocaleDateString('en-PK', { day: '2-digit', month: 'short', year: 'numeric' })}
-                              </td>
-                              <td className="px-6 py-3 text-right font-bold text-emerald-600">
-                                Rs. {c.amount_collected.toLocaleString()}
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                        <tfoot className="bg-purple-50 dark:bg-purple-900/20 border-t-2 border-purple-200 dark:border-purple-700 sticky bottom-0">
-                          <tr>
-                            <td colSpan={6} className="px-6 py-3 text-xs font-black uppercase text-purple-700 dark:text-purple-300">
-                              Total Installment Receiving
-                            </td>
-                            <td className="px-6 py-3 text-right font-black text-emerald-600 text-sm">
-                              Rs. {totalCollected.toLocaleString()}
-                            </td>
-                          </tr>
-                        </tfoot>
-                      </table>
-                      {collections.length > visibleCollections && (
-                        <ShowMoreButton
-                          shown={visibleCollections}
-                          total={collections.length}
-                          onClick={() => setVisibleCollections(v => v + PAGE_SIZE)}
-                        />
-                      )}
-                    </div>
-                  </div>
-                </div>
-              );
-            })()}
           </>
         )
       )}
