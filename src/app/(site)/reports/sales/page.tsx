@@ -99,10 +99,13 @@ export default function GlobalSalesReportPage() {
               // Advance + installments + cash sales — the same figure as the Dashboard's
               // "Total Collected (This Month)" when filtered to this month.
               const totalAmountReceive: number = summary.totalAmountReceived ?? (advanceReceived + installmentReceived + cashSalesReceived);
+              // Installment orders match the Accounts Master Sheet's account count; cash sales are extra.
+              const installmentCount = data.orders.filter((o: any) => o.sale_type !== 'cash').length;
+              const cashCount = data.orders.length - installmentCount;
 
               return (
                 <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-                  <StatCard label="Total Orders" value={summary.totalOrders || data.orders.length} icon={ClipboardCheck} color="blue" />
+                  <StatCard label="Total Orders" value={summary.totalOrders || data.orders.length} icon={ClipboardCheck} color="blue" note={`${installmentCount} installment · ${cashCount} cash sale`} />
                   <StatCard label="Gross Sales" value={summary.totalGrossAmount || 0} icon={DollarSign} color="emerald" isCurrency />
                   <StatCard label="Advance Received" value={advanceReceived} icon={TrendingUp} color="blue" isCurrency />
                   <StatCard label="Total Installment Receiving" value={installmentReceived} icon={TrendingUp} color="purple" isCurrency />
@@ -120,7 +123,7 @@ export default function GlobalSalesReportPage() {
                   New Sales — Delivered in Period
                 </h3>
                 <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-bold text-blue-600 dark:bg-blue-900/30 dark:text-blue-400">
-                  {data.orders.length} orders
+                  {data.orders.filter((o: any) => o.sale_type !== 'cash').length} installment · {data.orders.filter((o: any) => o.sale_type === 'cash').length} cash sale
                 </span>
               </div>
               <div className="rounded-[10px] border border-stroke bg-white shadow-1 dark:border-dark-3 dark:bg-gray-dark overflow-hidden">
@@ -129,9 +132,9 @@ export default function GlobalSalesReportPage() {
                     No new sales found for the selected date range.
                   </div>
                 ) : (
-                  <div className="max-h-[400px] overflow-y-auto">
+                  <div className="overflow-x-auto">
                     <table className="w-full text-left">
-                      <thead className="sticky top-0 bg-gray-50 dark:bg-dark-3 z-10">
+                      <thead className="bg-gray-50 dark:bg-dark-3">
                         <tr className="text-[11px] uppercase text-gray-500">
                           <th className="px-6 py-4 w-16">S.No</th>
                           <th className="px-6 py-4">Order Details</th>
@@ -146,7 +149,7 @@ export default function GlobalSalesReportPage() {
                             <td className="px-6 py-4 text-gray-500">{idx + 1}</td>
                             <td className="px-6 py-4">
                               <div className="font-bold text-dark dark:text-white font-mono">{o.order_ref}</div>
-                              <div className="text-xs text-gray-500">{o.customer_name} • {new Date(o.created_at).toLocaleDateString()}</div>
+                              <div className="text-xs text-gray-500">{o.customer_name} • {new Date(o.delivered_at || o.created_at).toLocaleDateString()}</div>
                             </td>
                             <td className="px-6 py-4">
                               <span className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${
@@ -196,7 +199,7 @@ function ShowMoreButton({ shown, total, onClick }: { shown: number; total: numbe
   )
 }
 
-function StatCard({ label, value, icon: Icon, color, isCurrency = false }: any) {
+function StatCard({ label, value, icon: Icon, color, isCurrency = false, note }: any) {
   const colors: any = {
     blue: 'bg-blue-50 text-blue-600 dark:bg-blue-900/20',
     emerald: 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/20',
@@ -215,6 +218,7 @@ function StatCard({ label, value, icon: Icon, color, isCurrency = false }: any) 
           <p className="text-xl font-bold text-dark dark:text-white mt-1">
             {isCurrency ? 'Rs. ' : ''}{(value || 0).toLocaleString()}
           </p>
+          {note && <p className="mt-0.5 text-[11px] text-gray-500 dark:text-gray-400">{note}</p>}
         </div>
       </div>
     </div>
