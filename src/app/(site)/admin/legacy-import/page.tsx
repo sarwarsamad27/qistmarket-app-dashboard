@@ -9,7 +9,7 @@ import Link from 'next/link';
 import { Upload, FileText, CheckCircle2, AlertCircle, Loader2, XCircle, Download, ArrowRight, ChevronDown } from 'lucide-react';
 import { useAuth } from "../../../../../contexts/AuthContext";
 import { apiErrorMessage, getErrorMessage } from "@/lib/apiErrors";
-import { LEGACY_COLUMNS, LEGACY_DATE_COLUMNS, LEGACY_HEADERS } from "@/lib/legacySheetColumns";
+import { LEGACY_COLUMNS, LEGACY_DATE_COLUMNS, LEGACY_HEADERS, isSerialHeader } from "@/lib/legacySheetColumns";
 
 type PayoffStatus = 'completed' | 'delivered';
 
@@ -402,13 +402,16 @@ export default function LegacyImportPage() {
         const sheet = workbook.Sheets[workbook.SheetNames[0]];
         // header:1 -> array-of-arrays (positional), range:1 -> skip the header row.
         const raw: any[][] = XLSX.utils.sheet_to_json(sheet, { header: 1, range: 1, defval: '' });
+        // A Master Sheet export starts with an S.No column; skip it so the rest lines up.
+        const firstHeader = String((XLSX.utils.sheet_to_json<any[]>(sheet, { header: 1, defval: '' })[0] || [])[0] || '');
+        const offset = isSerialHeader(firstHeader) ? 1 : 0;
 
         const parsedRows: LegacyRow[] = raw
           .filter((r) => r.some((cell) => cell !== '' && cell !== null && cell !== undefined))
           .map((r, idx) => {
             const row: any = { _rowNum: idx + 2 }; // +2 = 1-indexed + header row
             COLUMNS.forEach((col, i) => {
-              let v = r[i];
+              let v = r[i + offset];
               if (DATE_COLUMNS.includes(col)) v = excelValueToIso(v);
               if (col === 'category') v = normalizeCategory(v);
               row[col] = v;

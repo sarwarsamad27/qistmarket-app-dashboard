@@ -10,7 +10,7 @@ import PageHeader from "@/components/Accounts/PageHeader";
 import EmptyState from "@/components/Accounts/EmptyState";
 import StatCard, { PKR } from "@/components/Accounts/StatCard";
 import { StatCardSkeleton, TableSkeleton } from "@/components/Accounts/Skeleton";
-import { LEGACY_COLUMNS, LEGACY_DATE_COLUMNS, LEGACY_HEADERS } from "@/lib/legacySheetColumns";
+import { LEGACY_COLUMNS, LEGACY_DATE_COLUMNS, LEGACY_HEADERS, SERIAL_HEADER } from "@/lib/legacySheetColumns";
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
 const TZ = "Asia/Karachi";
@@ -26,6 +26,8 @@ type MasterRow = Record<string, any> & {
   total_paid: number;
   overdue_amount: number;
   overdue_months: number;
+  due_day: number | null;
+  first_due_date: string | null;
   next_due_date: string | null;
   next_due_amount: number;
   qr_id: string;
@@ -39,7 +41,7 @@ interface MasterData {
 }
 
 // Written after the import columns, so the sheet still re-imports cleanly
-// (the import reads by position and ignores anything past its last column).
+// (the import reads by position, skips a leading S.No column and ignores anything past its last column).
 const SUMMARY_COLUMNS: { key: keyof MasterRow; header: string; date?: boolean }[] = [
   { key: "order_ref", header: "Order Ref" },
   { key: "account_branch", header: "Account Branch" },
@@ -49,6 +51,8 @@ const SUMMARY_COLUMNS: { key: keyof MasterRow; header: string; date?: boolean }[
   { key: "total_paid", header: "Total Paid (incl. Advance)" },
   { key: "overdue_months", header: "Overdue Installments" },
   { key: "overdue_amount", header: "Overdue Amount" },
+  { key: "due_day", header: "Monthly Due Day" },
+  { key: "first_due_date", header: "First Due Date", date: true },
   { key: "next_due_date", header: "Next Due Date", date: true },
   { key: "next_due_amount", header: "Next Due Amount" },
   { key: "qr_id", header: "QR ID" },
@@ -120,8 +124,9 @@ export default function MasterSheetPage() {
 
   const handleDownload = () => {
     if (!rows.length) return toast.error("Nothing to download for these filters");
-    const headers = [...LEGACY_HEADERS, ...(includeSummary ? SUMMARY_COLUMNS.map((c) => c.header) : [])];
-    const body = rows.map((r) => [
+    const headers = [SERIAL_HEADER, ...LEGACY_HEADERS, ...(includeSummary ? SUMMARY_COLUMNS.map((c) => c.header) : [])];
+    const body = rows.map((r, i) => [
+      i + 1,
       ...LEGACY_COLUMNS.map((col) => (LEGACY_DATE_COLUMNS.includes(col) ? ddmmyyyy(r[col]) : r[col] ?? "")),
       ...(includeSummary ? SUMMARY_COLUMNS.map((c) => (c.date ? ddmmyyyy(r[c.key]) : r[c.key] ?? "")) : []),
     ]);
@@ -234,7 +239,7 @@ export default function MasterSheetPage() {
             <table className="w-full text-left text-sm">
               <thead className="bg-gray-50 text-[11px] uppercase tracking-wide text-gray-500 dark:bg-dark-2 dark:text-gray-400">
                 <tr>
-                  <th className="px-3 py-3 font-bold">#</th>
+                  <th className="px-3 py-3 font-bold">S.No</th>
                   <th className="px-3 py-3 font-bold">Delivered</th>
                   <th className="px-3 py-3 font-bold">1Bill ID</th>
                   <th className="px-3 py-3 font-bold">Customer</th>
@@ -244,6 +249,7 @@ export default function MasterSheetPage() {
                   <th className="px-3 py-3 text-right font-bold">Advance</th>
                   <th className="px-3 py-3 text-right font-bold">Installment</th>
                   <th className="px-3 py-3 font-bold">Tenure</th>
+                  <th className="px-3 py-3 font-bold">Due Date</th>
                   <th className="px-3 py-3 text-right font-bold">Remain</th>
                   <th className="px-3 py-3 font-bold">Branch</th>
                   <th className="px-3 py-3 font-bold">Status</th>
@@ -271,6 +277,14 @@ export default function MasterSheetPage() {
                     <td className="whitespace-nowrap px-3 py-3 text-right tabular-nums">{PKR(r.advance)}</td>
                     <td className="whitespace-nowrap px-3 py-3 text-right tabular-nums">{PKR(r.installment)}</td>
                     <td className="px-3 py-3 text-gray-600 dark:text-gray-300">{r.months_paid}/{r.tenure_months}</td>
+                    <td className="whitespace-nowrap px-3 py-3 text-gray-600 dark:text-gray-300">
+                      {r.next_due_date ? (
+                        <>
+                          {ddmmyyyy(r.next_due_date)}
+                          <p className="text-xs text-gray-400">{PKR(r.next_due_amount)}{r.due_day ? ` · every ${r.due_day}` : ""}</p>
+                        </>
+                      ) : r.account_status === "Completed" ? <span className="text-xs text-emerald-600">Paid off</span> : "—"}
+                    </td>
                     <td className="whitespace-nowrap px-3 py-3 text-right font-bold tabular-nums text-dark dark:text-white">{PKR(r.remain)}</td>
                     <td className="px-3 py-3 text-gray-700 dark:text-gray-200">{r.account_branch || "—"}</td>
                     <td className="px-3 py-3">

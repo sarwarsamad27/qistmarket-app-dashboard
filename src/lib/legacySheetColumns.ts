@@ -80,3 +80,8 @@ export const LEGACY_HEADERS: string[] = [
   'Verification Officer', 'Delivery Officer', 'Recovery Officer', 'Outlet',
   'Verification Assigned Date', 'Delivery Assigned Date', 'Recovery Assigned Date', 'Delivered Date',
 ];
+
+// Master Sheet exports put an "S.No" column before the Legacy Import columns;
+// the importer recognises it by this header and skips it.
+export const SERIAL_HEADER = 'S.No';
+export const isSerialHeader = (h: string) => /^s\.?\s*no\.?$/i.test(String(h).trim());
