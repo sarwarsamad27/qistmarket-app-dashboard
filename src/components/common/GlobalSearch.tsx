@@ -228,21 +228,31 @@ function ResultItem({ item, openProfile, setIsOpen }: any) {
                         )}
                         <div className="space-y-1.5 mt-2">
                             <ResultMeta icon={<Phone size={11} />} text={item.verification?.purchaser?.telephone_number || item.whatsapp_number} />
-                            <div className="flex items-center gap-2 mt-2">
-                                <span className="text-[9px] font-black uppercase tracking-widest text-gray-400">Customer Status:</span>
-                                {isBlacklisted ? (
-                                    <span className="px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-widest border bg-red-500/10 text-red-500 border-red-500/20">
-                                        Blacklisted
-                                    </span>
-                                ) : (
-                                    <span className={cn(
-                                        "px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-widest border",
-                                        statusColors[item.status?.toLowerCase()] || statusColors.default
-                                    )}>
-                                        {item.status}
-                                    </span>
-                                )}
+                            <div className="flex flex-wrap items-center gap-2 mt-2">
+                                <span className="text-[9px] font-black uppercase tracking-widest text-gray-400">Order Status:</span>
+                                <span className={cn(
+                                    "px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-widest border",
+                                    statusColors[item.status?.toLowerCase()] || statusColors.default
+                                )}>
+                                    {String(item.status || '').replace(/_/g, ' ')}
+                                </span>
                             </div>
+                            {item.account_status && (
+                                <div className="flex flex-wrap items-center gap-2">
+                                    <span className="text-[9px] font-black uppercase tracking-widest text-gray-400">Account Status:</span>
+                                    <span
+                                        className="px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-widest"
+                                        style={{ backgroundColor: item.account_status.bg, color: item.account_status.color }}
+                                    >
+                                        {item.account_status.label}
+                                    </span>
+                                </div>
+                            )}
+                            {isBlacklisted && (
+                                <span className="inline-block px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-widest border bg-red-500/10 text-red-500 border-red-500/20">
+                                    Blacklisted
+                                </span>
+                            )}
                         </div>
                     </div>
                 </div>
