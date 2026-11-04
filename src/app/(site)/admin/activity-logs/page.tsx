@@ -89,7 +89,7 @@ export default function AdminActivityLogsPage() {
                   <tr key={log.id} className="border-t border-slate-50 dark:border-white/5"><td className="px-4 py-3.5 font-medium text-gray-500 tabular-nums">{(page - 1) * 25 + idx + 1}</td>
                     <td className="px-4 py-3.5 font-medium text-dark dark:text-white">{log.user?.full_name || "System"}<span className="block text-xs text-gray-400">@{log.user?.username || "-"}</span></td>
                     <td className="px-4 py-3.5"><span className="rounded-full bg-gray-100 px-2.5 py-1 text-xs font-bold text-gray-700 dark:bg-white/10 dark:text-gray-200">{log.action}</span></td>
-                    <td className="max-w-xs truncate px-4 py-3.5 text-gray-600 dark:text-gray-300" title={log.details}>{log.details}</td>
+                    <td className="max-w-md whitespace-pre-line break-words px-4 py-3.5 text-gray-600 dark:text-gray-300">{log.details}</td>
                     <td className="px-4 py-3.5 text-gray-600 dark:text-gray-300">{log.outlet?.name || "—"}</td>
                     <td className="px-4 py-3.5 text-xs text-gray-400">{log.ip_address || "—"}</td>
                     <td className="px-4 py-3.5 text-gray-500">{new Date(log.created_at).toLocaleString()}</td>

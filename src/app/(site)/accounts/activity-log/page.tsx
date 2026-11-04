@@ -270,7 +270,7 @@ export default function ActivityLogPage() {
                         <td className="px-4 py-3.5 text-gray-400">{(page - 1) * 25 + i + 1}</td>
                         <td className="px-4 py-3.5 whitespace-nowrap text-gray-500">{formatExactDate(log.created_at, 'DD MMM YYYY, hh:mm A')}</td>
                         <td className="px-4 py-3.5"><span className={`rounded-full px-2.5 py-1 text-xs font-bold ${ACTION_COLORS[log.action] || defaultActionColor}`}>{log.action}</span></td>
-                        <td className="px-4 py-3.5 max-w-md truncate text-gray-600 dark:text-gray-300" title={log.details}>{log.details}</td>
+                        <td className="px-4 py-3.5 max-w-md whitespace-pre-line break-words text-gray-600 dark:text-gray-300">{log.details}</td>
                         <td className="px-4 py-3.5 text-gray-600 dark:text-gray-300">{log.user?.full_name || log.user_name || "—"}{log.user?.username && <p className="text-xs text-gray-400">{log.user.username}</p>}</td>
                         <td className="px-4 py-3.5 text-gray-500">{log.outlet?.name || "Head Office"}</td>
                         <td className="max-w-[220px] px-4 py-3.5 text-xs text-gray-500"><DeviceCell ip={log.ip_address} ua={log.device_info} /></td>

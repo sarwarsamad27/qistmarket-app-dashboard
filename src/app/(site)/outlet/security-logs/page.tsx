@@ -225,7 +225,7 @@ export default function SecurityLogsPage() {
                                             </div>
                                         </td>
                                         <td className="px-8 py-6 max-w-md">
-                                            <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed font-medium capitalize">
+                                            <p className="whitespace-pre-line text-sm text-gray-600 dark:text-gray-400 leading-relaxed font-medium capitalize">
                                                 {log.details}
                                             </p>
                                         </td>
