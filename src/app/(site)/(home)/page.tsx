@@ -255,7 +255,7 @@ export default function Home() {
       { key: 'todayOrders', url: `${BACKEND_URL}/api/orders?page=1&limit=1&dateRange=Day` },
       { key: 'newPendingOrders', url: `${BACKEND_URL}/api/orders?page=1&limit=1&status=new,pending` },
       { key: 'inProgressOrders', url: `${BACKEND_URL}/api/orders?page=1&limit=1&status=in_progress,picked,approved` },
-      { key: 'deliveredOrders', url: `${BACKEND_URL}/api/orders?page=1&limit=1&status=delivered,completed` },
+      { key: 'deliveredOrders', url: `${BACKEND_URL}/api/orders?page=1&limit=1&status=delivered` },
       { key: 'cancelledOrders', url: `${BACKEND_URL}/api/orders?page=1&limit=1&status=cancelled` },
       { key: 'customersRes', url: `${BACKEND_URL}/api/customers?page=1&limit=1` },
       { key: 'recentOrdersRes', url: `${BACKEND_URL}/api/orders?page=1&limit=10&sortBy=updated_at&sortDir=desc` },
@@ -532,10 +532,10 @@ export default function Home() {
           tone="info"
         />
         <DashboardCard
-          title="Delivered / Completed"
+          title="Delivered"
           value={loaded.deliveredOrders ? stats.deliveredOrders : null}
           loading={loading}
-          subtitle="Successfully closed orders"
+          subtitle="Orders delivered to customers"
           tone="success"
         />
         <DashboardCard
