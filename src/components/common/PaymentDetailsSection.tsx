@@ -794,8 +794,8 @@ export const PaymentDetailsSection = ({
                                                     <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-600 dark:text-gray-400">
                                                         {inst.paid_at && inst.paid_amount > 0 ? (
                                                             <>
-                                                                <span className="block">{formatExactDate(inst.paid_at, 'DD MMM YYYY')}</span>
-                                                                <span className="block text-[11px] text-gray-400">{formatExactDate(inst.paid_at, 'hh:mm A')}</span>
+                                                                <span className="block">{formatExactDate(inst.display_paid_at || inst.paid_at, 'DD MMM YYYY')}</span>
+                                                                <span className="block text-[11px] text-gray-400">{formatExactDate(inst.display_paid_at || inst.paid_at, 'hh:mm A')}</span>
                                                                 {inst.actual_paid_at && (
                                                                     <span className="block text-[10px] text-amber-600 dark:text-amber-400">Actual: {formatExactDate(inst.actual_paid_at, 'DD MMM YYYY, hh:mm A')}</span>
                                                                 )}

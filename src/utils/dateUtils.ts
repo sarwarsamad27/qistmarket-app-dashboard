@@ -111,6 +111,19 @@ export const addMonths = (dateInput: Date | string, months: number): Date => {
     return d;
 };
 
+// Installment due dates, the server's rule (ledgerUtils.addMonths): the same day each month,
+// never after the 27th. A day of 28–31 moves to the 1st of the next month.
+export const addDueMonths = (dateInput: Date | string, months: number): Date => {
+    const d = new Date(dateInput);
+    let day = d.getDate();
+    let n = months;
+    if (day > 27) { day = 1; n += 1; }
+    d.setDate(1);
+    d.setMonth(d.getMonth() + n);
+    d.setDate(day);
+    return d;
+};
+
 export const addDays = (dateInput: Date | string, days: number): Date => {
     const d = new Date(dateInput);
     d.setDate(d.getDate() + days);

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import { Calendar, Trash2, Plus, ArrowRight, Smartphone, Key, Camera, CheckCircle2, UserCheck, Calculator, AlertCircle } from 'lucide-react';
-import { formatExactDate, todayDate, addMonths, addDays, formatStandardDate } from "@/utils/dateUtils";
+import { formatExactDate, todayDate, addDueMonths, addDays, formatStandardDate } from "@/utils/dateUtils";
 
 interface LedgerRow {
     month: number;
@@ -31,7 +31,7 @@ export const InstallmentLedgerEditor = ({
     useEffect(() => {
         const initialLedger = Array.from({ length: months }, (_, i) => ({
             month: i + 1,
-            date: formatStandardDate(addMonths(today, i + 1), 'YYYY-MM-DD'),
+            date: formatStandardDate(addDueMonths(today, i + 1), 'YYYY-MM-DD'),
             amount: monthlyAmount,
         }));
         setLedger(initialLedger);
@@ -51,7 +51,7 @@ export const InstallmentLedgerEditor = ({
             for (let i = 0; i < updated.length; i++) {
                 updated[i] = {
                     ...updated[i],
-                    date: formatStandardDate(addMonths(newStartDate, i), 'YYYY-MM-DD')
+                    date: formatStandardDate(addDueMonths(newStartDate, i), 'YYYY-MM-DD')
                 };
             }
         } else {
