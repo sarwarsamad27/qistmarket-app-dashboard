@@ -109,6 +109,8 @@ const groupReceivedVia = (list?: ReceivedVia[]): ViaGroup[] => {
     }
     return groups;
 };
+const paidOnSeveralDays = (list?: ReceivedVia[]) =>
+    new Set(groupReceivedVia(list).map((g) => formatExactDate(g.date, 'DD MMM YYYY'))).size > 1;
 // "Rs. 5,500", or "Rs. 67 of 28,801" when this month holds only part of the payment.
 const viaAmount = (g: ViaGroup) => (g.total - g.amount > 0.5 ? `${rs(g.amount)} of ${Math.round(g.total).toLocaleString()}` : rs(g.amount));
 
@@ -791,8 +793,16 @@ export const PaymentDetailsSection = ({
                                                             {inst.paid_amount > 0 && inst.status !== 'paid' ? 'Partial' : inst.status}
                                                         </span>
                                                     </td>
-                                                    <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-600 dark:text-gray-400">
-                                                        {inst.paid_at && inst.paid_amount > 0 ? (
+                                                    <td className="px-4 py-2 align-top whitespace-nowrap text-sm text-gray-600 dark:text-gray-400">
+                                                        {paidOnSeveralDays(inst.received_via) ? (
+                                                            // Paid in parts on different days: each payment's own date, on its Method line.
+                                                            groupReceivedVia(inst.received_via).map((g, i) => (
+                                                                <div key={i} className={cn('min-h-[2.75rem]', i > 0 && 'mt-1')}>
+                                                                    <span className="block">{formatExactDate(g.date, 'DD MMM YYYY')}</span>
+                                                                    <span className="block text-[11px] text-gray-400">{formatExactDate(g.date, 'hh:mm A')}</span>
+                                                                </div>
+                                                            ))
+                                                        ) : inst.paid_at && inst.paid_amount > 0 ? (
                                                             <>
                                                                 <span className="block">{formatExactDate(inst.display_paid_at || inst.paid_at, 'DD MMM YYYY')}</span>
                                                                 <span className="block text-[11px] text-gray-400">{formatExactDate(inst.display_paid_at || inst.paid_at, 'hh:mm A')}</span>
