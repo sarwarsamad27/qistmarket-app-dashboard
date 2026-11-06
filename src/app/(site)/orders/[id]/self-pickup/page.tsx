@@ -986,6 +986,11 @@ export default function SelfPickupPage() {
                   </div>
                 </div>
 
+                {suggestedPlans.length === 0 && (
+                  <p className="mb-8 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm font-bold text-amber-800">
+                    No installment plan for {cashPriceInput ? `Rs. ${Number(cashPriceInput).toLocaleString()}` : 'this item'} in category &quot;{selectedInventory?.category || 'none'}&quot;. Check the price ranges and categories on the EMI Calculator page.
+                  </p>
+                )}
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
                   {suggestedPlans.map((plan, idx) => {
                     // Normalize field names — stored plans use `advance`, generated also use `advance` now

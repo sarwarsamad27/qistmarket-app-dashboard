@@ -118,31 +118,32 @@ export default function DailyPaymentsPage() {
   const handleDownload = () => {
     if (!rows.length) return toast.error("Nothing to download for these filters");
     const headers = [
-      "S.No", "Received Date & Time", "Customer Name", "Customer Number", "Alternate Number", "Item", "IMEI / Serial", "Amount",
+      "S.No", "Received Date & Time", "Customer Name", "Customer Number", "Alternate Number", "Item", "IMEI / Serial", "Date of Purchase", "Amount",
       "Account Branch", "Method / Received At", "Collected By", "Transaction ID", "System Transaction ID", "Officer Cash Transaction ID",
-      "Partial / Fully Paid", "Payment For", "Installment Amount", "Installment Due Date", "Date of Purchase", "1Bill ID / QR ID", "Order Ref",
+      "Partial / Fully Paid", "Payment For", "Installment Amount", "Installment Due Date", "1Bill ID / QR ID", "Order Ref",
       "Edited", "Originally Entered", "Deleted (removed from ledger)", "Deleted Amount (not counted)",
     ];
     // A deleted receipt's money stays out of the Amount column, so adding that column up
     // in Excel gives the page's total: 407,900 selected against 401,200 on screen otherwise.
     const deletedCol = headers.length - 1;
     const body = rows.map((r, i) => [
-      r.deleted ? "Deleted" : i + 1, fmtDateTime(r.received_at), r.customer_name, r.customer_phone || "", r.alternate_phone || "", r.item, r.imei || "", r.deleted ? 0 : r.amount,
+      r.deleted ? "Deleted" : i + 1, fmtDateTime(r.received_at), r.customer_name, r.customer_phone || "", r.alternate_phone || "", r.item, r.imei || "", fmtDate(r.purchase_date), r.deleted ? 0 : r.amount,
       r.account_branch || "", r.method, r.collected_by || "", r.transaction_id, r.system_txn_id, r.cash_txn_id || "",
       r.payment_status === "Full" ? "Fully Paid" : "Partial", r.payment_type === "advance" ? "Advance" : `Month ${r.month}`,
-      r.installment_amount, fmtDate(r.due_date), fmtDate(r.purchase_date), r.bill_or_qr_id || "", r.order_ref,
+      r.installment_amount, fmtDate(r.due_date), r.bill_or_qr_id || "", r.order_ref,
       r.edited ? "Edited" : "", r.original_received_at ? fmtDateTime(r.original_received_at) : "",
       r.deleted ? `Deleted${r.deleted_by ? ` by ${r.deleted_by}` : ""}${r.deleted_at ? ` on ${fmtDateTime(r.deleted_at)}` : ""}` : "",
       r.deleted ? r.amount : "",
     ]);
     // Deleted receipts are listed but not part of the total, same as the page.
     const totalRow: (string | number)[] = Array(headers.length).fill("");
-    totalRow[6] = "TOTAL";
-    totalRow[7] = rows.filter((r) => !r.deleted).reduce((s, r) => s + r.amount, 0);
+    const amountCol = headers.indexOf("Amount");
+    totalRow[amountCol - 1] = "TOTAL";
+    totalRow[amountCol] = rows.filter((r) => !r.deleted).reduce((s, r) => s + r.amount, 0);
     const deletedTotal = rows.filter((r) => r.deleted).reduce((s, r) => s + r.amount, 0);
     if (deletedTotal) totalRow[deletedCol] = deletedTotal;
     const ws = XLSX.utils.aoa_to_sheet([headers, ...body, [], totalRow]);
-    ws["!cols"] = [8, 22, 24, 14, 14, 30, 18, 12, 20, 34, 18, 24, 20, 14, 12, 14, 14, 14, 20, 22].map((wch) => ({ wch }));
+    ws["!cols"] = [8, 22, 24, 14, 14, 30, 18, 16, 12, 20, 34, 18, 24, 20, 14, 12, 14, 14, 14, 22].map((wch) => ({ wch }));
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Daily Payments");
     XLSX.writeFile(wb, `daily_payments_${periodLabel}.xlsx`);
@@ -251,13 +252,13 @@ export default function DailyPaymentsPage() {
                   <th className="px-3 py-3 font-bold">Received</th>
                   <th className="px-3 py-3 font-bold">Customer</th>
                   <th className="px-3 py-3 font-bold">Item</th>
+                  <th className="px-3 py-3 font-bold">Purchased</th>
                   <th className="px-3 py-3 text-right font-bold">Amount</th>
                   <th className="px-3 py-3 font-bold">Account Branch</th>
                   <th className="px-3 py-3 font-bold">Method</th>
                   <th className="px-3 py-3 font-bold">Transaction ID</th>
                   <th className="px-3 py-3 font-bold">Status</th>
                   <th className="px-3 py-3 font-bold">Due Date</th>
-                  <th className="px-3 py-3 font-bold">Purchased</th>
                   <th className="px-3 py-3 font-bold">1Bill / QR ID</th>
                 </tr>
               </thead>
@@ -290,6 +291,7 @@ export default function DailyPaymentsPage() {
                       {r.imei && <p className="font-mono text-[11px] text-gray-500">IMEI: {r.imei}</p>}
                       <p className="text-xs text-gray-400">{r.payment_type === "advance" ? "Advance" : `Month ${r.month}`} · {r.order_ref}</p>
                     </td>
+                    <td className="whitespace-nowrap px-3 py-3 text-gray-600 dark:text-gray-300">{fmtDate(r.purchase_date)}</td>
                     <td className={`whitespace-nowrap px-3 py-3 text-right font-bold tabular-nums ${r.deleted ? "text-gray-400 line-through" : "text-dark dark:text-white"}`}>{PKR(r.amount)}</td>
                     <td className="px-3 py-3 text-gray-700 dark:text-gray-200">{r.account_branch || <span className="text-gray-400">—</span>}</td>
                     <td className="px-3 py-3">
@@ -307,7 +309,6 @@ export default function DailyPaymentsPage() {
                       </span>
                     </td>
                     <td className="whitespace-nowrap px-3 py-3 text-gray-600 dark:text-gray-300">{fmtDate(r.due_date) || "—"}</td>
-                    <td className="whitespace-nowrap px-3 py-3 text-gray-600 dark:text-gray-300">{fmtDate(r.purchase_date)}</td>
                     <td className="px-3 py-3 font-mono text-xs text-gray-500">{r.bill_or_qr_id || "—"}</td>
                   </tr>
                 ))}
