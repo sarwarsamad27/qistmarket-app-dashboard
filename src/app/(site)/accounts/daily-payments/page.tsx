@@ -121,20 +121,28 @@ export default function DailyPaymentsPage() {
       "S.No", "Received Date & Time", "Customer Name", "Customer Number", "Alternate Number", "Item", "IMEI / Serial", "Amount",
       "Account Branch", "Method / Received At", "Collected By", "Transaction ID", "System Transaction ID", "Officer Cash Transaction ID",
       "Partial / Fully Paid", "Payment For", "Installment Amount", "Installment Due Date", "Date of Purchase", "1Bill ID / QR ID", "Order Ref",
-      "Edited", "Originally Entered", "Deleted (removed from ledger)",
+      "Edited", "Originally Entered", "Deleted (removed from ledger)", "Deleted Amount (not counted)",
     ];
+    // A deleted receipt's money stays out of the Amount column, so adding that column up
+    // in Excel gives the page's total: 407,900 selected against 401,200 on screen otherwise.
+    const deletedCol = headers.length - 1;
     const body = rows.map((r, i) => [
-      i + 1, fmtDateTime(r.received_at), r.customer_name, r.customer_phone || "", r.alternate_phone || "", r.item, r.imei || "", r.amount,
+      r.deleted ? "Deleted" : i + 1, fmtDateTime(r.received_at), r.customer_name, r.customer_phone || "", r.alternate_phone || "", r.item, r.imei || "", r.deleted ? 0 : r.amount,
       r.account_branch || "", r.method, r.collected_by || "", r.transaction_id, r.system_txn_id, r.cash_txn_id || "",
       r.payment_status === "Full" ? "Fully Paid" : "Partial", r.payment_type === "advance" ? "Advance" : `Month ${r.month}`,
       r.installment_amount, fmtDate(r.due_date), fmtDate(r.purchase_date), r.bill_or_qr_id || "", r.order_ref,
       r.edited ? "Edited" : "", r.original_received_at ? fmtDateTime(r.original_received_at) : "",
       r.deleted ? `Deleted${r.deleted_by ? ` by ${r.deleted_by}` : ""}${r.deleted_at ? ` on ${fmtDateTime(r.deleted_at)}` : ""}` : "",
+      r.deleted ? r.amount : "",
     ]);
     // Deleted receipts are listed but not part of the total, same as the page.
-    const totalRow = ["", "", "", "", "", "", "TOTAL", rows.filter((r) => !r.deleted).reduce((s, r) => s + r.amount, 0)];
+    const totalRow: (string | number)[] = Array(headers.length).fill("");
+    totalRow[6] = "TOTAL";
+    totalRow[7] = rows.filter((r) => !r.deleted).reduce((s, r) => s + r.amount, 0);
+    const deletedTotal = rows.filter((r) => r.deleted).reduce((s, r) => s + r.amount, 0);
+    if (deletedTotal) totalRow[deletedCol] = deletedTotal;
     const ws = XLSX.utils.aoa_to_sheet([headers, ...body, [], totalRow]);
-    ws["!cols"] = [6, 22, 24, 14, 14, 30, 18, 12, 20, 34, 18, 24, 20, 14, 12, 14, 14, 14, 20, 22].map((wch) => ({ wch }));
+    ws["!cols"] = [8, 22, 24, 14, 14, 30, 18, 12, 20, 34, 18, 24, 20, 14, 12, 14, 14, 14, 20, 22].map((wch) => ({ wch }));
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Daily Payments");
     XLSX.writeFile(wb, `daily_payments_${periodLabel}.xlsx`);
