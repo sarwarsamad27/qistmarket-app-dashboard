@@ -107,7 +107,7 @@ const groupReceivedVia = (list?: ReceivedVia[]): ViaGroup[] => {
             amount: p.amount, total: p.receipt_total ?? p.amount, txn: p.txn_id || p.system_txn_id || null, uncounted: false,
         });
     }
-    return groups;
+    return groups.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 };
 const paidOnSeveralDays = (list?: ReceivedVia[]) =>
     new Set(groupReceivedVia(list).map((g) => formatExactDate(g.date, 'DD MMM YYYY'))).size > 1;
