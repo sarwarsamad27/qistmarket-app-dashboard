@@ -912,11 +912,11 @@ export const PaymentDetailsSection = ({
                                                         <input
                                                             type="date"
                                                             value={row.due_date}
-                                                            title="Due day max 27 — 28–31 moves to the 1st of next month"
+                                                            title="Due day max 27 — 28–31 becomes the 27th"
                                                             onChange={(e) => {
                                                                 // Same cap as the server: due days stop at the 27th.
-                                                                const [y, m, d] = e.target.value.split('-').map(Number);
-                                                                const value = d > 27 ? new Date(Date.UTC(y, m, 1)).toISOString().slice(0, 10) : e.target.value;
+                                                                const [y, m, d] = e.target.value.split('-');
+                                                                const value = Number(d) > 27 ? `${y}-${m}-27` : e.target.value;
                                                                 updateRow(row.month, 'due_date', value);
                                                             }}
                                                             className="w-36 rounded border border-stroke bg-white px-2 py-1 text-xs dark:border-dark-3 dark:bg-dark-2 dark:text-white"
