@@ -34,6 +34,37 @@ const priceRangeLabel = (min: number | null, max: number | null) => {
   return `${(min + 1).toLocaleString()} – ${max.toLocaleString()}`;
 };
 
+// Price ranges (per category) that no tier covers — those items get no plans at all
+// on order, delivery and inventory screens. Tiers are (min, max] intervals, so
+// checking one price per segment between tier bounds is enough.
+function findCoverageGaps(formula: InstallmentFormula): { category: string; from: number; to: number | null }[] {
+  const bounds = Array.from(new Set(
+    formula.tiers.flatMap((t) => [t.min_price, t.max_price]).filter((v): v is number => v !== null && v !== undefined && v > 0)
+  )).sort((a, b) => a - b);
+  const segments: { from: number; to: number | null }[] = [];
+  let prev = 0;
+  for (const b of bounds) { segments.push({ from: prev, to: b }); prev = b; }
+  segments.push({ from: prev, to: null });
+
+  const gaps: { category: string; from: number; to: number | null }[] = [];
+  for (const category of EMI_CATEGORIES) {
+    let open: { from: number; to: number | null } | null = null;
+    for (const seg of segments) {
+      const probe = seg.to ?? seg.from + 1;
+      if (!findTier(formula, category, probe)) {
+        if (open) open.to = seg.to; else open = { from: seg.from, to: seg.to };
+      } else if (open) {
+        gaps.push({ category, ...open }); open = null;
+      }
+    }
+    if (open) gaps.push({ category, ...open });
+  }
+  return gaps;
+}
+
+const gapLabel = (g: { from: number; to: number | null }) =>
+  g.to === null ? `above ${g.from.toLocaleString()}` : g.from === 0 ? `up to ${g.to.toLocaleString()}` : `${(g.from + 1).toLocaleString()} – ${g.to.toLocaleString()}`;
+
 export default function AdminEmiCalculatorPage() {
   const { user } = useAuth();
   const canEdit = (user?.role || "").toLowerCase() === "super admin";
@@ -74,6 +105,8 @@ export default function AdminEmiCalculatorPage() {
     return findTier(activeFormula, category, p);
   }, [activeFormula, category, price]);
 
+  const gaps = useMemo(() => (activeFormula ? findCoverageGaps(activeFormula) : []), [activeFormula]);
+
   const updateDraft = (fn: (d: InstallmentFormula) => void) => {
     setDraft((prev) => {
       if (!prev) return prev;
@@ -100,7 +133,7 @@ export default function AdminEmiCalculatorPage() {
       setFormula(json.data);
       setCachedInstallmentFormula(json.data);
       setDraft(null);
-      toast.success("Installment formula updated");
+      toast.success(json.message || "Installment formula updated", { duration: 6000 });
     } catch (err) {
       console.error(err);
       toast.error("Failed to save formula");
@@ -165,9 +198,18 @@ export default function AdminEmiCalculatorPage() {
         </div>
       </div>
 
+      {gaps.length > 0 && (
+        <div className="mb-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-xs text-red-700 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-300">
+          <div className="mb-1 font-bold">No tier covers these prices — products here get no installment plans:</div>
+          <ul className="list-disc space-y-0.5 pl-5">
+            {gaps.map((g, i) => <li key={i}><span className="font-semibold">{g.category}</span>: {gapLabel(g)}</li>)}
+          </ul>
+        </div>
+      )}
+
       {draft && (
         <div className="mb-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-xs font-medium text-amber-700 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-300">
-          Previewing unsaved changes — click Save Formula to apply them everywhere.
+          Previewing unsaved changes — click Save Formula to apply them everywhere (order creation, delivery app, self-pickup and all unsold stock).
         </div>
       )}
 

@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { ShoppingBag, Globe, MessageSquare, Building, Users, Search, ChevronDown, Check, X, Phone, User as UserIcon, MapPin, AlertCircle, Calculator } from 'lucide-react';
 import toast from "react-hot-toast";
 import Cookies from "js-cookie";
@@ -279,6 +279,28 @@ const CreateOrders: React.FC = () => {
   const calculateInstallments = (category: string, price: number) => {
     setCalcResults(calculateInstallmentPlans(installmentFormula, category, price));
   };
+
+  // Plans shown for a catalog product: the EMI formula wins (client decision, Nov 2026),
+  // computed from the product's website price. Deal plans (special price) stay as-is,
+  // and the website plans are only used when no formula tier covers the product.
+  const productPlans = useMemo(() => {
+    if (!selectedProduct) return [];
+    const websitePlans = (selectedProduct.ProductInstallments || []).filter((p: any) => p.isActive);
+    const dealPlans = websitePlans.filter((p: any) => p.dealId);
+    const price = Number(selectedProduct.price);
+    const formulaPlans = price > 0
+      ? calculateInstallmentPlans(installmentFormula, selectedProduct.category_name || '', price).map((p) => ({
+          id: `formula-${p.months}`,
+          months: p.months,
+          advance: p.advanceAmount,
+          monthlyAmount: p.monthlyAmount,
+          totalPrice: p.totalPrice,
+          isActive: true,
+        }))
+      : [];
+    if (formulaPlans.length === 0) return websitePlans;
+    return [...dealPlans, ...formulaPlans];
+  }, [selectedProduct, installmentFormula]);
 
   // Filter channels based on role
   // Sales Officer (8): WhatsApp, Referral, Call
@@ -1208,8 +1230,7 @@ const CreateOrders: React.FC = () => {
                       </div>
 
                       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {selectedProduct.ProductInstallments
-                          ?.filter((p: any) => p.isActive)
+                        {productPlans
                           .map((plan: any) => (
                             <label
                               key={plan.id}
