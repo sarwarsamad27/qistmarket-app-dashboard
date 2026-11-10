@@ -43,6 +43,7 @@ export default function PayTriggerAdminPage() {
   const [device, setDevice] = useState<DeviceInfo | null>(null);
   const [error, setError] = useState("");
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [expirationDate, setExpirationDate] = useState("");
 
   // Form states for Device
   const [tempUnlockHours, setTempUnlockHours] = useState("24");
@@ -148,6 +149,7 @@ export default function PayTriggerAdminPage() {
           last_sync_at: local.last_sync_at || "",
           raw_state: data.data.remote || data.data.local?.raw_state,
         });
+        if (local.expiration) setExpirationDate(String(local.expiration).slice(0, 10));
         return !!data.data.local;
       } else if (!silent) {
         setError(data.message || "Device not found or API error");
@@ -172,6 +174,13 @@ export default function PayTriggerAdminPage() {
   const handleAction = async (action: string) => {
     const q = imei.trim();
     if (!q) return;
+    if (action === "set-expiration") {
+      if (!expirationDate) {
+        toast.error("Choose an expiration date");
+        return;
+      }
+      if (!window.confirm(`Set this device's PayTrigger expiration to ${expirationDate}? A past date can lock the device.`)) return;
+    }
     setActionLoading(action);
 
     try {
@@ -186,6 +195,12 @@ export default function PayTriggerAdminPage() {
         case "manual-lock": endpoint = `device/${encodeURIComponent(q)}/lock`; break;
         case "manual-unlock": endpoint = `device/${encodeURIComponent(q)}/unlock`; break;
         case "temp-unlock": endpoint = `device/${encodeURIComponent(q)}/temp-unlock`; body = { tempLockTime: parseInt(tempUnlockHours), timeUnit: "HOURS" }; break;
+        case "set-expiration": {
+          endpoint = `device/${encodeURIComponent(q)}/repay-info`;
+          const localEndOfDay = new Date(`${expirationDate}T23:59:59.999`);
+          body = { nextRepayTime: localEndOfDay.toISOString(), description: "Manual expiration date update" };
+          break;
+        }
         case "offline-pin": endpoint = `device/${encodeURIComponent(q)}/offline-pin`; body = { captcha: offlineCaptcha }; break;
         case "simlock-reset": endpoint = `device/${encodeURIComponent(q)}/simlock-reset`; break;
         case "set-rule": endpoint = `device/${encodeURIComponent(q)}/set-rule`; body = { ruleNum: parseInt(lockRuleNum) }; break;
@@ -203,7 +218,7 @@ export default function PayTriggerAdminPage() {
       const ptResult = data.data;
       
       if (data.success && (!ptResult || ptResult.code === 200 || !ptResult.code)) {
-        toast.success(`${action} command sent successfully`);
+        toast.success(action === "set-expiration" ? "Expiration date updated in PayTrigger" : `${action} command sent successfully`);
         if (action === "sync-device-status" && data.completion?.completed) toast.success("Device is active — order marked as delivered.", { duration: 6000 });
         if (action === "sync-device-status" && data.schedule?.reason === "overdue") toast("Installment overdue — status refreshed, lock kept. Use Temp/Force Unlock if needed.", { icon: "⚠️", duration: 7000 });
         if (action === "sync-device-status" && data.schedule?.reason === "admin_locked") toast("Locked by an admin — status refreshed, lock kept.", { icon: "🔒", duration: 7000 });
@@ -392,6 +407,23 @@ export default function PayTriggerAdminPage() {
                     <InfoRow label="Order Reference" value={device.order_ref || "None"} />
                     <InfoRow label="Phone Model" value={device.product_model || "Unknown"} />
                     <InfoRow label="Expiration Date" value={device.expiration ? new Date(device.expiration).toLocaleDateString() : "Lifetime"} />
+                    <div className="flex items-end gap-2 pt-2">
+                      <div className="flex-1">
+                        <label className="text-xs font-bold text-gray-500 uppercase">Set expiration date</label>
+                        <input
+                          type="date"
+                          value={expirationDate}
+                          onChange={e => setExpirationDate(e.target.value)}
+                          className="w-full mt-1 p-2 border rounded-lg text-sm bg-gray-50 dark:bg-gray-900"
+                        />
+                      </div>
+                      <ActionBtn
+                        label="Update Date"
+                        onClick={() => handleAction("set-expiration")}
+                        loading={actionLoading === "set-expiration"}
+                        color="bg-blue-600 hover:bg-blue-700 text-white"
+                      />
+                    </div>
                   </div>
                 </div>
               </div>
