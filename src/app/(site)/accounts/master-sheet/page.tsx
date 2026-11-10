@@ -58,6 +58,13 @@ const SUMMARY_COLUMNS: { key: keyof MasterRow; header: string; date?: boolean }[
   { key: "qr_id", header: "QR ID" },
 ];
 
+// Number columns shown with thousands separators in the preview (the Excel keeps raw numbers).
+const NUMBER_COLUMNS = new Set<string>(["item_price", "advance", "installment", "remain", "total_paid", "overdue_amount", "next_due_amount"]);
+
+// One cell value, used by BOTH the Excel download and the on-screen table, so what
+// the page shows is exactly what the file contains.
+const cellValue = (r: MasterRow, key: string, date?: boolean) => (date ? ddmmyyyy(r[key]) : r[key] ?? "");
+
 const RANGES = ["All", "Day", "Week", "Month", "Quarter", "Year", "Custom"] as const;
 
 // Day-first text, the format the legacy import reads date cells in.
@@ -122,14 +129,16 @@ export default function MasterSheetPage() {
   const pageCount = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
   const pageRows = rows.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
+  // Exactly the columns the Excel gets, in the same order.
+  const sheetColumns: { key: string; header: string; date?: boolean }[] = [
+    ...LEGACY_COLUMNS.map((col, i) => ({ key: col as string, header: LEGACY_HEADERS[i], date: LEGACY_DATE_COLUMNS.includes(col) })),
+    ...(includeSummary ? SUMMARY_COLUMNS.map((c) => ({ key: c.key as string, header: c.header, date: c.date })) : []),
+  ];
+
   const handleDownload = () => {
     if (!rows.length) return toast.error("Nothing to download for these filters");
-    const headers = [SERIAL_HEADER, ...LEGACY_HEADERS, ...(includeSummary ? SUMMARY_COLUMNS.map((c) => c.header) : [])];
-    const body = rows.map((r, i) => [
-      i + 1,
-      ...LEGACY_COLUMNS.map((col) => (LEGACY_DATE_COLUMNS.includes(col) ? ddmmyyyy(r[col]) : r[col] ?? "")),
-      ...(includeSummary ? SUMMARY_COLUMNS.map((c) => (c.date ? ddmmyyyy(r[c.key]) : r[c.key] ?? "")) : []),
-    ]);
+    const headers = [SERIAL_HEADER, ...sheetColumns.map((c) => c.header)];
+    const body = rows.map((r, i) => [i + 1, ...sheetColumns.map((c) => cellValue(r, c.key, c.date))]);
     const ws = XLSX.utils.aoa_to_sheet([headers, ...body]);
     ws["!cols"] = headers.map((h) => ({ wch: Math.max(12, Math.min(28, h.length + 2)) }));
     const wb = XLSX.utils.book_new();
@@ -232,64 +241,43 @@ export default function MasterSheetPage() {
       ) : rows.length > 0 ? (
         <div className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm dark:border-white/10 dark:bg-boxdark">
           <p className="border-b border-slate-100 px-4 py-2.5 text-xs text-gray-500 dark:border-white/10">
-            Preview of the key columns — the download has all {LEGACY_COLUMNS.length} Legacy Import columns
-            (purchaser, both guarantors, next of kin, officers, timeline){includeSummary ? ` plus ${SUMMARY_COLUMNS.length} account summary columns` : ""}.
+            Every column of the Excel download, in the same order ({sheetColumns.length} columns) — scroll sideways to see them all.
+            Price, advance, installment and tenure come from the account&apos;s ledger.
           </p>
-          <div className="overflow-x-auto">
+          <div className="max-h-[70vh] overflow-auto">
             <table className="w-full text-left text-sm">
-              <thead className="bg-gray-50 text-[11px] uppercase tracking-wide text-gray-500 dark:bg-dark-2 dark:text-gray-400">
+              <thead className="sticky top-0 z-10 bg-gray-50 text-[11px] uppercase tracking-wide text-gray-500 dark:bg-dark-2 dark:text-gray-400">
                 <tr>
-                  <th className="px-3 py-3 font-bold">S.No</th>
-                  <th className="px-3 py-3 font-bold">Delivered</th>
-                  <th className="px-3 py-3 font-bold">1Bill ID</th>
-                  <th className="px-3 py-3 font-bold">Customer</th>
-                  <th className="px-3 py-3 font-bold">CNIC</th>
-                  <th className="px-3 py-3 font-bold">Item</th>
-                  <th className="px-3 py-3 text-right font-bold">Price</th>
-                  <th className="px-3 py-3 text-right font-bold">Advance</th>
-                  <th className="px-3 py-3 text-right font-bold">Installment</th>
-                  <th className="px-3 py-3 font-bold">Tenure</th>
-                  <th className="px-3 py-3 font-bold">Due Date</th>
-                  <th className="px-3 py-3 text-right font-bold">Remain</th>
-                  <th className="px-3 py-3 font-bold">Branch</th>
-                  <th className="px-3 py-3 font-bold">Status</th>
+                  <th className="sticky left-0 z-20 bg-gray-50 px-3 py-3 font-bold dark:bg-dark-2">{SERIAL_HEADER}</th>
+                  {sheetColumns.map((c) => (
+                    <th key={c.key} className={`whitespace-nowrap px-3 py-3 font-bold ${NUMBER_COLUMNS.has(c.key) ? "text-right" : ""}`}>{c.header}</th>
+                  ))}
                 </tr>
               </thead>
               <tbody>
                 {pageRows.map((r, i) => (
                   <tr key={r.order_id} className="border-t border-slate-50 transition hover:bg-slate-50/70 dark:border-white/5 dark:hover:bg-white/5">
-                    <td className="px-3 py-3 text-gray-400">{(page - 1) * PAGE_SIZE + i + 1}</td>
-                    <td className="whitespace-nowrap px-3 py-3 text-gray-600 dark:text-gray-300">
-                      {ddmmyyyy(r.delivered_at) || "—"}
-                      <p className="text-xs text-gray-400">Order {ddmmyyyy(r.order_date)}</p>
-                    </td>
-                    <td className="px-3 py-3 font-mono text-xs text-gray-500">{r.bill_id || "—"}</td>
-                    <td className="px-3 py-3">
-                      <p className="font-semibold text-dark dark:text-white">{r.purchaser_name}</p>
-                      <p className="text-xs text-gray-500">{r.purchaser_phone}</p>
-                    </td>
-                    <td className="whitespace-nowrap px-3 py-3 text-gray-600 dark:text-gray-300">{r.purchaser_cnic || "—"}</td>
-                    <td className="max-w-[200px] px-3 py-3 text-gray-700 dark:text-gray-200">
-                      <p className="truncate" title={r.item_model}>{r.item_model}</p>
-                      <p className="text-xs text-gray-400">{r.category || "—"}{r.source === "Legacy Import" ? " · Legacy" : ""}</p>
-                    </td>
-                    <td className="whitespace-nowrap px-3 py-3 text-right tabular-nums">{PKR(r.item_price)}</td>
-                    <td className="whitespace-nowrap px-3 py-3 text-right tabular-nums">{PKR(r.advance)}</td>
-                    <td className="whitespace-nowrap px-3 py-3 text-right tabular-nums">{PKR(r.installment)}</td>
-                    <td className="px-3 py-3 text-gray-600 dark:text-gray-300">{r.months_paid}/{r.tenure_months}</td>
-                    <td className="whitespace-nowrap px-3 py-3 text-gray-600 dark:text-gray-300">
-                      {r.next_due_date ? (
-                        <>
-                          {ddmmyyyy(r.next_due_date)}
-                          <p className="text-xs text-gray-400">{PKR(r.next_due_amount)}{r.due_day ? ` · every ${r.due_day}` : ""}</p>
-                        </>
-                      ) : r.account_status === "Completed" ? <span className="text-xs text-emerald-600">Paid off</span> : "—"}
-                    </td>
-                    <td className="whitespace-nowrap px-3 py-3 text-right font-bold tabular-nums text-dark dark:text-white">{PKR(r.remain)}</td>
-                    <td className="px-3 py-3 text-gray-700 dark:text-gray-200">{r.account_branch || "—"}</td>
-                    <td className="px-3 py-3">
-                      <span className={`inline-block rounded-full px-2.5 py-1 text-xs font-bold ${STATUS_STYLE[r.account_status]}`}>{r.account_status}</span>
-                    </td>
+                    <td className="sticky left-0 bg-white px-3 py-2.5 text-gray-400 dark:bg-boxdark">{(page - 1) * PAGE_SIZE + i + 1}</td>
+                    {sheetColumns.map((c) => {
+                      const v = cellValue(r, c.key, c.date);
+                      if (c.key === "account_status") {
+                        return (
+                          <td key={c.key} className="px-3 py-2.5">
+                            <span className={`inline-block rounded-full px-2.5 py-1 text-xs font-bold ${STATUS_STYLE[r.account_status]}`}>{r.account_status}</span>
+                          </td>
+                        );
+                      }
+                      const isNum = NUMBER_COLUMNS.has(c.key) && typeof v === "number";
+                      return (
+                        <td
+                          key={c.key}
+                          title={String(v)}
+                          className={`max-w-[240px] truncate whitespace-nowrap px-3 py-2.5 ${isNum ? "text-right tabular-nums" : ""} ${c.key === "purchaser_name" || c.key === "item_price" ? "font-semibold text-dark dark:text-white" : "text-gray-600 dark:text-gray-300"}`}
+                        >
+                          {v === "" ? <span className="text-gray-300">—</span> : isNum ? (v as number).toLocaleString() : String(v)}
+                        </td>
+                      );
+                    })}
                   </tr>
                 ))}
               </tbody>
