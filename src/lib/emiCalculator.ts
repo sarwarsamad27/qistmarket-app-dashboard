@@ -59,6 +59,24 @@ export function findTier(formula: InstallmentFormula, category: string, price: n
   );
 }
 
+// Custom cash price: the officer can enter ANY amount and must always get plans.
+// Exact tier first; else a tier whose price range fits (any category); else the tier
+// whose price range is nearest to the amount.
+export function findTierForCustomPrice(formula: InstallmentFormula, category: string, price: number): FormulaTier | null {
+  const exact = findTier(formula, category, price);
+  if (exact) return exact;
+  const inRange = formula.tiers.find((t) =>
+    (t.min_price === null || t.min_price === undefined || price > t.min_price) &&
+    (t.max_price === null || t.max_price === undefined || price <= t.max_price));
+  if (inRange) return inRange;
+  const distance = (t: FormulaTier) => {
+    if (t.min_price !== null && t.min_price !== undefined && price <= t.min_price) return t.min_price - price;
+    if (t.max_price !== null && t.max_price !== undefined && price > t.max_price) return price - t.max_price;
+    return 0;
+  };
+  return [...formula.tiers].sort((a, b) => distance(a) - distance(b))[0] || null;
+}
+
 // Plan amounts for one formula plan — also used when an officer overrides the advance.
 export function computePlan(plan: FormulaPlan, price: number, advanceAmount: number, formula: InstallmentFormula): EmiPlan {
   const remaining = price - advanceAmount;
@@ -67,9 +85,14 @@ export function computePlan(plan: FormulaPlan, price: number, advanceAmount: num
   return { ...plan, advanceAmount, monthlyAmount, totalPrice: advanceAmount + monthlyAmount * plan.months };
 }
 
-export function calculateInstallmentPlans(formula: InstallmentFormula | null, category: string, price: number): EmiPlan[] {
+export function calculateInstallmentPlans(
+  formula: InstallmentFormula | null,
+  category: string,
+  price: number,
+  opts?: { customPrice?: boolean }
+): EmiPlan[] {
   if (!formula || !price || price <= 0) return [];
-  const tier = findTier(formula, category, price);
+  const tier = opts?.customPrice ? findTierForCustomPrice(formula, category, price) : findTier(formula, category, price);
   if (!tier) return [];
   return tier.plans.map((p) => computePlan(p, price, roundAmount(price * p.advance, formula.rounding), formula));
 }

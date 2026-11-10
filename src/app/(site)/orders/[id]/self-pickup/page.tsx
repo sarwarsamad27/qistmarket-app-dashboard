@@ -414,8 +414,8 @@ export default function SelfPickupPage() {
   const roundUp = (val: number) => roundAmount(val, installmentFormula?.rounding);
 
   // Normalized plans {advance, totalPrice, monthlyAmount, months, isActive} — same shape as stored inventory plans
-  const calculateInstallments = (category: string, price: number): any[] =>
-    toStoredPlans(calculateInstallmentPlans(installmentFormula, category, price));
+  const calculateInstallments = (category: string, price: number, customPrice = false): any[] =>
+    toStoredPlans(calculateInstallmentPlans(installmentFormula, category, price, { customPrice }));
 
   const handleInventorySelect = (item: any) => {
     setSelectedInventory(item);
@@ -452,7 +452,8 @@ export default function SelfPickupPage() {
     if (activeStep !== 2 || !selectedInventory) return;
 
     if (cashPriceInput && Number(cashPriceInput) > 0) {
-      const generated = calculateInstallments(selectedInventory.category || '', Number(cashPriceInput));
+      // Custom price: always produce plans for whatever amount is typed.
+      const generated = calculateInstallments(selectedInventory.category || '', Number(cashPriceInput), true);
       setSuggestedPlans(generated);
       setSelectedPlan(null); // Clear selection so they must re-select
       setLedger([]);

@@ -277,7 +277,7 @@ const CreateOrders: React.FC = () => {
   const formulaMonths = Array.from(new Set((installmentFormula?.tiers || []).flatMap(t => t.plans.map(p => p.months)))).sort((a, b) => a - b);
 
   const calculateInstallments = (category: string, price: number) => {
-    setCalcResults(calculateInstallmentPlans(installmentFormula, category, price));
+    setCalcResults(calculateInstallmentPlans(installmentFormula, category, price, { customPrice: true }));
   };
 
   // Plans shown for a catalog product: the EMI formula wins (client decision, Nov 2026),
