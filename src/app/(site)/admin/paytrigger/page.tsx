@@ -44,6 +44,7 @@ export default function PayTriggerAdminPage() {
   const [error, setError] = useState("");
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [expirationDate, setExpirationDate] = useState("");
+  const [expirationError, setExpirationError] = useState("");
 
   // Form states for Device
   const [tempUnlockHours, setTempUnlockHours] = useState("24");
@@ -175,11 +176,12 @@ export default function PayTriggerAdminPage() {
     const q = imei.trim();
     if (!q) return;
     if (action === "set-expiration") {
+      setExpirationError("");
       if (!expirationDate) {
         toast.error("Choose an expiration date");
         return;
       }
-      if (!window.confirm(`Set this device's PayTrigger expiration to ${expirationDate}? A past date can lock the device.`)) return;
+      if (!window.confirm(`Change the expiration date to ${expirationDate}? PayTrigger must accept this date before it is saved. This does not confirm that the phone is locked.`)) return;
     }
     setActionLoading(action);
 
@@ -220,8 +222,13 @@ export default function PayTriggerAdminPage() {
       if (data.success && (!ptResult || ptResult.code === 200 || !ptResult.code)) {
         toast.success(action === "set-expiration" ? "Expiration date updated in PayTrigger" : `${action} command sent successfully`);
         if (action === "sync-device-status" && data.completion?.completed) toast.success("Device is active — order marked as delivered.", { duration: 6000 });
-        if (action === "sync-device-status" && data.schedule?.reason === "overdue") toast("Installment overdue — status refreshed, lock kept. Use Temp/Force Unlock if needed.", { icon: "⚠️", duration: 7000 });
-        if (action === "sync-device-status" && data.schedule?.reason === "admin_locked") toast("Locked by an admin — status refreshed, lock kept.", { icon: "🔒", duration: 7000 });
+        if (action === "sync-device-status" && data.schedule?.reason === "overdue") toast(
+          ptResult?.data?.mobileStatus === 1000
+            ? "Installment overdue — PayTrigger confirms the device is locked."
+            : "Installment overdue — device lock is not confirmed. Automatic unlock was skipped.",
+          { icon: "⚠️", duration: 7000 }
+        );
+        if (action === "sync-device-status" && data.schedule?.reason === "admin_locked") toast("Admin lock requested — status refreshed; automatic unlock skipped.", { icon: "🔒", duration: 7000 });
         if (action === "sync-device-status" && data.completion?.error) toast.error(`Device active but delivery completion failed: ${data.completion.error}`, { duration: 8000 });
         if (action === "get-device-tag" && ptResult?.data?.deviceTag) toast.success(`Tag retrieved: ${ptResult.data.deviceTag}`, { duration: 5000 });
         if (action === "offline-pin" && ptResult?.data?.verifyCode) toast.success(`Unlock PIN: ${ptResult.data.verifyCode}`, { duration: 10000 });
@@ -236,9 +243,21 @@ export default function PayTriggerAdminPage() {
             errorMsg += ` (${ptResult.data[0].message})`;
           }
         }
-        toast.error(errorMsg);
+        if (action === "set-expiration") {
+          if (String(ptResult?.code) === "514" && /earlier than allowed minimum repay time/i.test(ptResult?.message || "")) {
+            errorMsg = "Date not updated. The selected date is earlier than PayTrigger allows. Choose a later date, or contact PayTrigger support to confirm the earliest allowed date. (Code 514)";
+          } else {
+            errorMsg = data.message || `Date not updated. ${errorMsg}`;
+          }
+          setExpirationError(errorMsg);
+        }
+        toast.error(errorMsg, { duration: 9000 });
       }
-    } catch (e) { toast.error(getErrorMessage(e, "Connection failed")); }
+    } catch (e) {
+      const message = getErrorMessage(e, "Could not process the response. Refresh the device status before trying again.");
+      if (action === "set-expiration") setExpirationError(`${message} Date update is not confirmed. Refresh the device status before trying again.`);
+      toast.error(message, { duration: 9000 });
+    }
     finally { setActionLoading(null); }
   };
 
@@ -413,7 +432,7 @@ export default function PayTriggerAdminPage() {
                         <input
                           type="date"
                           value={expirationDate}
-                          onChange={e => setExpirationDate(e.target.value)}
+                          onChange={e => { setExpirationDate(e.target.value); setExpirationError(""); }}
                           className="w-full mt-1 p-2 border rounded-lg text-sm bg-gray-50 dark:bg-gray-900"
                         />
                       </div>
@@ -424,6 +443,11 @@ export default function PayTriggerAdminPage() {
                         color="bg-blue-600 hover:bg-blue-700 text-white"
                       />
                     </div>
+                    {expirationError && (
+                      <p role="alert" className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800 dark:border-red-800 dark:bg-red-950 dark:text-red-200">
+                        {expirationError}
+                      </p>
+                    )}
                   </div>
                 </div>
               </div>
