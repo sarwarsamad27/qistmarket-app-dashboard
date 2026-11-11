@@ -21,6 +21,7 @@ import MissingGrantorForm from '@/components/Orders/MissingGrantorForm';
 import InstallmentNotesHistory from '@/components/Installments/InstallmentNotesHistory';
 import { Ban, AlertTriangle } from 'lucide-react';
 import { apiErrorMessage, getErrorMessage, extractBodyMessage } from "@/lib/apiErrors";
+import { useLedgerPricingEditAuthorization } from "@/components/common/useLedgerPricingEditAuthorization";
 
 const API_BASE = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
 
@@ -388,6 +389,7 @@ export default function OrderDetailsPage() {
     const [savingReview, setSavingReview] = useState(false);
     const [deletingReviewId, setDeletingReviewId] = useState<number | null>(null);
     const { user } = useAuth();
+    const { runWithAuthorization, authorizationModal } = useLedgerPricingEditAuthorization();
     const [changingOutlet, setChangingOutlet] = useState(false);
     // Fetch verification data for this order
     const fetchVerification = async () => {
@@ -972,7 +974,7 @@ export default function OrderDetailsPage() {
         }
     }, [selectedCategory, products]);
 
-    const confirmEdit = async () => {
+    const saveSelectedProductPlan = async () => {
         if (!order || !selectedProduct || !selectedPlan) return;
         setIsSubmitting(true);
         try {
@@ -1004,6 +1006,11 @@ export default function OrderDetailsPage() {
         } finally {
             setIsSubmitting(false);
         }
+    };
+
+    const confirmEdit = () => {
+        if (!order || !selectedProduct || !selectedPlan) return;
+        void runWithAuthorization(saveSelectedProductPlan);
     };
 
     const confirmCancel = async () => {
@@ -1094,20 +1101,20 @@ export default function OrderDetailsPage() {
             )}
 
             <div className="mt-4 flex flex-wrap justify-end gap-3 mb-6 font-medium">
-                {order.status !== "delivered" && (
+                {user?.role === "Super Admin" && order.status !== "delivered" && (
                     <button
-                    onClick={() => {
-                        setNewProductName(order.product_name);
-                        setSelectedCategory('');
-                        setSelectedSubcategory('');
-                        setSelectedProduct(null);
-                        setSelectedPlan(null);
-                        setEditModalOpen(true);
-                    }}
-                    className="rounded-md bg-primary px-6 py-2 text-white hover:bg-opacity-90 shadow-md transition-colors"
-                >
-                    Edit Item
-                </button>
+                        onClick={() => void runWithAuthorization(() => {
+                            setNewProductName(order.product_name);
+                            setSelectedCategory('');
+                            setSelectedSubcategory('');
+                            setSelectedProduct(null);
+                            setSelectedPlan(null);
+                            setEditModalOpen(true);
+                        })}
+                        className="rounded-md bg-primary px-6 py-2 text-white hover:bg-opacity-90 shadow-md transition-colors"
+                    >
+                        Edit Item
+                    </button>
                 )}
                 {order.status !== "delivered" && order.status !== "cancelled" && order.status !== "rejected" && order.status !== "approved" && (
                 <button
@@ -2903,6 +2910,7 @@ export default function OrderDetailsPage() {
             )}
 
             {/* Action Modals (Edit/Cancel) */}
+            {authorizationModal}
             <Modal open={statusModalOpen} onClose={() => { if (!isUpdatingStatus) { setStatusModalOpen(false); setPendingStatus(null); } }}>
                 <div className="rounded-2xl bg-white p-8 shadow-xl dark:bg-gray-800">
                     <h2 className="text-xl font-bold mb-2 dark:text-white">Change Order Status</h2>

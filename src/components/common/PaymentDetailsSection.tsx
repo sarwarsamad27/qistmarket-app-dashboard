@@ -6,6 +6,7 @@ import { formatExactDate } from '@/utils/dateUtils';
 import { Modal } from '@/components/Modal/Modal';
 import { OrderPaymentIds } from './OrderPaymentIds';
 import { pktDate } from '@/utils/pkt'
+import { useLedgerPricingEditAuthorization } from './useLedgerPricingEditAuthorization';
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5000';
 
@@ -182,6 +183,7 @@ export const PaymentDetailsSection = ({
     const [savingAdvance, setSavingAdvance] = useState(false);
     const [rebuildingLedger, setRebuildingLedger] = useState(false);
     const [syncingIds, setSyncingIds] = useState(false);
+    const { runWithAuthorization, authorizationModal } = useLedgerPricingEditAuthorization();
 
     if (!paymentDetails) return null;
 
@@ -434,6 +436,7 @@ export const PaymentDetailsSection = ({
 
     return (
         <div className="mb-6">
+            {authorizationModal}
             <h3 className="mb-3 flex items-center gap-2 text-lg font-semibold text-dark dark:text-white">
                 <svg className="h-5 w-5 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2z" />
@@ -483,7 +486,7 @@ export const PaymentDetailsSection = ({
                     <div className="mb-3 flex items-center justify-between">
                         <h4 className="font-medium text-dark dark:text-white">Advance Payment</h4>
                         {editable && ledgerId && !isEditingAdvance && (
-                            <button onClick={startEditAdvance} className="text-xs font-bold text-primary hover:underline">
+                            <button onClick={() => void runWithAuthorization(startEditAdvance)} className="text-xs font-bold text-primary hover:underline">
                                 Edit
                             </button>
                         )}
@@ -551,7 +554,7 @@ export const PaymentDetailsSection = ({
                             <p className="text-xs text-gray-400">Status &amp; Payment Date are recalculated automatically from Amount vs Paid Amount.</p>
                             <div className="flex items-center gap-3">
                                 <button
-                                    onClick={handleSaveAdvance}
+                                    onClick={() => void runWithAuthorization(handleSaveAdvance)}
                                     disabled={savingAdvance}
                                     className="rounded-lg bg-primary px-4 py-2 text-sm font-bold text-white disabled:opacity-50"
                                 >
@@ -586,14 +589,14 @@ export const PaymentDetailsSection = ({
                                     {/* Available in both view and edit mode — it's an independent
                                         action (opens its own modal), no need to Cancel row-editing first. */}
                                     <button
-                                        onClick={openMonthsConfirm}
+                                        onClick={() => void runWithAuthorization(openMonthsConfirm)}
                                         className="text-xs font-bold text-primary hover:underline"
                                     >
                                         Change Total Months
                                     </button>
                                     {!isEditMode && (
                                         <button
-                                            onClick={startEdit}
+                                            onClick={() => void runWithAuthorization(startEdit)}
                                             className="text-xs font-bold text-primary hover:underline"
                                         >
                                             Edit Ledger
@@ -1005,7 +1008,7 @@ export const PaymentDetailsSection = ({
                             {isEditMode && (
                                 <div className="mt-4 flex items-center gap-3">
                                     <button
-                                        onClick={() => handleSaveRows()}
+                                        onClick={() => void runWithAuthorization(handleSaveRows)}
                                         disabled={savingRows}
                                         className="rounded-lg bg-primary px-4 py-2 text-sm font-bold text-white disabled:opacity-50"
                                     >
@@ -1052,7 +1055,7 @@ export const PaymentDetailsSection = ({
                             Cancel
                         </button>
                         <button
-                            onClick={handleSaveMonths}
+                            onClick={() => void runWithAuthorization(handleSaveMonths)}
                             disabled={savingMonths}
                             className="rounded-lg bg-primary px-4 py-2 text-sm font-bold text-white disabled:opacity-50"
                         >

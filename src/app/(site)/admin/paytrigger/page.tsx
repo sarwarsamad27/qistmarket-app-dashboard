@@ -137,20 +137,29 @@ export default function PayTriggerAdminPage() {
       const data = await res.json();
       if (data.success && data.data) {
         const local = data.data.local || {};
-        const remote = data.data.remote?.data || {};
+        const remoteOk = data.data.remote?.code === 200 && !!data.data.remote?.data;
+        const remote = remoteOk ? data.data.remote.data : {};
+        if (!data.data.local && !remoteOk) {
+          if (!silent) setError(data.data.remote?.message || "Device status could not be found in PayTrigger or this software.");
+          return false;
+        }
+        const serverState = remote.serverState ?? remote.lockState ?? local.server_state;
+        const enrollment = ({ 500: "pre_enrolled", 1000: "registered", 2000: "ready_to_activate", 3000: "active", 4000: "locked", 5000: "removable" } as Record<number, string>)[Number(serverState)] || local.enrollment_status || "";
+        const mobileState = remote.mobileStatus ?? local.mobile_status;
+        const expiration = remote.expiration ? new Date(remote.expiration * 1000).toISOString() : local.expiration || "";
         setDevice({
           imei: local.imei || q,
-          order_ref: local.order_ref || "",
-          product_model: local.product_model || "",
-          enrollment_status: local.enrollment_status || "",
-          server_state: local.server_state ?? remote.serverState,
-          mobile_state: local.mobile_status ?? remote.mobileStatus,
-          lock_status: local.lock_status || "",
-          expiration: local.expiration || (remote.expiration ? new Date(remote.expiration * 1000).toISOString() : ""),
-          last_sync_at: local.last_sync_at || "",
-          raw_state: data.data.remote || data.data.local?.raw_state,
+          order_ref: local.order_ref || remote.orderNum || "Not linked to a local order",
+          product_model: remote.model || local.product_model || "",
+          enrollment_status: enrollment,
+          server_state: serverState,
+          mobile_state: mobileState,
+          lock_status: Number(mobileState) === 1000 ? "locked" : Number(mobileState) === 2000 ? "unlocked" : local.lock_status || "unknown",
+          expiration,
+          last_sync_at: remoteOk ? new Date().toISOString() : local.last_sync_at || "",
+          raw_state: remoteOk ? data.data.remote : data.data.local?.raw_state,
         });
-        if (local.expiration) setExpirationDate(String(local.expiration).slice(0, 10));
+        setExpirationDate(expiration ? String(expiration).slice(0, 10) : "");
         return !!data.data.local;
       } else if (!silent) {
         setError(data.message || "Device not found or API error");
@@ -337,7 +346,7 @@ export default function PayTriggerAdminPage() {
     if (s === "pre_enrolled") {
       return <div className="flex items-center gap-2 bg-blue-100 text-blue-700 px-4 py-2 rounded-xl font-bold border border-blue-300"><Clock className="w-5 h-5" /> PRE-ENROLLED (Pending Connection)</div>;
     }
-    return <div className="flex items-center gap-2 bg-gray-100 text-gray-700 px-4 py-2 rounded-xl font-bold border border-gray-300"><Smartphone className="w-5 h-5" /> STATUS UNKNOWN ({s})</div>;
+    return <div className="flex items-center gap-2 bg-gray-100 text-gray-700 px-4 py-2 rounded-xl font-bold border border-gray-300"><Smartphone className="w-5 h-5" /> LOCK STATUS NOT REPORTED</div>;
   };
 
   return (

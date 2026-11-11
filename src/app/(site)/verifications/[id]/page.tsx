@@ -17,6 +17,7 @@ import LinkedAccountsBadge from '@/components/common/LinkedAccountsBadge';
 
 import EditTimelineDatesModal from '@/components/Orders/EditTimelineDatesModal';
 import { apiErrorMessage, getErrorMessage, extractBodyMessage } from "@/lib/apiErrors";
+import { useLedgerPricingEditAuthorization } from "@/components/common/useLedgerPricingEditAuthorization";
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL
 
@@ -498,6 +499,7 @@ const VerificationDetails = ({ params }: { params: Promise<{ id: string }> }) =>
   const [savingVerificationDetails, setSavingVerificationDetails] = useState(false);
 
   const { user } = useAuth();
+  const { runWithAuthorization, authorizationModal } = useLedgerPricingEditAuthorization();
   // Set officer details from loaded data when officerIdInput changes
   useEffect(() => {
     if (!modalOpen || !officerIdInput || !modalOfficerType) {
@@ -1876,6 +1878,7 @@ const VerificationDetails = ({ params }: { params: Promise<{ id: string }> }) =>
         </div>
       </div>
 
+      {authorizationModal}
       {/* Product & Financial Plan Information */}
       <div className="mb-12 rounded-xl border border-primary/20 bg-primary/5 p-6 dark:bg-gray-800/60 dark:border-primary/30">
         <div className="flex items-center justify-between mb-4 border-b border-primary/10 pb-3">
@@ -1893,7 +1896,7 @@ const VerificationDetails = ({ params }: { params: Promise<{ id: string }> }) =>
             )}
             {user?.role === 'Super Admin' && !editingProductFinancial && (
               <button
-                onClick={openEditProductFinancial}
+                onClick={() => void runWithAuthorization(openEditProductFinancial)}
                 className="text-xs font-bold text-primary hover:underline"
               >
                 Edit
@@ -1919,7 +1922,7 @@ const VerificationDetails = ({ params }: { params: Promise<{ id: string }> }) =>
             </div>
             <div className="flex gap-3">
               <button
-                onClick={handleSaveProductFinancial}
+                onClick={() => void runWithAuthorization(handleSaveProductFinancial)}
                 disabled={savingProductFinancial}
                 className="rounded-lg bg-primary px-4 py-2 text-sm font-bold text-white disabled:opacity-50"
               >

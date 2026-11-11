@@ -8,6 +8,7 @@ import { useAuth } from "../../../contexts/AuthContext";
 import { formatExactDate } from "@/utils/dateUtils";
 import { Modal } from "@/components/Modal/Modal";
 import { apiErrorMessage } from "@/lib/apiErrors";
+import { useLedgerPricingEditAuthorization } from "./useLedgerPricingEditAuthorization";
 
 const LabeledInput = ({ label, value, onChange, type = 'text' }: { label: string; value: string; onChange: (v: string) => void; type?: string }) => (
     <div>
@@ -52,6 +53,7 @@ export default function DeliveredProductDetails({
     const [error, setError] = useState<string | null>(null);
     const [expandedInstallments, setExpandedInstallments] = useState(true);
     const { user } = useAuth();
+    const { runWithAuthorization, authorizationModal } = useLedgerPricingEditAuthorization();
 
     const [editingProduct, setEditingProduct] = useState(false);
     const [productForm, setProductForm] = useState({ product_name: '', imei_serial: '', total_amount: '', advance_amount: '', monthly_amount: '', months: '' });
@@ -506,7 +508,7 @@ export default function DeliveredProductDetails({
                             Product Information
                         </h3>
                         {user?.role === 'Super Admin' && !editingProduct && (
-                            <button onClick={openEditProduct} className="text-xs font-bold text-primary hover:underline">Edit</button>
+                            <button onClick={() => void runWithAuthorization(openEditProduct)} className="text-xs font-bold text-primary hover:underline">Edit</button>
                         )}
                     </div>
                     {editingProduct && !deliveredProduct.order_info?.outlet_id ? (
@@ -625,7 +627,7 @@ export default function DeliveredProductDetails({
                                 </p>
                             )}
                             <div className="flex gap-3">
-                                <button onClick={handleSaveProduct} disabled={savingProduct} className="rounded-lg bg-primary px-4 py-2 text-sm font-bold text-white disabled:opacity-50">
+                                <button onClick={() => void runWithAuthorization(handleSaveProduct)} disabled={savingProduct} className="rounded-lg bg-primary px-4 py-2 text-sm font-bold text-white disabled:opacity-50">
                                     {savingProduct ? 'Saving...' : 'Save Changes'}
                                 </button>
                                 <button onClick={() => setEditingProduct(false)} disabled={savingProduct} className="rounded-lg border border-stroke px-4 py-2 text-sm dark:border-dark-3 dark:text-gray-300">
@@ -879,6 +881,7 @@ export default function DeliveredProductDetails({
                     </div>
                 )}
 
+                {authorizationModal}
                 <Modal open={addPhotoOpen} onClose={() => setAddPhotoOpen(false)}>
                     <div className="rounded-2xl bg-white p-8 shadow-xl dark:bg-gray-800">
                         <h2 className="mb-4 text-lg font-bold dark:text-white">Add Delivery Photo</h2>

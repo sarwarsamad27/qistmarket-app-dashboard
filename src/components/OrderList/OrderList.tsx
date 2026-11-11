@@ -28,6 +28,7 @@ import toast from 'react-hot-toast'
 import { formatExactDate } from "@/utils/dateUtils";
 import { apiErrorMessage } from "@/lib/apiErrors";
 import { describeExpiry } from "@/lib/orderExpiry"
+import { useLedgerPricingEditAuthorization } from "@/components/common/useLedgerPricingEditAuthorization";
 
 import { serialColumn } from '@/utils/serialColumn'
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL
@@ -175,6 +176,7 @@ const OrderListContent = ({ forcedStatus, forcedChannel, apiEndpoint, hideAction
   const [outlets, setOutlets] = useState<any[]>([])
   const [selectedOutletId, setSelectedOutletId] = useState<number | null>(null)
   const { user } = useAuth()
+  const { runWithAuthorization, authorizationModal } = useLedgerPricingEditAuthorization()
   const userRole = user?.role?.toLowerCase() || ''
   const isSalesOfficer = userRole === 'sales officer'
   const isSuperAdmin = userRole === 'super admin'
@@ -806,16 +808,18 @@ const OrderListContent = ({ forcedStatus, forcedChannel, apiEndpoint, hideAction
   }
 
   const handleEditClick = (order: Order) => {
-    setSelectedOrder(order)
-    setNewProductName(order.product_name)
-    setSelectedCategory('')
-    setSelectedSubcategory('')
-    setSelectedProduct(null)
-    setSelectedPlan(null)
-    setEditModalOpen(true)
+    void runWithAuthorization(() => {
+      setSelectedOrder(order)
+      setNewProductName(order.product_name)
+      setSelectedCategory('')
+      setSelectedSubcategory('')
+      setSelectedProduct(null)
+      setSelectedPlan(null)
+      setEditModalOpen(true)
+    })
   }
 
-  const confirmEdit = async () => {
+  const saveEditedOrder = async () => {
     if (!selectedOrder || !selectedProduct || !selectedPlan) return
     setIsSubmitting(true)
     try {
@@ -850,6 +854,11 @@ const OrderListContent = ({ forcedStatus, forcedChannel, apiEndpoint, hideAction
     } finally {
       setIsSubmitting(false)
     }
+  }
+
+  const confirmEdit = () => {
+    if (!selectedOrder || !selectedProduct || !selectedPlan) return
+    void runWithAuthorization(saveEditedOrder)
   }
 
   const handleViewClick = (order: Order) => {
@@ -1280,6 +1289,8 @@ const OrderListContent = ({ forcedStatus, forcedChannel, apiEndpoint, hideAction
 
                 {/* Show Edit Item logic */}
                 {(() => {
+                  if (!isSuperAdmin) return null;
+
                   // Rule 1: Never on "All Orders" page
                   if (showAllStatuses) return null;
                   
@@ -1827,6 +1838,8 @@ const OrderListContent = ({ forcedStatus, forcedChannel, apiEndpoint, hideAction
       </div>
 
       {/* ── Modals ──────────────────────────────────────────────────────────────── */}
+
+      {authorizationModal}
 
       {/* Edit Product Modal */}
       <Modal
