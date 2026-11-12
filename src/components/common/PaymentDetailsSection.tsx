@@ -287,11 +287,31 @@ export const PaymentDetailsSection = ({
         : [];
 
     const updateRow = (month: number, field: keyof EditableRow, value: string) => {
-        setEditedRows((rows) => rows.map((r) => (r.month === month ? { ...r, [field]: value } : r)));
+        setEditedRows((rows) => {
+            const index = rows.findIndex((r) => r.month === month);
+            const anchor = new Date(`${value}T00:00:00Z`);
+            const cascade = field === 'due_date' && /^\d{4}-\d{2}-\d{2}$/.test(value) && Number.isFinite(anchor.getTime());
+            return rows.map((r, i) => {
+                if (cascade && index >= 0 && i >= index) {
+                    const date = new Date(anchor);
+                    date.setUTCDate(1);
+                    date.setUTCMonth(date.getUTCMonth() + i - index);
+                    date.setUTCDate(Math.min(anchor.getUTCDate(), 27));
+                    return { ...r, due_date: date.toISOString().slice(0, 10) };
+                }
+                return r.month === month ? { ...r, [field]: value } : r;
+            });
+        });
     };
 
     const handleSaveRows = async () => {
         if (!ledgerId) return;
+        const invalidDate = editedRows.find((r) => !r.due_date || !Number.isFinite(new Date(r.due_date).getTime()) ||
+            (r.paid_at && !Number.isFinite(new Date(r.paid_at).getTime())));
+        if (invalidDate) {
+            toast.error(`Enter a valid date for ${invalidDate.label || `Month ${invalidDate.month}`}.`);
+            return;
+        }
         // Clearing Customer Paid explicitly removes the amount; send zero, never unchanged.
         const invalid = editedRows.filter((r) => !Number.isFinite(Number(r.paid_amount)) || Number(r.paid_amount) < 0);
         if (invalid.length) {
