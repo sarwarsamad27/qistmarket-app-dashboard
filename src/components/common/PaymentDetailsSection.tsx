@@ -14,9 +14,9 @@ const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:500
 const toDatetimeLocal = (iso?: string | null) => {
     if (!iso) return '';
     const d = new Date(iso);
-    if (isNaN(d.getTime())) return '';
+    if (isNaN(d.getTime()) || d.getFullYear() < 1 || d.getFullYear() > 9999) return '';
     const pad = (n: number) => String(n).padStart(2, '0');
-    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    return `${String(d.getFullYear()).padStart(4, '0')}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 };
 
 // Transaction / receipt ID with a copy button (1LINK tran_auth_id, SmartPay TxID,
@@ -147,6 +147,7 @@ type EditableRow = {
     original_paid_amount: string; // what paid_amount was pre-filled with — unchanged = "don't touch this month"
     payment_method: string;
     paid_at: string; // datetime-local string ('' = leave as auto-set by the backend)
+    original_paid_at: string;
 };
 
 export const PaymentDetailsSection = ({
@@ -278,6 +279,7 @@ export const PaymentDetailsSection = ({
             original_paid_amount: num(inst.collected_amount ?? inst.paid_amount ?? 0),
             payment_method: inst.payment_method || '',
             paid_at: toDatetimeLocal(inst.paid_at),
+            original_paid_at: toDatetimeLocal(inst.paid_at),
         })));
         setIsEditMode(true);
     };
@@ -306,10 +308,15 @@ export const PaymentDetailsSection = ({
 
     const handleSaveRows = async () => {
         if (!ledgerId) return;
-        const invalidDate = editedRows.find((r) => !r.due_date || !Number.isFinite(new Date(r.due_date).getTime()) ||
-            (r.paid_at && !Number.isFinite(new Date(r.paid_at).getTime())));
-        if (invalidDate) {
-            toast.error(`Enter a valid date for ${invalidDate.label || `Month ${invalidDate.month}`}.`);
+        const invalidDueDate = editedRows.find((r) => !r.due_date || !Number.isFinite(new Date(r.due_date).getTime()));
+        if (invalidDueDate) {
+            toast.error(`Enter a valid Due Date for ${invalidDueDate.label || `Month ${invalidDueDate.month}`}.`);
+            return;
+        }
+        const invalidPaymentDate = editedRows.find((r) => r.paid_at !== r.original_paid_at &&
+            r.paid_at && !Number.isFinite(new Date(r.paid_at).getTime()));
+        if (invalidPaymentDate) {
+            toast.error(`Enter a valid Payment Date for ${invalidPaymentDate.label || `Month ${invalidPaymentDate.month}`}, or leave it blank.`);
             return;
         }
         // Clearing Customer Paid explicitly removes the amount; send zero, never unchanged.
@@ -341,7 +348,7 @@ export const PaymentDetailsSection = ({
                         payment_method: r.payment_method || null,
                         // '' means "leave it to the backend" (defaults to now() on a paid-amount
                         // change); a value here is the admin explicitly picking the payment date.
-                        paid_at: r.paid_at ? new Date(r.paid_at).toISOString() : null,
+                        paid_at: r.paid_at && r.paid_at !== r.original_paid_at ? new Date(r.paid_at).toISOString() : null,
                     })),
                 }),
             });
