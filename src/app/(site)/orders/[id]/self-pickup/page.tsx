@@ -19,7 +19,7 @@ import { cn } from '@/lib/utils';
 import Breadcrumb from "@/components/Breadcrumbs/Breadcrumb";
 import Loader from '@/components/common/Loader';
 import { apiErrorMessage, getErrorMessage } from "@/lib/apiErrors";
-import { useInstallmentFormula, calculateInstallmentPlans, toStoredPlans, roundAmount } from "@/lib/emiCalculator";
+import { useInstallmentFormula, calculateInstallmentPlans, toStoredPlans, roundAmount, computePlan, formulaPlanFor } from "@/lib/emiCalculator";
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
 
@@ -474,6 +474,27 @@ export default function SelfPickupPage() {
     }
   }, [cashPriceInput, installmentFormula]);
 
+  // The selected plan with the officer's down payment. A formula plan is re-priced by
+  // the formula (profit on what is left after the advance — EMI Calculator rule): 55,000
+  // at 9 months, advance 11,000 → 16,500 gives 6,200/mo, not the old 6,500 that kept
+  // the 11,000-advance profit. A stored plan the formula didn't make keeps its total.
+  const planWithAdvance = (plan: any, advance: number) => {
+    if (!plan) return plan;
+    if (!(advance >= 0) || advance === plan.advance) return plan;
+    const custom = Number(cashPriceInput) > 0;
+    const price = custom
+      ? Number(cashPriceInput)
+      : (Number(selectedInventory?.sale_price) > 0 ? Number(selectedInventory.sale_price) : Number(selectedInventory?.purchase_price) || 0);
+    const category = selectedInventory?.category || '';
+    const fp = installmentFormula ? formulaPlanFor(installmentFormula, category, price, plan, { customPrice: custom }) : null;
+    if (fp && installmentFormula) {
+      const p = computePlan(fp, price, advance, installmentFormula);
+      return { ...plan, advance, monthlyAmount: p.monthlyAmount, totalPrice: p.totalPrice };
+    }
+    const monthlyAmount = roundUp((plan.totalPrice - advance) / plan.months);
+    return { ...plan, advance, monthlyAmount, totalPrice: advance + monthlyAmount * plan.months };
+  };
+
   // Normalize plan to standard shape before storing
   const handlePlanSelect = (plan: any) => {
     const normalized = {
@@ -628,14 +649,12 @@ export default function SelfPickupPage() {
       const token = Cookies.get('auth_token');
       // Compute final monthly if advance was overridden
       const finalAdvance = Number(advanceOverride);
-      const finalMonthly = finalAdvance !== selectedPlan.advance
-        ? roundUp((selectedPlan.totalPrice - finalAdvance) / selectedPlan.months)
-        : selectedPlan.monthlyAmount;
+      const finalPlan = planWithAdvance(selectedPlan, finalAdvance);
 
       const submittedPlan = {
         advance: finalAdvance,
-        totalPrice: selectedPlan.totalPrice,
-        monthlyAmount: finalMonthly,
+        totalPrice: finalPlan.totalPrice,
+        monthlyAmount: finalPlan.monthlyAmount,
         months: selectedPlan.months,
         isActive: true,
       };
@@ -1067,14 +1086,10 @@ export default function SelfPickupPage() {
                       </div>
 
                       <InstallmentLedgerEditor
-                        totalPrice={selectedPlan.totalPrice}
+                        totalPrice={planWithAdvance(selectedPlan, Number(advanceOverride) || 0).totalPrice}
                         advance={Number(advanceOverride) || selectedPlan.advance}
                         months={selectedPlan.months}
-                        monthlyAmount={
-                          Number(advanceOverride) !== selectedPlan.advance
-                            ? roundUp((selectedPlan.totalPrice - (Number(advanceOverride) || 0)) / selectedPlan.months)
-                            : selectedPlan.monthlyAmount
-                        }
+                        monthlyAmount={planWithAdvance(selectedPlan, Number(advanceOverride) || 0).monthlyAmount}
                         onLedgerChange={(newLedger) => setLedger(newLedger)}
                       />
                     </div>

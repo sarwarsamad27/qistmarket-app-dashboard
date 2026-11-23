@@ -10,6 +10,9 @@ import { useInstallmentFormula, calculateInstallmentPlans, findTier, roundAmount
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
 
+// Keep custom entry usable while the catalog and formula load.
+const DEFAULT_PRODUCT_CATEGORIES = ['Mobiles', 'Laptops', 'Led Tv', 'Refrigerator', 'Washing Machine', 'Air Conditionar', 'Small Appliances', 'Microwave Oven', 'Water Dispenser', 'Fans', 'Bikes', 'Deep Freezer', 'Batteries', 'Mattress', 'Tyres', 'Smart Watches', 'Tablet', 'Solar'];
+
 const CreateOrders: React.FC = () => {
   const { user } = useAuth();
   const [formData, setFormData] = useState({
@@ -60,7 +63,6 @@ const CreateOrders: React.FC = () => {
   const [calcCategory, setCalcCategory] = useState('');
   const [calcPrice, setCalcPrice] = useState('');
   const [calcResults, setCalcResults] = useState<any[]>([]);
-  const [allCategories, setAllCategories] = useState<any[]>([]);
 
   // Advance Editing & Ledger States
   const [advanceOverride, setAdvanceOverride] = useState<number | ''>('');
@@ -109,19 +111,6 @@ const CreateOrders: React.FC = () => {
 
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
-  useEffect(() => {
-    const fetchCategories = async () => {
-      try {
-        const resp = await fetch('https://api.qistmarket.pk/api/categories');
-        const data = await resp.json();
-        setAllCategories(Array.isArray(data) ? data : []);
-      } catch (err) {
-        console.error("Error fetching categories:", err);
-      }
-    };
-    fetchCategories();
   }, []);
 
   useEffect(() => {
@@ -273,6 +262,21 @@ const CreateOrders: React.FC = () => {
 
   // Admin-editable formula (EMI Calculator page) — tiers, profit/advance % and rounding.
   const installmentFormula = useInstallmentFormula();
+  const customProductCategories = useMemo(() => {
+    const names = new Map<string, string>();
+    // Formula spelling takes priority so the selected value matches its tier.
+    const candidates = [
+      ...(installmentFormula?.tiers.map(tier => tier.category) || []),
+      ...categories,
+      ...DEFAULT_PRODUCT_CATEGORIES,
+    ];
+    for (const candidate of candidates) {
+      if (typeof candidate !== 'string' || !candidate.trim()) continue;
+      const name = candidate.trim();
+      if (!names.has(name.toLowerCase())) names.set(name.toLowerCase(), name);
+    }
+    return [...names.values()].sort((a, b) => a.localeCompare(b));
+  }, [categories, installmentFormula]);
   const roundUp = (val: number) => roundAmount(val, installmentFormula?.rounding);
   const formulaMonths = Array.from(new Set((installmentFormula?.tiers || []).flatMap(t => t.plans.map(p => p.months)))).sort((a, b) => a - b);
 
@@ -1096,7 +1100,7 @@ const CreateOrders: React.FC = () => {
                               style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%236B7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")` }}
                             >
                               <option value="">Select Category</option>
-                              {allCategories.map((cat: any) => <option key={cat.id || cat.name} value={cat.name}>{cat.name}</option>)}
+                              {customProductCategories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
                             </select>
                           </div>
 
@@ -1508,7 +1512,7 @@ const CreateOrders: React.FC = () => {
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-3 uppercase tracking-wider">Product Category</label>
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                      {['Mobiles', 'Laptops', 'Led Tv', 'Refrigerator', 'Washing Machine', 'Air Conditionar', 'Small Appliances', 'Microwave Oven', 'Water Dispenser', 'Fans', 'Bikes', 'Deep Freezer', 'Batteries', 'Mattress', 'Tyres', 'Smart Watches', 'Tablet', 'Solar'].map((cat) => (
+                      {customProductCategories.map((cat) => (
                         <button
                           key={cat}
                           type="button"

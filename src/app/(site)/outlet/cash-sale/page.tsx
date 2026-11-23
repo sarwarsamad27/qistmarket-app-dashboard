@@ -111,22 +111,18 @@ function ProductSearchBox({
   const [showResults, setShowResults] = useState(false);
   const boxRef = useRef<HTMLDivElement>(null);
 
-  // Reuses the exact same GET /api/outlet/inventory endpoint the Stock List
-  // page calls, so Cash Sale can never show a product Stock List doesn't —
-  // filtered here to just what Stock List itself treats as available
-  // (status "In Stock", not flagged is_used; "Used Stock"/"Out Of
-  // Stock"/"Sold" units are excluded, matching getInventory's own rule).
+  // Cash-sale inventory includes available new and used units.
   useEffect(() => {
     setIsSearching(true);
     const handle = setTimeout(async () => {
       try {
-        const res = await fetch(`${API_BASE}/api/outlet/inventory?search=${encodeURIComponent(search.trim())}&limit=50&page=1`, {
+        const res = await fetch(`${API_BASE}/api/outlet/cash-sale/inventory?search=${encodeURIComponent(search.trim())}&limit=50&page=1`, {
           headers: getAuthHeaders(),
         });
         const data = await res.json();
         if (data.success) {
           const sellable: InventoryItem[] = (data.inventory || [])
-            .filter((item: InventoryItem) => item.status === "In Stock" && !item.is_used)
+            .filter((item: InventoryItem) => ["In Stock", "Used Stock"].includes(item.status))
             .map((item: InventoryItem) => ({ ...item, suggested_price: suggestedPriceOf(item) }));
           setResults(sellable);
         }
@@ -182,7 +178,7 @@ function ProductSearchBox({
                     <Smartphone className="w-4 h-4" />
                   </div>
                   <div className="min-w-0">
-                    <p className="font-bold text-sm text-gray-900 dark:text-white truncate">{item.product_name}</p>
+                    <p className="font-bold text-sm text-gray-900 dark:text-white truncate">{item.product_name}{(item.is_used || item.status === "Used Stock") && <span className="ml-2 text-xs font-medium text-amber-600">Used</span>}</p>
                     <p className="text-xs text-gray-400 font-mono truncate">{item.imei_serial} {item.color_variant ? `• ${item.color_variant}` : ""}</p>
                   </div>
                 </div>
@@ -578,7 +574,7 @@ export default function CashSalePage() {
               </div>
               <ul className="space-y-3 text-sm text-gray-300 font-semibold">
                 <li className="flex gap-2"><span className="text-emerald-400">1.</span> Enter the customer's details.</li>
-                <li className="flex gap-2"><span className="text-emerald-400">2.</span> Search &amp; add one or more products — only in-stock items appear.</li>
+                <li className="flex gap-2"><span className="text-emerald-400">2.</span> Search &amp; add one or more products — available new and used stock appear.</li>
                 <li className="flex gap-2"><span className="text-emerald-400">3.</span> Adjust each item's price if needed, then confirm.</li>
                 <li className="flex gap-2"><span className="text-emerald-400">4.</span> Every item is marked Sold and removed from available stock.</li>
                 <li className="flex gap-2"><span className="text-emerald-400">5.</span> The total is added to today's Cash Register automatically.</li>

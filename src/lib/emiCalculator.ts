@@ -60,21 +60,45 @@ export function findTier(formula: InstallmentFormula, category: string, price: n
 }
 
 // Custom cash price: the officer can enter ANY amount and must always get plans.
-// Exact tier first; else a tier whose price range fits (any category); else the tier
-// whose price range is nearest to the amount.
+// Exact tier first. Otherwise the product's OWN category decides before the price
+// range does: its category's tiers (range that fits, else the nearest range), then
+// any-category tiers, and only then another category's tiers. A Rs. 55,000 Haier LED
+// used to get the Mobiles tier (35/25/20/15% advance) just because its range fit.
 export function findTierForCustomPrice(formula: InstallmentFormula, category: string, price: number): FormulaTier | null {
   const exact = findTier(formula, category, price);
   if (exact) return exact;
-  const inRange = formula.tiers.find((t) =>
+  const cat = (category || "").toLowerCase().trim();
+  const tierCat = (t: FormulaTier) => (t.category || "").toLowerCase().trim();
+  const fits = (t: FormulaTier) =>
     (t.min_price === null || t.min_price === undefined || price > t.min_price) &&
-    (t.max_price === null || t.max_price === undefined || price <= t.max_price));
-  if (inRange) return inRange;
+    (t.max_price === null || t.max_price === undefined || price <= t.max_price);
   const distance = (t: FormulaTier) => {
     if (t.min_price !== null && t.min_price !== undefined && price <= t.min_price) return t.min_price - price;
     if (t.max_price !== null && t.max_price !== undefined && price > t.max_price) return price - t.max_price;
     return 0;
   };
-  return [...formula.tiers].sort((a, b) => distance(a) - distance(b))[0] || null;
+  const best = (tiers: FormulaTier[]) => tiers.find(fits) || [...tiers].sort((a, b) => distance(a) - distance(b))[0] || null;
+  return (cat && best(formula.tiers.filter((t) => tierCat(t) === cat)))
+    || best(formula.tiers.filter((t) => !tierCat(t)))
+    || best(formula.tiers);
+}
+
+// The formula plan a shown plan was made from (same months, same amounts), so an
+// edited advance can be re-priced by the formula itself. Null for a plan the formula
+// didn't produce (stored website plan) — those keep their own total.
+export function formulaPlanFor(
+  formula: InstallmentFormula | null,
+  category: string,
+  price: number,
+  shown: { months: number; advance: number; monthlyAmount: number },
+  opts?: { customPrice?: boolean }
+): FormulaPlan | null {
+  if (!formula || !(price > 0)) return null;
+  const tier = opts?.customPrice ? findTierForCustomPrice(formula, category, price) : findTier(formula, category, price);
+  const plan = tier?.plans.find((p) => p.months === shown.months);
+  if (!plan) return null;
+  const same = computePlan(plan, price, shown.advance, formula);
+  return same.monthlyAmount === shown.monthlyAmount ? plan : null;
 }
 
 // Plan amounts for one formula plan — also used when an officer overrides the advance.
