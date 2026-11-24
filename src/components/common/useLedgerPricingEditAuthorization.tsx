@@ -137,7 +137,7 @@ export function useLedgerPricingEditAuthorization() {
                 <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">
                     Enter the OTP sent to the designated Super Admin number
                     {destination ? <> ({destination})</> : ""}. One verification enables ledger and pricing edits
-                    for 2 hours on this account.
+                    for 20 minutes on this account.
                 </p>
                 <label className="mt-5 block text-sm font-medium text-gray-700 dark:text-gray-200" htmlFor="ledger-pricing-edit-otp">
                     5-digit OTP
