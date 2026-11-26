@@ -288,7 +288,7 @@ export default function VendorPaymentsPage() {
                                 <thead className="sticky top-0 bg-white dark:bg-boxdark border-b border-stroke dark:border-strokedark z-10 shadow-sm">
                                     <tr className="text-gray-400 font-bold">
                                         <th className="p-3">S.No</th><th className="p-3">Vendor</th>
-                                        <th className="p-3 text-right">Owed</th>
+                                        <th className="p-3 text-right">Purchased</th>
                                         <th className="p-3 text-right">Balance</th>
                                     </tr>
                                 </thead>
