@@ -224,6 +224,15 @@ export default function CashInHandPage() {
       .finally(() => setSubsLoading(false));
   }, [subStatus, subRange, subOutlet, dSubSearch]);
 
+  useEffect(() => {
+    const refreshSubmissions = () => {
+      loadOverview();
+      loadSubs(subPage);
+    };
+    window.addEventListener("refreshCashSubmissions", refreshSubmissions);
+    return () => window.removeEventListener("refreshCashSubmissions", refreshSubmissions);
+  }, [loadOverview, loadSubs, subPage]);
+
   const verifySubmission = async () => {
     if (!verifyRef || verifyOtp.length !== 4) {
       toast.error("Enter the 4-digit OTP");

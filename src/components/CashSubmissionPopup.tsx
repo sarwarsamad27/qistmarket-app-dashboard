@@ -5,6 +5,7 @@ import { Modal } from "./Modal/Modal";
 import Cookies from "js-cookie";
 import { toast } from "react-hot-toast";
 import { getErrorMessage } from "@/lib/apiErrors";
+import { useAuth } from "../../contexts/AuthContext";
 
 const API_BASE = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
 
@@ -13,6 +14,7 @@ interface CashSubmissionData {
   amount: number;
   payment_method: string;
   otp: string;
+  submission_ref?: string;
   entries?: {
     customer_name?: string;
     order_ref: string;
@@ -25,6 +27,7 @@ interface CashSubmissionData {
 }
 
 export function CashSubmissionPopup({ socket }: { socket: any }) {
+  const { user } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const [data, setData] = useState<CashSubmissionData | null>(null);
   const [otpInput, setOtpInput] = useState("");
@@ -37,15 +40,14 @@ export function CashSubmissionPopup({ socket }: { socket: any }) {
 
     const handleRequest = (payload: CashSubmissionData & { target_outlet_id?: number }) => {
       console.log("Cash submission request received:", payload);
-      
-      const userStr = localStorage.getItem("user");
-      const user = userStr ? JSON.parse(userStr) : null;
+      const role = user?.role?.toLowerCase() || "";
+      const isAccountsUser = ["accountant", "admin", "super admin"].includes(role);
       const myOutletId = user?.outlet_id;
 
       // STRICT FILTER: If targeted at an outlet, ONLY show if it matches my outlet ID exactly.
-      // Super admins (no outlet_id) or other branches will be ignored.
-      if (payload.target_outlet_id) {
-        if (!myOutletId || parseInt(myOutletId) !== payload.target_outlet_id) {
+      // Accounts users receive their own copy through the accounts socket room.
+      if (payload.target_outlet_id && !isAccountsUser) {
+        if (!myOutletId || Number(myOutletId) !== payload.target_outlet_id) {
           console.log("Ignoring cash submission: targeted at outlet", payload.target_outlet_id, "but my outlet is", myOutletId);
           return;
         }
@@ -59,24 +61,27 @@ export function CashSubmissionPopup({ socket }: { socket: any }) {
     return () => {
       socket.off("cash_submission_otp", handleRequest);
     };
-  }, [socket]);
+  }, [socket, user]);
 
   const handleVerify = async () => {
     if (!data || !otpInput) return;
 
     setLoading(true);
     try {
-      const userStr = localStorage.getItem("user");
-      const user = userStr ? JSON.parse(userStr) : null;
+      const role = user?.role?.toLowerCase() || "";
+      const isAccountsUser = ["accountant", "admin", "super admin"].includes(role);
       const outletId = user?.outlet_id;
 
-      if (!outletId) {
+      if (!isAccountsUser && !outletId) {
         toast.error("Outlet ID not found in session");
         setLoading(false);
         return;
       }
 
-      const res = await fetch(`${API_BASE}/api/outlet/verify-cash-otp`, {
+      const endpoint = isAccountsUser
+        ? `${API_BASE}/api/accounts/cash/verify-submission`
+        : `${API_BASE}/api/outlet/verify-cash-otp`;
+      const res = await fetch(endpoint, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -84,7 +89,9 @@ export function CashSubmissionPopup({ socket }: { socket: any }) {
         },
         body: JSON.stringify({
           otp: otpInput,
-          outlet_id: outletId,
+          ...(isAccountsUser
+            ? { submission_ref: data.submission_ref }
+            : { outlet_id: outletId }),
         }),
       });
 
@@ -98,6 +105,9 @@ export function CashSubmissionPopup({ socket }: { socket: any }) {
         // Optionally refresh the current page if it's the collections page
         if (window.location.pathname.includes("/outlet/cash-in-hand")) {
           window.dispatchEvent(new Event("refreshCashList"));
+        }
+        if (window.location.pathname.includes("/accounts/cash-in-hand")) {
+          window.dispatchEvent(new Event("refreshCashSubmissions"));
         }
       } else {
         toast.error(result.message || "Verification failed");
