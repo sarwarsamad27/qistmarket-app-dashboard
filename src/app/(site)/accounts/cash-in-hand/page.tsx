@@ -144,6 +144,9 @@ export default function CashInHandPage() {
   const [subRange, setSubRange] = useState<DateRange>({ from: "", to: "" });
   const [subOutlet, setSubOutlet] = useState("");
   const [subSearch, setSubSearch] = useState("");
+  const [verifyRef, setVerifyRef] = useState<string | null>(null);
+  const [verifyOtp, setVerifyOtp] = useState("");
+  const [verifyLoading, setVerifyLoading] = useState(false);
   const [subPage, setSubPage] = useState(1);
   const [subTotalPages, setSubTotalPages] = useState(1);
 
@@ -220,6 +223,31 @@ export default function CashInHandPage() {
       })
       .finally(() => setSubsLoading(false));
   }, [subStatus, subRange, subOutlet, dSubSearch]);
+
+  const verifySubmission = async () => {
+    if (!verifyRef || verifyOtp.length !== 4) {
+      toast.error("Enter the 4-digit OTP");
+      return;
+    }
+    setVerifyLoading(true);
+    try {
+      const res = await fetch(`${BACKEND_URL}/api/accounts/cash/verify-submission`, {
+        method: "POST",
+        headers: authHeaders(),
+        body: JSON.stringify({ otp: verifyOtp, submission_ref: verifyRef }),
+      });
+      const json = await res.json();
+      if (!res.ok || !json.success) throw new Error(json.message || "OTP verification failed");
+      toast.success("Cash submission accepted");
+      setVerifyRef(null);
+      setVerifyOtp("");
+      loadSubs(subPage);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "OTP verification failed");
+    } finally {
+      setVerifyLoading(false);
+    }
+  };
 
   const fetchLimits = () => {
     setLimitsLoading(true);
@@ -954,7 +982,7 @@ export default function CashInHandPage() {
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-sm">
                   <thead className={thead}>
-                    <tr><th className={th}>#</th><th className={th}>Submitted</th><th className={th}>Ref / Txn</th><th className={th}>Submitted By</th><th className={th}>Outlet</th><th className={th}>Channel</th><th className={thR}>Amount</th><th className={th}>Status</th><th className={th}>Accepted By</th></tr>
+                    <tr><th className={th}>#</th><th className={th}>Submitted</th><th className={th}>Ref / Txn</th><th className={th}>Submitted By</th><th className={th}>Outlet</th><th className={th}>Channel</th><th className={thR}>Amount</th><th className={th}>Status</th><th className={th}>Accepted By</th><th className={th}>Action</th></tr>
                   </thead>
                   <tbody>
                     {subs.map((s, i) => (
@@ -977,6 +1005,16 @@ export default function CashInHandPage() {
                         <td className="px-4 py-3 text-right font-bold tabular-nums text-dark dark:text-white">{PKR(s.amount)}</td>
                         <td className="px-4 py-3"><span className={`rounded-full px-2.5 py-1 text-xs font-bold capitalize ${STATUS_STYLE[s.status] || STATUS_STYLE.cancelled}`}>{s.status === "paid" ? "accepted" : s.status}</span></td>
                         <td className="px-4 py-3 text-xs text-gray-600 dark:text-gray-300">{s.accepted_by || "—"}{s.accepted_at && <p className="text-gray-400">{fmt(s.accepted_at)}</p>}</td>
+                        <td className="px-4 py-3">
+                          {s.status === "pending" && (
+                            <button
+                              onClick={() => { setVerifyRef(s.submission_ref); setVerifyOtp(""); }}
+                              className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-1.5 text-xs font-bold text-amber-700 hover:bg-amber-100 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300"
+                            >
+                              Enter OTP
+                            </button>
+                          )}
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -1057,6 +1095,42 @@ export default function CashInHandPage() {
               </div>
             </div>
           ) : <div className={card}><EmptyState icon={ShieldAlert} title="No cash limits configured" /></div>}
+        </div>
+      )}
+
+      {verifyRef && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl dark:bg-boxdark">
+            <h2 className="text-lg font-black text-dark dark:text-white">Verify Cash Submission</h2>
+            <p className="mt-1 break-all font-mono text-xs text-gray-500">{verifyRef}</p>
+            <label className="mt-5 block text-xs font-bold uppercase tracking-wider text-gray-500">4-Digit OTP</label>
+            <input
+              autoFocus
+              type="text"
+              inputMode="numeric"
+              maxLength={4}
+              value={verifyOtp}
+              onChange={(e) => setVerifyOtp(e.target.value.replace(/\D/g, "").slice(0, 4))}
+              onKeyDown={(e) => { if (e.key === "Enter") void verifySubmission(); }}
+              placeholder="0  0  0  0"
+              className={`${input} mt-2 w-full text-center text-3xl font-black tracking-[0.4em]`}
+            />
+            <div className="mt-5 flex gap-3">
+              <button
+                onClick={() => { setVerifyRef(null); setVerifyOtp(""); }}
+                className="flex-1 rounded-xl border border-stroke px-4 py-2.5 text-sm font-bold text-gray-600 dark:border-dark-3 dark:text-gray-300"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => void verifySubmission()}
+                disabled={verifyLoading || verifyOtp.length !== 4}
+                className="flex-[2] rounded-xl bg-[#ff3d3d] px-4 py-2.5 text-sm font-bold text-white disabled:opacity-50"
+              >
+                {verifyLoading ? "Verifying..." : "Verify & Accept"}
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
